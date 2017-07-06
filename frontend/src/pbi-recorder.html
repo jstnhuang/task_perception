@@ -21,8 +21,13 @@
     </style>
     <div class="layout horizontal center">
       <paper-input class="flex" label="Path" value="~/data/task.bag"></paper-input>
-      <paper-button class="record" hidden$="[[isRecording]]">Record</paper-button>
-      <paper-button class="stop" hidden$="[[!isRecording]]">Stop</paper-button>
+      <paper-button class="record" hidden$="[[isRecording]]"
+        on-tap="startRecording">Record</paper-button>
+      <paper-button class="stop" hidden$="[[!isRecording]]"
+        on-tap="stopRecording">Stop</paper-button>
+    </div>
+    <div>
+      <video src="[[_videoUrl()]]" autoplay="true" preload="none"></video>
     </div>
   </template>
   <script>
@@ -35,6 +40,24 @@
             value: false
           }
         };
+      }
+
+      _videoUrl() {
+        return 'http://' + window.location.hostname + ':8888/streams/head_mount_kinect/rgb/image_color.webm?enc=webm&bitrate=100000&framerate=30';
+      }
+
+      startRecording() {
+        if (this.isRecording) {
+          return;
+        }
+        this.isRecording = true;
+      }
+
+      stopRecording() {
+        if (!this.isRecording) {
+          return;
+        }
+        this.isRecording = false;
       }
     };
 
