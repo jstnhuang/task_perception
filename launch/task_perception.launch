@@ -1,0 +1,4 @@
+<launch>
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+  <node pkg="ros_web_video" type="ros_web_video" name="pbi_video_server" />
+</launch>

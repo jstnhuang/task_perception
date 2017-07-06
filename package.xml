@@ -51,6 +51,8 @@
   <run_depend>actionlib</run_depend>
   <run_depend>dbot_ros</run_depend>
   <run_depend>rosbag</run_depend>
+  <run_depend>rosbridge_server</run_depend>
+  <run_depend>ros_web_video</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>sensor_msgs</run_depend>
