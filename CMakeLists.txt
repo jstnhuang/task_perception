@@ -109,7 +109,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
-    record_video_action_server
+    pbi_record_video_action_server
   CATKIN_DEPENDS
     actionlib
     dbot_ros
@@ -133,31 +133,20 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(record_video_action_server src/record_video_action_server.cpp)
-add_dependencies(record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(record_video_action_server
+add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
+add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_record_video_action_server
   ${catkin_LIBRARIES}
 )
 
 ## Declare a C++ executable
-## With catkin_make all packages are built within a single CMake context
-## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/task_perception_node.cpp)
-
-## Rename C++ executable without prefix
-## The above recommended prefix causes long target names, the following renames the
-## target back to the shorter version for ease of user use
-## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+add_executable(pbi_annotator_node src/annotator_node.cpp)
+set_target_properties(pbi_annotator_node PROPERTIES OUTPUT_NAME annotator PREFIX "")
+add_dependencies(pbi_annotator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_annotator_node
+  pbi_record_video_action_server
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
