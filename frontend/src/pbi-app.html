@@ -1,29 +1,68 @@
-<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
+<link rel="import" href="pbi-recorder.html">
+<link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-app">
   <template>
+    <style is="custom-style" include="shared-styles"></style>
     <style>
       :host {
         display: block;
       }
+      paper-dialog > div {
+        text-align: right;
+      }
     </style>
-    <h2>Hello [[prop1]]!</h2>
+    <ros-websocket id="websocket"
+      auto url="{{websocketUrl}}"
+      on-connection="_onWebsocketConnection"
+      on-error="_onWebsocketError"
+      on-close="_onWebsocketClose"></ros-websocket>
+    <pbi-recorder></pbi-recorder>
+    <paper-dialog id="wsDialog" modal>
+      <h2>Disconnected from the websocket server</h2>
+      <p>Check that the system is running correctly and that the websocket URL below is correct.</p>
+      <paper-input label="Websocket URL" value="{{websocketUrl}}"></paper-input>
+      <div>
+        <paper-button dialog-confirm on-tap="_reconnect">Connect</paper-button>
+      </div>
+    </paper-dialog>
   </template>
 
   <script>
-    /**
-     * @customElement
-     * @polymer
-     */
     class PbiApp extends Polymer.Element {
       static get is() { return 'pbi-app'; }
       static get properties() {
         return {
-          prop1: {
+          websocketUrl: {
             type: String,
-            value: 'pbi-app'
+            value: function() {
+              var hostname = window.location.hostname;
+              var protocol = 'ws:';
+              if (window.location.protocol == 'https:') {
+                protocol = 'wss:'
+              }
+              return protocol + '//' + hostname + ':9090';
+            }
           }
         };
+      }
+
+      _onWebsocketConnection() {
+        this.$.wsDialog.close();
+      }
+      _onWebsocketError() {
+        this.$.wsDialog.open();
+      }
+      _onWebsocketClose() {
+        this.$.wsDialog.open();
+      }
+      _reconnect() {
+        this.$.websocket.connect();
       }
     }
 

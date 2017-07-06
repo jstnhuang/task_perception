@@ -1,0 +1,43 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-recorder">
+  <template>
+    <style is="custom-style" include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+      .record {
+        background-color: var(--paper-green-500);
+        color: #fff;
+      }
+      .stop {
+        background-color: var(--paper-red-500);
+        color: #fff;
+      }
+    </style>
+    <div class="layout horizontal center">
+      <paper-input class="flex" label="Path" value="~/data/task.bag"></paper-input>
+      <paper-button class="record" hidden$="[[isRecording]]">Record</paper-button>
+      <paper-button class="stop" hidden$="[[!isRecording]]">Stop</paper-button>
+    </div>
+  </template>
+  <script>
+    class PbiRecorder extends Polymer.Element {
+      static get is() { return 'pbi-recorder'; }
+      static get properties() {
+        return {
+          isRecording: {
+            type: Boolean,
+            value: false
+          }
+        };
+      }
+    };
+
+    window.customElements.define(PbiRecorder.is, PbiRecorder);
+  </script>
+</dom-module>

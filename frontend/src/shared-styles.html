@@ -1,0 +1,18 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../bower_components/paper-styles/color.html">
+<link rel="import" href="../bower_components/paper-styles/typography.html">
+
+<dom-module id="shared-styles">
+  <template>
+    <style is="custom-style" include="iron-flex iron-flex-alignment"></style>
+    <style>
+      html {
+        @apply(--paper-font-common-base);
+      }
+      paper-button {
+        @apply(--paper-font-button);
+      }
+    </style>
+  </template>
+</dom-module>
