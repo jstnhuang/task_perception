@@ -44,6 +44,7 @@ class RecordVideoActionServer {
   void ColorCallback(const sensor_msgs::Image& image);
   void DepthCallback(const sensor_msgs::Image& image);
 
+  void PublishFeedback(const ros::TimerEvent& event);
   void Finish(const std::string& error);
 
   ros::NodeHandle nh_;

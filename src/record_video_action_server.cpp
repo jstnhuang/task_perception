@@ -67,9 +67,12 @@ void RecordVideoActionServer::Execute(
   transform.rotation.z = tf_transform.getRotation().z();
   current_bag_->write(kCameraTransformTopic, ros::Time::now(), transform);
 
+  ros::Timer timer = nh_.createTimer(
+      ros::Duration(1), &RecordVideoActionServer::PublishFeedback, this);
   while (ros::ok() && !as_.isPreemptRequested()) {
     ros::spinOnce();
   }
+  timer.stop();
   Finish("");
 }
 
@@ -81,7 +84,15 @@ void RecordVideoActionServer::ColorCallback(const sensor_msgs::Image& image) {
 
 void RecordVideoActionServer::DepthCallback(const sensor_msgs::Image& image) {
   if (current_bag_) {
-    current_bag_->write(kColorTopic, image.header.stamp, image);
+    current_bag_->write(kDepthTopic, image.header.stamp, image);
+  }
+}
+
+void RecordVideoActionServer::PublishFeedback(const ros::TimerEvent& event) {
+  if (current_bag_) {
+    task_perception_msgs::RecordVideoFeedback feedback;
+    feedback.bag_size = current_bag_->getSize();
+    as_.publishFeedback(feedback);
   }
 }
 
