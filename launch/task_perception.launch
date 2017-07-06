@@ -1,4 +1,8 @@
 <launch>
-  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
-  <node pkg="ros_web_video" type="ros_web_video" name="pbi_video_server" />
+  <arg name="launch_websocket" default="true" />
+  <include if="$(arg launch_websocket)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+  <node pkg="web_video_server" type="web_video_server" name="pbi_video_server">
+    <param name="port" value="8888" />
+  </node>
+  <node pkg="task_perception" type="annotator" name="pbi_annotator" />
 </launch>
