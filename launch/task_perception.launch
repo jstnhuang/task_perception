@@ -4,5 +4,9 @@
   <node pkg="web_video_server" type="web_video_server" name="pbi_video_server">
     <param name="port" value="8888" />
   </node>
-  <node pkg="task_perception" type="annotator" name="pbi_annotator" />
+  <node pkg="task_perception" type="annotator" name="pbi_annotator">
+    <remap from="color_in" to="/head_mount_kinect/rgb/image_raw" />
+    <remap from="depth_in" to="/head_mount_kinect/depth/image_raw" />
+    <remap from="camera_info" to="/head_mount_kinect/depth/camera_info" />
+  </node>
 </launch>
