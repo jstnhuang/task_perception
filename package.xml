@@ -40,12 +40,22 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>actionlib</build_depend>
   <build_depend>dbot_ros</build_depend>
+  <build_depend>rosbag</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>task_perception_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <run_depend>actionlib</run_depend>
   <run_depend>dbot_ros</run_depend>
+  <run_depend>rosbag</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>task_perception_msgs</run_depend>
+  <run_depend>tf</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
