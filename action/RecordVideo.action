@@ -1,0 +1,5 @@
+string bag_path # Full filename and path of the bag file to save, e.g., "/home/robot/output.bag"
+---
+string error # Empty string if successfull, error message otherwise.
+---
+uint64 bag_size # The estimated size of the bag file (lower bound), in bytes.
