@@ -1,0 +1,32 @@
+<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+
+<dom-module id="pbi-app">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h2>Hello [[prop1]]!</h2>
+  </template>
+
+  <script>
+    /**
+     * @customElement
+     * @polymer
+     */
+    class PbiApp extends Polymer.Element {
+      static get is() { return 'pbi-app'; }
+      static get properties() {
+        return {
+          prop1: {
+            type: String,
+            value: 'pbi-app'
+          }
+        };
+      }
+    }
+
+    window.customElements.define(PbiApp.is, PbiApp);
+  </script>
+</dom-module>

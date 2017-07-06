@@ -1,0 +1,7 @@
+{
+  "name": "pbi",
+  "short_name": "pbi",
+  "description": "Programming by imitation frontend",
+  "start_url": "/",
+  "display": "standalone"
+}
