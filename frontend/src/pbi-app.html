@@ -18,11 +18,11 @@
       }
     </style>
     <ros-websocket id="websocket"
-      auto url="{{websocketUrl}}"
+      auto url="{{websocketUrl}}" ros="{{ros}}"
       on-connection="_onWebsocketConnection"
       on-error="_onWebsocketError"
       on-close="_onWebsocketClose"></ros-websocket>
-    <pbi-recorder></pbi-recorder>
+    <pbi-recorder ros="[[ros]]"></pbi-recorder>
     <paper-dialog id="wsDialog" modal>
       <h2>Disconnected from the websocket server</h2>
       <p>Check that the system is running correctly and that the websocket URL below is correct.</p>

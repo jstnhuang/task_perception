@@ -1,6 +1,7 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/ros-action-client/ros-action-client.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-recorder">
@@ -22,14 +23,23 @@
         width: 100%;
       }
     </style>
+    <ros-action-client
+      id="recordAction"
+      server="record_video"
+      action-type="task_perception_msgs/RecordVideoAction"
+      on-feedback="_handleFeedback"
+      on-result="_handleResult"
+      ros="[[ros]]"
+    ></ros-action-client>
     <div class="layout horizontal center">
-      <paper-input class="flex" label="Path" value="~/data/task.bag"></paper-input>
+      <paper-input class="flex" label="Path" value="{{bagPath}}"></paper-input>
       <paper-button class="record" hidden$="[[_isRecording]]"
         on-tap="startRecording">Record</paper-button>
       <paper-button class="stop" hidden$="[[!_isRecording]]"
         on-tap="stopRecording">Stop</paper-button>
     </div>
     <div>
+      <p>[[_status]]</p>
       <img src="[[_videoUrl()]]"></img>
     </div>
   </template>
@@ -38,9 +48,20 @@
       static get is() { return 'pbi-recorder'; }
       static get properties() {
         return {
+          ros: {
+            type: Object,
+          },
+          bagPath: {
+            type: String,
+            value: '/tmp/task.bag'
+          },
           _isRecording: {
             type: Boolean,
             value: false
+          },
+          _status: {
+            type: String,
+            value: ''
           }
         };
       }
@@ -54,13 +75,30 @@
           return;
         }
         this._isRecording = true;
+        var goal = {
+          bag_path: this.bagPath
+        }
+        this.$.recordAction.send(goal);
       }
 
       stopRecording() {
         if (!this._isRecording) {
           return;
         }
+        this.$.recordAction.cancel();
+      }
+
+      _handleFeedback(evt) {
+        this._status = 'Recording: approx ' + evt.detail.bag_size / 1000000 + ' megabytes';
+      }
+
+      _handleResult(evt) {
         this._isRecording = false;
+        if (evt.detail.error !== '') {
+          this._status = 'Error: ' + evt.detail.error;
+        } else {
+          this._status = 'Done recording.';
+        }
       }
     };
 
