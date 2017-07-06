@@ -18,16 +18,19 @@
         background-color: var(--paper-red-500);
         color: #fff;
       }
+      img {
+        width: 100%;
+      }
     </style>
     <div class="layout horizontal center">
       <paper-input class="flex" label="Path" value="~/data/task.bag"></paper-input>
-      <paper-button class="record" hidden$="[[isRecording]]"
+      <paper-button class="record" hidden$="[[_isRecording]]"
         on-tap="startRecording">Record</paper-button>
-      <paper-button class="stop" hidden$="[[!isRecording]]"
+      <paper-button class="stop" hidden$="[[!_isRecording]]"
         on-tap="stopRecording">Stop</paper-button>
     </div>
     <div>
-      <video src="[[_videoUrl()]]" autoplay="true" preload="none"></video>
+      <img src="[[_videoUrl()]]"></img>
     </div>
   </template>
   <script>
@@ -35,7 +38,7 @@
       static get is() { return 'pbi-recorder'; }
       static get properties() {
         return {
-          isRecording: {
+          _isRecording: {
             type: Boolean,
             value: false
           }
@@ -43,21 +46,21 @@
       }
 
       _videoUrl() {
-        return 'http://' + window.location.hostname + ':8888/streams/head_mount_kinect/rgb/image_color.webm?enc=webm&bitrate=100000&framerate=30';
+        return 'http://' + window.location.hostname + ':8888/stream?topic=/head_mount_kinect/rgb/image_raw';
       }
 
       startRecording() {
-        if (this.isRecording) {
+        if (this._isRecording) {
           return;
         }
-        this.isRecording = true;
+        this._isRecording = true;
       }
 
       stopRecording() {
-        if (!this.isRecording) {
+        if (!this._isRecording) {
           return;
         }
-        this.isRecording = false;
+        this._isRecording = false;
       }
     };
 
