@@ -24,6 +24,8 @@ RecordVideoActionServer::RecordVideoActionServer()
           boost::bind(&RecordVideoActionServer::Execute, this, _1), false),
       current_bag_() {}
 
+void RecordVideoActionServer::Start() { as_.start(); }
+
 void RecordVideoActionServer::Execute(
     const task_perception_msgs::RecordVideoGoalConstPtr& goal) {
   // Get camera info

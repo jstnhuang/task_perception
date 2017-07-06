@@ -37,6 +37,7 @@ const static char kCameraTransformTopic[] = "camera_transform";
 class RecordVideoActionServer {
  public:
   RecordVideoActionServer();
+  void Start();
 
  private:
   void Execute(const task_perception_msgs::RecordVideoGoalConstPtr& goal);
