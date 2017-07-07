@@ -1,4 +1,5 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-image/iron-image.html">
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../bower_components/paper-slider/paper-slider.html">
@@ -12,7 +13,7 @@
       :host {
         display: block;
       }
-      img {
+      iron-image {
         background-color: var(--paper-grey-300);
         width: 100%;
       }
@@ -32,17 +33,15 @@
       topic="pbi_annotator/events"
       ros="[[ros]]"></ros-topic>
     <div class="layout horizontal center">
-      <paper-input class="flex" label="Bag file to annotate" value="{{bagPath}}"></paper-input>
+      <paper-input class="flex" label="Bag file to annotate" value="{{state.bag_path}}"></paper-input>
       <paper-button class="open" on-tap="openFile">Open</paper-button>
       <div class="flex"></div>
       <a href="/recorder">Record a new video</a>
     </div>
-    <div>
-      <img src$="[[_videoUrl]]"></img>
-    </div>
+    <iron-image id="image" src$="[[_videoUrl]]" preload sizing="contain"></iron-image>
     <div class="layout horizontal">
       <paper-slider min="0" max="[[_bagLength]]" step="0.01" immediate-value="{{time}}"
-        pin editable class="flex"></paper-slider>
+        pin editable class="flex" id="scrubber"></paper-slider>
     </div>
   </template>
   <script>
@@ -50,12 +49,15 @@
       static get is() { return 'pbi-annotator'; }
       static get properties() {
         return {
-          bagPath: {
-            type: String,
-            value: '/tmp/task.bag'
-          },
           ros: Object,
-          state: Object,
+          state: {
+            type: Object,
+            value: function() {
+              return {
+                bag_path: '',
+              }
+            }
+          },
           time: {
             type: Number,
             value: 0,
@@ -72,10 +74,19 @@
         };
       }
 
+      connectedCallback() {
+        super.connectedCallback();
+        this.$.image.height = this.$.image.offsetWidth * 0.75;
+      }
+
       openFile() {
+        if (!this.state || !this.state.bag_path) {
+          console.error('No bag file specified.');
+          return;
+        }
         var msg = {
           type: 'open bag',
-          bag_path: this.bagPath
+          bag_path: this.state.bag_path
         };
         this.$.eventPub.publish(msg);
         var msg = {
@@ -93,10 +104,14 @@
         if (!state || !state.bag_length) {
           return 0;
         }
+        this.$.scrubber.value = 0;
         return state.bag_length.secs + state.bag_length.nsecs / 1000000000.0;
       }
 
       _timeChanged(time) {
+        if (!time || isNaN(time)) {
+          return
+        }
         var secs = Math.floor(time);
         var nsecs = Math.round((time - secs) * 1000000000);
         var msg = {
