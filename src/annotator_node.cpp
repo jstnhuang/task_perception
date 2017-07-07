@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 
   pbi::VideoScrubber scrubber;
   ros::Publisher color_pub =
-      nh.advertise<sensor_msgs::Image>("pbi_annotator/image_color", 10, true);
+      nh.advertise<sensor_msgs::Image>("pbi_annotator/image_color", 10);
 
   pbi::AnnotatorServer server(color_pub, scrubber);
   server.Start();
