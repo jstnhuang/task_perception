@@ -7,8 +7,9 @@
 namespace msgs = task_perception_msgs;
 
 namespace pbi {
-AnnotatorServer::AnnotatorServer(const VideoScrubber& scrubber)
-    : scrubber_(scrubber) {}
+AnnotatorServer::AnnotatorServer(const ros::Publisher& color_pub,
+                                 const VideoScrubber& scrubber)
+    : color_pub_(color_pub), scrubber_(scrubber) {}
 
 void AnnotatorServer::Start() {}
 
@@ -19,7 +20,7 @@ void AnnotatorServer::HandleEvent(
   } else if (event.type == msgs::AnnotatorEvent::VIEW_TIME) {
     sensor_msgs::Image image;
     scrubber_.View(event.time, &image);
-    // TODO: publish image
+    color_pub_.publish(image);
   } else {
     ROS_ERROR("Unknown event type: \"%s\"", event.type.c_str());
   }
