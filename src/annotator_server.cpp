@@ -27,7 +27,10 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& color_pub,
       bag_(),
       state_() {}
 
-void AnnotatorServer::Start() { timer_.start(); }
+void AnnotatorServer::Start() {
+  timer_.start();
+  state_pub_.publish(state_);
+}
 
 void AnnotatorServer::HandleEvent(
     const task_perception_msgs::AnnotatorEvent& event) {
@@ -45,7 +48,9 @@ void AnnotatorServer::HandleEvent(
 }
 
 void AnnotatorServer::Loop(const ros::TimerEvent& event) {
-  color_pub_.publish(current_image_);
+  if (!current_image_.header.stamp.isZero()) {
+    color_pub_.publish(current_image_);
+  }
 }
 
 void AnnotatorServer::HandleOpen(const std::string& bag_path) {
@@ -66,6 +71,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   }
   scrubber_.set_images(color_images);
   ROS_INFO("Opened bag: %s", bag_path.c_str());
+  state_.bag_path = bag_path;
   if (color_images.size() == 0) {
     ROS_ERROR("No images in bag!");
     return;
