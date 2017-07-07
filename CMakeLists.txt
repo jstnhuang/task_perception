@@ -109,7 +109,9 @@ find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
+    pbi_annotator_server
     pbi_record_video_action_server
+    pbi_video_scrubber
   CATKIN_DEPENDS
     actionlib
     dbot_ros
@@ -133,9 +135,21 @@ include_directories(
 )
 
 ## Declare a C++ library
+add_library(pbi_annotator_server src/annotator_server.cpp)
+add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_annotator_server
+  ${catkin_LIBRARIES}
+)
+
 add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
 add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_record_video_action_server
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_video_scrubber src/video_scrubber.cpp)
+add_dependencies(pbi_video_scrubber ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
 
@@ -144,7 +158,9 @@ add_executable(pbi_annotator_node src/annotator_node.cpp)
 set_target_properties(pbi_annotator_node PROPERTIES OUTPUT_NAME annotator PREFIX "")
 add_dependencies(pbi_annotator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_node
+  pbi_annotator_server
   pbi_record_video_action_server
+  pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
 
