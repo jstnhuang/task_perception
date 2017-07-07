@@ -1,12 +1,16 @@
 <launch>
+  <arg name="sim" />
   <arg name="launch_websocket" default="true" />
+
   <include if="$(arg launch_websocket)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
-  <node pkg="web_video_server" type="web_video_server" name="pbi_video_server">
+  <node pkg="web_video_server" type="web_video_server" name="pbi_video_server" required="true">
     <param name="port" value="8888" />
   </node>
-  <node pkg="task_perception" type="annotator" name="pbi_annotator">
+  <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true">
     <remap from="color_in" to="/head_mount_kinect/rgb/image_raw" />
-    <remap from="depth_in" to="/head_mount_kinect/depth/image_raw" />
-    <remap from="camera_info" to="/head_mount_kinect/depth/camera_info" />
+    <remap if="$(arg sim)" from="depth_in" to="/head_mount_kinect/depth/image_raw" />
+    <remap unless="$(arg sim)" from="depth_in" to="/head_mount_kinect/depth_registered/image_raw" />
+    <remap if="$(arg sim)" from="camera_info" to="/head_mount_kinect/depth/camera_info" />
+    <remap unless="$(arg sim)" from="camera_info" to="/head_mount_kinect/depth_registered/camera_info" />
   </node>
 </launch>
