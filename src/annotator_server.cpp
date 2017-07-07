@@ -7,6 +7,8 @@
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 
+#include "task_perception/names.h"
+
 namespace msgs = task_perception_msgs;
 using sensor_msgs::Image;
 
@@ -41,7 +43,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   bag_.reset(new rosbag::Bag);
   bag_->open(bag_path, rosbag::bagmode::Read);
   std::vector<std::string> topics;
-  topics.push_back("color_in");
+  topics.push_back(bag::kColorTopic);
   rosbag::View view(*bag_, rosbag::TopicQuery(topics));
   std::vector<Image> color_images;
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {

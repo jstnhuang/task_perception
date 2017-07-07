@@ -29,10 +29,6 @@ namespace pbi {
 // geometry_msgs/Transform to the camera_transform topic. This is only computed
 // and saved once (i.e., we assume that the camera is stationary during the
 // video).
-const static char kColorTopic[] = "color_in";
-const static char kDepthTopic[] = "depth_in";
-const static char kCameraInfoTopic[] = "camera_info";
-const static char kCameraTransformTopic[] = "camera_transform";
 
 class RecordVideoActionServer {
  public:

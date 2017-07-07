@@ -3,6 +3,7 @@
 #include <string>
 
 #include "actionlib/server/simple_action_server.h"
+#include "boost/shared_ptr.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -10,15 +11,15 @@
 #include "task_perception_msgs/RecordVideoAction.h"
 #include "tf/transform_listener.h"
 
-#include "boost/shared_ptr.hpp"
+#include "task_perception/names.h"
 
 namespace pbi {
 RecordVideoActionServer::RecordVideoActionServer()
     : nh_(),
       tf_listener_(),
-      color_sub_(nh_.subscribe(kColorTopic, 100,
+      color_sub_(nh_.subscribe(bag::kColorTopic, 100,
                                &RecordVideoActionServer::ColorCallback, this)),
-      depth_sub_(nh_.subscribe(kDepthTopic, 100,
+      depth_sub_(nh_.subscribe(bag::kDepthTopic, 100,
                                &RecordVideoActionServer::DepthCallback, this)),
       as_(nh_, "record_video",
           boost::bind(&RecordVideoActionServer::Execute, this, _1), false),
@@ -34,7 +35,7 @@ void RecordVideoActionServer::Execute(
                                                           ros::Duration(5));
   if (!camera_info) {
     Finish("Timed out reading from camera info topic: " +
-           ros::names::resolve(kCameraInfoTopic));
+           ros::names::resolve(bag::kCameraInfoTopic));
     return;
   }
 
@@ -45,7 +46,7 @@ void RecordVideoActionServer::Execute(
     Finish("Could not write to bag file: " + goal->bag_path);
     return;
   }
-  current_bag_->write(kCameraInfoTopic, ros::Time::now(), *camera_info);
+  current_bag_->write(bag::kCameraInfoTopic, ros::Time::now(), *camera_info);
 
   // Get camera transform
   tf::StampedTransform tf_transform;
@@ -65,7 +66,7 @@ void RecordVideoActionServer::Execute(
   transform.rotation.x = tf_transform.getRotation().x();
   transform.rotation.y = tf_transform.getRotation().y();
   transform.rotation.z = tf_transform.getRotation().z();
-  current_bag_->write(kCameraTransformTopic, ros::Time::now(), transform);
+  current_bag_->write(bag::kCameraTransformTopic, ros::Time::now(), transform);
 
   ros::Timer timer = nh_.createTimer(
       ros::Duration(1), &RecordVideoActionServer::PublishFeedback, this);
@@ -78,13 +79,13 @@ void RecordVideoActionServer::Execute(
 
 void RecordVideoActionServer::ColorCallback(const sensor_msgs::Image& image) {
   if (current_bag_) {
-    current_bag_->write(kColorTopic, image.header.stamp, image);
+    current_bag_->write(bag::kColorTopic, image.header.stamp, image);
   }
 }
 
 void RecordVideoActionServer::DepthCallback(const sensor_msgs::Image& image) {
   if (current_bag_) {
-    current_bag_->write(kDepthTopic, image.header.stamp, image);
+    current_bag_->write(bag::kDepthTopic, image.header.stamp, image);
   }
 }
 
