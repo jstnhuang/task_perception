@@ -1,10 +1,14 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/app-route/app-location.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../bower_components/paper-dialog/paper-dialog.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
-<link rel="import" href="pbi-recorder.html">
 <link rel="import" href="shared-styles.html">
+<link rel="lazy-import" href="pbi-annotator.html">
+<link rel="lazy-import" href="pbi-recorder.html">
 
 <dom-module id="pbi-app">
   <template>
@@ -12,6 +16,8 @@
     <style>
       :host {
         display: block;
+        max-width: 1024px;
+        margin: 0px auto;
       }
       paper-dialog > div {
         text-align: right;
@@ -22,7 +28,16 @@
       on-connection="_onWebsocketConnection"
       on-error="_onWebsocketError"
       on-close="_onWebsocketClose"></ros-websocket>
-    <pbi-recorder ros="[[ros]]"></pbi-recorder>
+    <app-location route="{{route}}"></app-location>
+    <app-route
+      route="{{route}}"
+      pattern="/:page"
+      data="{{routeData}}"></app-route>
+    <iron-pages selected="[[routeData.page]]"
+        attr-for-selected="name" fallback-selection="annotator">
+      <pbi-annotator name="annotator"></pbi-annotator>
+      <pbi-recorder name="recorder" ros="[[ros]]"></pbi-recorder>
+    </iron-pages>
     <paper-dialog id="wsDialog" modal>
       <h2>Disconnected from the websocket server</h2>
       <p>Check that the system is running correctly and that the websocket URL below is correct.</p>
@@ -51,6 +66,11 @@
           }
         };
       }
+      static get observers() {
+        return [
+          '_routePageChanged(routeData.page)',
+        ];
+      }
 
       _onWebsocketConnection() {
         this.$.wsDialog.close();
@@ -63,6 +83,15 @@
       }
       _reconnect() {
         this.$.websocket.connect();
+      }
+      _routePageChanged(page) {
+        var pageUrl = '';
+        if (page === 'recorder') {
+          pageUrl = this.resolveUrl('pbi-recorder.html');
+        } else { //if (page === 'annotator') {
+          pageUrl = this.resolveUrl('pbi-annotator.html');
+        }
+        Polymer.importHref(pageUrl, null, null, true);
       }
     }
 

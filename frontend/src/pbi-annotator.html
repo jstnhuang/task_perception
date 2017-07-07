@@ -1,0 +1,32 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-annotator">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <div class="layout horizontal center">
+      <h2>Annotator</h2>
+      <div class="flex"> </div>
+      <a href="/recorder">Record a new video</a>
+    </div>
+    <div>
+      <label for="filePicker">Annotate a file:</label>
+      <input name="filePicker" type="file" accept=".bag" />
+    </div>
+  </template>
+  <script>
+    class PbiAnnotator extends Polymer.Element {
+      static get is() { return 'pbi-annotator'; }
+      static get properties() {
+        return {
+        };
+      }
+    };
+    window.customElements.define(PbiAnnotator.is, PbiAnnotator);
+  </script>
+</dom-module>
