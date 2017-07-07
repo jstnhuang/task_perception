@@ -1,6 +1,7 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/paper-slider/paper-slider.html">
 <link rel="import" href="../bower_components/ros-topic/ros-topic.html">
 <link rel="import" href="shared-styles.html">
 
@@ -39,6 +40,10 @@
     <div>
       <img src$="[[_videoUrl]]"></img>
     </div>
+    <div class="layout horizontal">
+      <paper-slider min="0" max="[[_bagLength]]" step="0.01" immediate-value="{{time}}"
+        pin editable class="flex"></paper-slider>
+    </div>
   </template>
   <script>
     class PbiAnnotator extends Polymer.Element {
@@ -51,10 +56,19 @@
           },
           ros: Object,
           state: Object,
+          time: {
+            type: Number,
+            value: 0,
+            observer: '_timeChanged'
+          },
+          _bagLength: {
+            type: Number,
+            computed: '_computeBagLength(state)'
+          },
           _videoUrl: {
             type: String,
             value: 'http://' + window.location.hostname + ':8888/stream?topic=/pbi_annotator/image_color'
-          }
+          },
         };
       }
 
@@ -69,6 +83,27 @@
           time: {
             secs: 0,
             nsecs: 0
+          }
+        };
+        this.$.eventPub.publish(msg);
+      }
+
+      // Return the bag length, in seconds.
+      _computeBagLength(state) {
+        if (!state || !state.bag_length) {
+          return 0;
+        }
+        return state.bag_length.secs + state.bag_length.nsecs / 1000000000.0;
+      }
+
+      _timeChanged(time) {
+        var secs = Math.floor(time);
+        var nsecs = Math.round((time - secs) * 1000000000);
+        var msg = {
+          type: 'view time',
+          time: {
+            secs: secs,
+            nsecs: nsecs
           }
         };
         this.$.eventPub.publish(msg);
