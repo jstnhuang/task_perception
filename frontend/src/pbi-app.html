@@ -35,7 +35,7 @@
       data="{{routeData}}"></app-route>
     <iron-pages selected="[[routeData.page]]"
         attr-for-selected="name" fallback-selection="annotator">
-      <pbi-annotator name="annotator"></pbi-annotator>
+      <pbi-annotator name="annotator" ros="[[ros]]"></pbi-annotator>
       <pbi-recorder name="recorder" ros="[[ros]]"></pbi-recorder>
     </iron-pages>
     <paper-dialog id="wsDialog" modal>

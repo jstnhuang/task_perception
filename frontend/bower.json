@@ -10,7 +10,9 @@
     "iron-flex-layout": "PolymerElements/iron-flex-layout#^2.0.0",
     "paper-dialog": "PolymerElements/paper-dialog#^2.0.0",
     "app-route": "PolymerElements/app-route#^2.0.0",
-    "iron-pages": "PolymerElements/iron-pages#^2.0.0"
+    "iron-pages": "PolymerElements/iron-pages#^2.0.0",
+    "ros-websocket": "jstnhuang/ros-websocket#^3.0.1",
+    "ros-topic": "jstnhuang/ros-topic#^1.0.0"
   },
   "devDependencies": {
     "web-component-tester": "Polymer/web-component-tester#^6.0.0",

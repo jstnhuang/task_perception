@@ -1,4 +1,7 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/ros-topic/ros-topic.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-annotator">
@@ -8,15 +11,33 @@
       :host {
         display: block;
       }
+      img {
+        background-color: var(--paper-grey-300);
+        width: 100%;
+      }
+      .open {
+        background-color: var(--paper-green-500);
+        color: #fff;
+      }
     </style>
+    <ros-topic auto
+      last-message="{{state}}"
+      msg-type="task_perception_msgs/AnnotatorState"
+      topic="pbi_annotator/state"
+      ros="[[ros]]"></ros-topic>
+    <ros-topic
+      id="eventPub"
+      msg-type="task_perception_msgs/AnnotatorEvent"
+      topic="pbi_annotator/events"
+      ros="[[ros]]"></ros-topic>
     <div class="layout horizontal center">
-      <h2>Annotator</h2>
-      <div class="flex"> </div>
+      <paper-input class="flex" label="Bag file to annotate" value="{{bagPath}}"></paper-input>
+      <paper-button class="open" on-tap="openFile">Open</paper-button>
+      <div class="flex"></div>
       <a href="/recorder">Record a new video</a>
     </div>
     <div>
-      <label for="filePicker">Annotate a file:</label>
-      <input name="filePicker" type="file" accept=".bag" />
+      <img src$="[[_videoUrl]]"></img>
     </div>
   </template>
   <script>
@@ -24,7 +45,33 @@
       static get is() { return 'pbi-annotator'; }
       static get properties() {
         return {
+          bagPath: {
+            type: String,
+            value: '/tmp/task.bag'
+          },
+          ros: Object,
+          state: Object,
+          _videoUrl: {
+            type: String,
+            value: 'http://' + window.location.hostname + ':8888/stream?topic=/pbi_annotator/image_color'
+          }
         };
+      }
+
+      openFile() {
+        var msg = {
+          type: 'open bag',
+          bag_path: this.bagPath
+        };
+        this.$.eventPub.publish(msg);
+        var msg = {
+          type: 'view time',
+          time: {
+            secs: 0,
+            nsecs: 0
+          }
+        };
+        this.$.eventPub.publish(msg);
       }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);
