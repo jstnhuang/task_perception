@@ -14,7 +14,8 @@
     "ros-websocket": "jstnhuang/ros-websocket#^3.0.1",
     "ros-topic": "jstnhuang/ros-topic#^1.0.0",
     "paper-slider": "PolymerElements/paper-slider#^2.0.2",
-    "iron-image": "PolymerElements/iron-image#^2.1.1"
+    "iron-image": "PolymerElements/iron-image#^2.1.1",
+    "ros-rviz": "jstnhuang/ros-rviz#^1.0.5"
   },
   "devDependencies": {
     "web-component-tester": "Polymer/web-component-tester#^6.0.0",

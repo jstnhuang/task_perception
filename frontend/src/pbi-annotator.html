@@ -4,6 +4,7 @@
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../bower_components/paper-slider/paper-slider.html">
 <link rel="import" href="../bower_components/ros-topic/ros-topic.html">
+<link rel="import" href="../bower_components/ros-rviz/ros-rviz.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-annotator">
@@ -12,6 +13,7 @@
     <style>
       :host {
         display: block;
+        height: 100%;
       }
       iron-image {
         background-color: var(--paper-grey-300);
@@ -20,6 +22,13 @@
       .open {
         background-color: var(--paper-green-500);
         color: #fff;
+      }
+      ros-rviz {
+        display: block;
+        width: 100%;
+      }
+      .main {
+        height: 100%;
       }
     </style>
     <ros-topic auto
@@ -32,16 +41,18 @@
       msg-type="task_perception_msgs/AnnotatorEvent"
       topic="pbi_annotator/events"
       ros="[[ros]]"></ros-topic>
-    <div class="layout horizontal center">
-      <paper-input class="flex" label="Bag file to annotate" value="{{state.bag_path}}"></paper-input>
-      <paper-button class="open" on-tap="openFile">Open</paper-button>
-      <div class="flex"></div>
-      <a href="/recorder">Record a new video</a>
-    </div>
-    <iron-image id="image" src$="[[_videoUrl]]" preload sizing="contain"></iron-image>
-    <div class="layout horizontal">
-      <paper-slider min="0" max="[[_bagLength]]" step="0.01" immediate-value="{{time}}"
-        pin editable class="flex" id="scrubber"></paper-slider>
+    <div class="main layout vertical">
+      <div class="layout horizontal center">
+        <paper-input class="flex" label="Bag file to annotate" value="{{state.bag_path}}"></paper-input>
+        <paper-button class="open" on-tap="openFile">Open</paper-button>
+        <div class="flex"></div>
+        <a href="/recorder">Record a new video</a>
+      </div>
+      <ros-rviz id="rviz" class="flex" global-options="{{globalOptions}}" ros="[[ros]]"></ros-rviz>
+      <div class="layout horizontal">
+        <paper-slider min="0" max="[[_bagLength]]" step="0.01" immediate-value="{{time}}"
+          pin editable class="flex" id="scrubber"></paper-slider>
+      </div>
     </div>
   </template>
   <script>
@@ -49,6 +60,15 @@
       static get is() { return 'pbi-annotator'; }
       static get properties() {
         return {
+          globalOptions: {
+            type: Object,
+            value: function() {
+              return {
+                fixedFrame: '/base_link',
+                background: '#113344',
+              };
+            }
+          },
           ros: Object,
           state: {
             type: Object,
@@ -76,7 +96,53 @@
 
       connectedCallback() {
         super.connectedCallback();
-        this.$.image.height = this.$.image.offsetWidth * 0.75;
+        //this.$.image.height = this.$.image.offsetWidth * 0.75;
+
+        var config = {
+          globalOptions: {
+            fixedFrame: '/base_link',
+            background: '#113344',
+          },
+          displays: [
+            {
+              isShown: true,
+              name: 'Grid',
+              type: 'grid',
+              options: {
+                cellSize: 1,
+                color: '#cccccc',
+                numCells: 20,
+              },
+            }, {
+              isShown: false,
+              name: 'Objects',
+              type: 'markers',
+              options: {
+                topic: '/pbi_annotator/object_tracking_viz',
+              },
+            },
+          ],
+          sidebarOpened: false,
+        };
+
+        this.$.rviz.loadConfig(config);
+        this._depthCloud = new ROS3D.DepthCloud({
+          url: 'http://' + window.location.hostname + ':8888/streams/depthcloud_encoded.webm?enc=webm&bitrate=250000&framerate=15',
+          f: 525.0,
+          pointSize: 1,
+        });
+        this._depthCloud.startStream();
+        this._kinectNode = new ROS3D.SceneNode({
+          frameID: '/pbi_annotator/camera_frame',
+          tfClient: this.$.rviz.tfClient,
+          object: this._depthCloud
+        });
+
+        var that = this;
+        setTimeout(function() {
+        console.log(this.$.rviz, this.$.rviz._viewer);
+          this.$.rviz._viewer.scene.add(this._kinectNode);
+        }.bind(this), 0);
       }
 
       openFile() {

@@ -19,7 +19,7 @@
         background-color: var(--paper-red-500);
         color: #fff;
       }
-      img {
+      video {
         width: 100%;
       }
     </style>
@@ -41,7 +41,7 @@
     </div>
     <div>
       <p>[[_status]]</p>
-      <img src="[[_videoUrl()]]"></img>
+      <video src="[[_videoUrl]]" autoplay="true" preload="none"></video>
     </div>
   </template>
   <script>
@@ -63,6 +63,10 @@
           _status: {
             type: String,
             value: ''
+          },
+          _videoUrl: {
+            type: String,
+            value: 'http://' + window.location.hostname + ':8888/streams/head_mount_kinect/rgb/image_color.webm?enc=webm&bitrate=250000&framerate=15'
           }
         };
       }
