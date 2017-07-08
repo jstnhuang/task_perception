@@ -3,8 +3,21 @@
   <arg name="launch_websocket" default="true" />
 
   <include if="$(arg launch_websocket)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
-  <node pkg="web_video_server" type="web_video_server" name="pbi_video_server" required="true">
+  <node pkg="ros_web_video" type="ros_web_video" name="pbi_video_server" required="true">
     <param name="port" value="8888" />
+    <param name="framerate" value="15" />
+    <param name="bitrate" value="250000" />
+    <param name="profile" value="best" />
+  </node>
+  <node pkg="tf2_web_republisher" type="tf2_web_republisher" name="tf2_web_republisher" />
+  <node pkg="nodelet" type="nodelet" name="pbi_convert_metric" args="standalone depth_image_proc/convert_metric">
+    <remap from="image_raw" to="pbi_annotator/image_depth" />
+    <remap from="image" to="pbi_annotator/image_depth_float" />
+  </node>
+  <node pkg="depthcloud_encoder" type="depthcloud_encoder_node" name="pbi_depthcloud_encoder">
+    <param name="rgb" value="/pbi_annotator/image_color" />
+    <param name="depth" value="/pbi_annotator/image_depth_float" />
+    <param name="camera_frame_id" value="/head_mount_kinect_rgb_optical_frame" />
   </node>
   <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true">
     <remap from="color_in" to="/head_mount_kinect/rgb/image_raw" />
