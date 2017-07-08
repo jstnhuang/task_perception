@@ -6,30 +6,41 @@
 #include "boost/shared_ptr.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
+#include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "task_perception/video_scrubber.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
+#include "tf/transform_broadcaster.h"
 
 namespace pbi {
 class AnnotatorServer {
  public:
-  AnnotatorServer(const ros::Publisher& color_pub,
+  AnnotatorServer(const ros::Publisher& camera_info_pub,
+                  const ros::Publisher& color_pub,
+                  const ros::Publisher& depth_pub,
                   const ros::Publisher& state_pub,
-                  const VideoScrubber& scrubber);
+                  const tf::TransformBroadcaster& tf_broadcaster);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
 
  private:
   void Loop(const ros::TimerEvent& event);
   void HandleOpen(const std::string& bag_path);
+  ros::Publisher camera_info_pub_;
   ros::Publisher color_pub_;
+  ros::Publisher depth_pub_;
   ros::Publisher state_pub_;
-  VideoScrubber scrubber_;
+  tf::TransformBroadcaster tf_broadcaster_;
 
   ros::NodeHandle nh_;
   ros::Timer timer_;
-  sensor_msgs::Image current_image_;
+  VideoScrubber color_scrubber_;
+  VideoScrubber depth_scrubber_;
+  sensor_msgs::CameraInfo current_camera_info_;
+  sensor_msgs::Image current_color_image_;
+  sensor_msgs::Image current_depth_image_;
+  geometry_msgs::Transform camera_frame_;
   boost::shared_ptr<rosbag::Bag> bag_;
   task_perception_msgs::AnnotatorState state_;
 };
