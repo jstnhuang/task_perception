@@ -51,7 +51,7 @@ void RecordVideoActionServer::Execute(
   // Get camera transform
   tf::StampedTransform tf_transform;
   try {
-    tf_listener_.lookupTransform(camera_info->header.frame_id, "base_link",
+    tf_listener_.lookupTransform(kBaseFrame, camera_info->header.frame_id,
                                  ros::Time(0), tf_transform);
   } catch (tf::TransformException& ex) {
     Finish("Could not get transform from base_link to " +
