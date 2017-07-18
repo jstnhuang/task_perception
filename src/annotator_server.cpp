@@ -1,8 +1,13 @@
 #include "task_perception/annotator_server.h"
 
+#include <map>
+#include <memory>
+
 #include "boost/shared_ptr.hpp"
+#include "dbot/object_resource_identifier.h"
 #include "geometry_msgs/Transform.h"
 #include "geometry_msgs/TransformStamped.h"
+#include "ros/package.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
@@ -13,9 +18,12 @@
 #include "tf/transform_broadcaster.h"
 
 #include "task_perception/names.h"
+#include "task_perception/track.h"
 
 namespace msgs = task_perception_msgs;
 using sensor_msgs::Image;
+typedef dbot::ObjectTrackerRos<dbot::ParticleTracker> ParticleTrackerRos;
+typedef std::shared_ptr<ParticleTrackerRos> ParticleTrackerRosPtr;
 
 namespace pbi {
 AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
@@ -36,7 +44,8 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
       current_color_image_(),
       current_depth_image_(),
       bag_(),
-      state_() {}
+      state_(),
+      tracks_() {}
 
 void AnnotatorServer::Start() {
   timer_.start();
@@ -51,6 +60,10 @@ void AnnotatorServer::HandleEvent(
     } else if (event.type == msgs::AnnotatorEvent::VIEW_TIME) {
       color_scrubber_.View(event.time, &current_color_image_);
       depth_scrubber_.View(event.time, &current_depth_image_);
+    } else if (event.type == msgs::AnnotatorEvent::VIEW_DEPTH_FRAME) {
+      HandleViewDepthFrame(event.depth_frame);
+    } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
+      HandleAddObject(event.mesh_name);
     } else {
       ROS_ERROR("Unknown event type: \"%s\"", event.type.c_str());
     }
@@ -130,5 +143,32 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   state_.bag_length =
       color_images.back().header.stamp - color_images[0].header.stamp;
   state_pub_.publish(state_);
+}
+
+void AnnotatorServer::HandleViewDepthFrame(int frame_index) {
+  // TODO: implement
+}
+
+void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
+  // TODO: we assume object exists since the beginning of the demonstration
+  // i.e., depth_frame is 0.
+  if (tracks_.find(mesh_name) == tracks_.end()) {
+    dbot::ObjectResourceIdentifier ori;
+    BuildOri(nh_, mesh_name, &ori);
+    Track track(nh_, ori);
+    tracks_[mesh_name] = track;
+    ROS_INFO("Created tracker for %s", mesh_name.c_str());
+  }
+}
+
+void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
+              dbot::ObjectResourceIdentifier* ori) {
+  std::string object_package;
+  std::string object_directory;
+  nh.getParam("object/package", object_package);
+  nh.getParam("object/directory", object_directory);
+  ori->package_path(ros::package::getPath(object_package));
+  ori->directory(object_directory);
+  ori->meshes({mesh_name});
 }
 }  // namespace pbi

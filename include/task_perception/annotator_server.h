@@ -1,9 +1,12 @@
 #ifndef _PBI_ANNOTATOR_SERVER_H_
 #define _PBI_ANNOTATOR_SERVER_H_
 
+#include <map>
+#include <memory>
 #include <string>
 
 #include "boost/shared_ptr.hpp"
+#include "dbot/object_resource_identifier.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -12,6 +15,8 @@
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "tf/transform_broadcaster.h"
+
+#include "task_perception/track.h"
 
 namespace pbi {
 class AnnotatorServer {
@@ -27,6 +32,8 @@ class AnnotatorServer {
  private:
   void Loop(const ros::TimerEvent& event);
   void HandleOpen(const std::string& bag_path);
+  void HandleViewDepthFrame(int frame_index);
+  void HandleAddObject(const std::string& mesh_name);
   ros::Publisher camera_info_pub_;
   ros::Publisher color_pub_;
   ros::Publisher depth_pub_;
@@ -43,7 +50,12 @@ class AnnotatorServer {
   geometry_msgs::Transform camera_frame_;
   boost::shared_ptr<rosbag::Bag> bag_;
   task_perception_msgs::AnnotatorState state_;
+
+  std::map<std::string, Track> tracks_;
 };
+
+void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
+              dbot::ObjectResourceIdentifier* ori);
 }  // namespace pbi
 
 #endif  // _PBI_ANNOTATOR_SERVER_H_
