@@ -1,7 +1,7 @@
 #include "task_perception/annotator_server.h"
 
+#include <map>
 #include <memory>
-#include <vector>
 
 #include "boost/shared_ptr.hpp"
 #include "dbot/object_resource_identifier.h"
@@ -153,11 +153,14 @@ void AnnotatorServer::HandleViewDepthFrame(int frame_index) {
 void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
   // TODO: we assume object exists since the beginning of the demonstration
   // i.e., depth_frame is 0.
-  dbot::ObjectResourceIdentifier ori;
-  BuildOri(nh_, mesh_name, &ori);
-  Track track(nh_, ori);
-  tracks_.push_back(track);
-  ROS_INFO("Created tracker for %s", mesh_name.c_str());
+  if (tracks_.find(mesh_name) == tracks_.end()) {
+    dbot::ObjectResourceIdentifier ori;
+    BuildOri(nh_, mesh_name, &ori);
+    Track track(nh_, ori);
+    tracks_.insert(std::pair<std::string, Track>(mesh_name, track));
+
+    ROS_INFO("Created tracker for %s", mesh_name.c_str());
+  }
 }
 
 void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,

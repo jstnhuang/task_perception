@@ -1,9 +1,9 @@
 #ifndef _PBI_ANNOTATOR_SERVER_H_
 #define _PBI_ANNOTATOR_SERVER_H_
 
+#include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "boost/shared_ptr.hpp"
 #include "dbot/object_resource_identifier.h"
@@ -51,7 +51,7 @@ class AnnotatorServer {
   boost::shared_ptr<rosbag::Bag> bag_;
   task_perception_msgs::AnnotatorState state_;
 
-  std::vector<Track> tracks_;
+  std::map<std::string, Track> tracks_;
 };
 
 void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
