@@ -18,7 +18,8 @@ void VideoScrubber::set_images(const std::vector<sensor_msgs::Image>& images) {
   images_ = images;
 }
 
-void VideoScrubber::View(const ros::Duration& time, sensor_msgs::Image* image) {
+void VideoScrubber::View(const ros::Duration& time,
+                         sensor_msgs::Image* image) const {
   if (images_.size() == 0) {
     return;
   }
@@ -31,4 +32,16 @@ void VideoScrubber::View(const ros::Duration& time, sensor_msgs::Image* image) {
   }
   *image = *it;
 }
+
+void VideoScrubber::View(const int frame_index,
+                         sensor_msgs::Image* image) const {
+  if (frame_index < 0 ||
+      static_cast<std::vector<sensor_msgs::Image>::size_type>(frame_index) >=
+          images_.size()) {
+    return;
+  }
+  *image = images_[frame_index];
+}
+
+int VideoScrubber::num_images() const { return images_.size(); }
 }  // namespace pbi

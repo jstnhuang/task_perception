@@ -10,7 +10,9 @@ class VideoScrubber {
  public:
   VideoScrubber();
   void set_images(const std::vector<sensor_msgs::Image>& images);
-  void View(const ros::Duration& time, sensor_msgs::Image* image);
+  void View(const ros::Duration& time, sensor_msgs::Image* image) const;
+  void View(const int frame_index, sensor_msgs::Image* image) const;
+  int num_images() const;
 
  private:
   std::vector<sensor_msgs::Image> images_;

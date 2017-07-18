@@ -147,7 +147,15 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
 }
 
 void AnnotatorServer::HandleViewDepthFrame(int frame_index) {
-  // TODO: implement
+  for (auto& kv : tracks_) {
+    Track& track = kv.second;
+    if (frame_index < track.current_frame_index()) {
+      track.Reset();
+    }
+    while (track.current_frame_index() <= frame_index) {
+      track.Step();
+    }
+  }
 }
 
 void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
@@ -156,7 +164,7 @@ void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
   if (tracks_.find(mesh_name) == tracks_.end()) {
     dbot::ObjectResourceIdentifier ori;
     BuildOri(nh_, mesh_name, &ori);
-    Track track(nh_, ori);
+    Track track(nh_, ori, &depth_scrubber_);
     tracks_.insert(std::pair<std::string, Track>(mesh_name, track));
 
     ROS_INFO("Created tracker for %s", mesh_name.c_str());

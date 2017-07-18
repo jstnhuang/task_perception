@@ -10,11 +10,14 @@
 #include "dbot_ros/object_tracker_ros.h"
 #include "ros/ros.h"
 
+#include "task_perception/video_scrubber.h"
+
 namespace pbi {
 // Represents the tracking of a single object for a period of time.
 class Track {
  public:
-  Track(const ros::NodeHandle& nh, const dbot::ObjectResourceIdentifier& ori);
+  Track(const ros::NodeHandle& nh, const dbot::ObjectResourceIdentifier& ori,
+        VideoScrubber* depth_scrubber_);
 
   // Step once through the track.
   void Step();
@@ -27,6 +30,8 @@ class Track {
  private:
   ros::NodeHandle nh_;
   std::shared_ptr<dbot::ObjectTrackerRos<dbot::ParticleTracker> > tracker_;
+  VideoScrubber* depth_scrubber_;
+
   int current_frame_index_;
   dbot::ObjectStatePublisher state_pub_;
 };
