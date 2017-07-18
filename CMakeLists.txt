@@ -171,13 +171,6 @@ target_link_libraries(pbi_annotator_node
   ${catkin_LIBRARIES}
 )
 
-#add_executable(pbi_particle_tracker_node src/particle_tracker_node.cpp)
-#set_target_properties(pbi_particle_tracker_node PROPERTIES OUTPUT_NAME particle_tracker PREFIX "")
-#add_dependencies(pbi_particle_tracker_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(pbi_particle_tracker_node
-#  ${catkin_LIBRARIES}
-#)
-
 #############
 ## Install ##
 #############
