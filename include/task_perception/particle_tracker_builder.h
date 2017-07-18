@@ -27,6 +27,9 @@ class ParticleTrackerBuilder {
   ros::NodeHandle nh_;
   dbot::ObjectResourceIdentifier ori_;
 };
+
+void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
+              dbot::ObjectResourceIdentifier* ori);
 }  // namespace pbi
 
 #endif  // _PBI_PARTICLE_TRACKER_BUILDER_H_

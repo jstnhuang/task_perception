@@ -18,6 +18,7 @@
 #include "tf/transform_broadcaster.h"
 
 #include "task_perception/names.h"
+#include "task_perception/particle_tracker_builder.h"
 #include "task_perception/track.h"
 #include "task_perception/video_scrubber.h"
 
@@ -169,16 +170,5 @@ void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
 
     ROS_INFO("Created tracker for %s", mesh_name.c_str());
   }
-}
-
-void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
-              dbot::ObjectResourceIdentifier* ori) {
-  std::string object_package;
-  std::string object_directory;
-  nh.getParam("object/package", object_package);
-  nh.getParam("object/directory", object_directory);
-  ori->package_path(ros::package::getPath(object_package));
-  ori->directory(object_directory);
-  ori->meshes({mesh_name});
 }
 }  // namespace pbi

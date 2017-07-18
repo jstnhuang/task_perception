@@ -190,4 +190,15 @@ std::shared_ptr<ParticleTrackerRos> ParticleTrackerBuilder::BuildRos() {
       new ParticleTrackerRos(tracker, camera_data, ori_.count_meshes()));
   return ros_tracker;
 }
+
+void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
+              dbot::ObjectResourceIdentifier* ori) {
+  std::string object_package;
+  std::string object_directory;
+  nh.getParam("object/package", object_package);
+  nh.getParam("object/directory", object_directory);
+  ori->package_path(ros::package::getPath(object_package));
+  ori->directory(object_directory);
+  ori->meshes({mesh_name});
+}
 }  // namespace pbi

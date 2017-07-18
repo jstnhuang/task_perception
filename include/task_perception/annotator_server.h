@@ -53,9 +53,6 @@ class AnnotatorServer {
 
   std::map<std::string, Track> tracks_;
 };
-
-void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
-              dbot::ObjectResourceIdentifier* ori);
 }  // namespace pbi
 
 #endif  // _PBI_ANNOTATOR_SERVER_H_

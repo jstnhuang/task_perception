@@ -140,6 +140,7 @@ include_directories(
 add_library(pbi_annotator_server src/annotator_server.cpp)
 add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_server
+  pbi_particle_tracker_builder
   pbi_track
   pbi_video_scrubber
   ${catkin_LIBRARIES}
