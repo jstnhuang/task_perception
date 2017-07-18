@@ -112,6 +112,7 @@ catkin_package(
     pbi_annotator_server
     pbi_particle_tracker_builder
     pbi_record_video_action_server
+    pbi_track
     pbi_video_scrubber
   CATKIN_DEPENDS
     actionlib
@@ -139,6 +140,8 @@ include_directories(
 add_library(pbi_annotator_server src/annotator_server.cpp)
 add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_server
+  pbi_track
+  pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
 
@@ -151,6 +154,13 @@ target_link_libraries(pbi_particle_tracker_builder
 add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
 add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_record_video_action_server
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_track src/track.cpp)
+add_dependencies(pbi_track ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_track
+  pbi_particle_tracker_builder
   ${catkin_LIBRARIES}
 )
 
