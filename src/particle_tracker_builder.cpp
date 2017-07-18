@@ -9,19 +9,18 @@
 #include "dbot/simple_wavefront_object_loader.h"
 #include "dbot/tracker/particle_tracker.h"
 #include "dbot_ros/util/ros_camera_data_provider.h"
-#include "ros/package.h"
 #include "ros/ros.h"
 
 using dbot::ParticleTracker;
 typedef dbot::ObjectTrackerRos<ParticleTracker> ParticleTrackerRos;
 
 namespace pbi {
-ParticleTrackerBuilder::ParticleTrackerBuilder(const ros::NodeHandle nh)
-    : nh_(nh), object_meshes_() {}
+ParticleTrackerBuilder::ParticleTrackerBuilder(const ros::NodeHandle& nh)
+    : nh_(nh), ori_() {}
 
-void ParticleTrackerBuilder::set_object_meshes(
-    const std::vector<std::string>& object_meshes) {
-  object_meshes_ = object_meshes;
+void ParticleTrackerBuilder::set_object(
+    const dbot::ObjectResourceIdentifier& ori) {
+  ori_ = ori;
 }
 
 std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
@@ -42,16 +41,12 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
 
   // Use the ORI to load the object model usign the
   // SimpleWavefrontObjectLoader
-  if (object_meshes_.size() == 0) {
+  if (ori_.count_meshes() == 0) {
     return nullptr;
   }
-  dbot::ObjectResourceIdentifier ori;
-  ori.package_path(ros::package::getPath(object_package));
-  ori.directory(object_directory);
-  ori.meshes(object_meshes_);
 
   auto object_model_loader = std::shared_ptr<dbot::ObjectModelLoader>(
-      new dbot::SimpleWavefrontObjectModelLoader(ori));
+      new dbot::SimpleWavefrontObjectModelLoader(ori_));
 
   // Load the model usign the simple wavefront load and center the frames
   // of all object part meshes
@@ -112,7 +107,7 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
 
   nh_.getParam(pre + "object_transition/velocity_factor",
                params_state.velocity_factor);
-  params_state.part_count = object_meshes_.size();
+  params_state.part_count = ori_.count_meshes();
 
   auto state_trans_builder = std::shared_ptr<TransitionBuilder>(
       new dbot::ObjectTransitionBuilder<State>(params_state));
@@ -192,7 +187,7 @@ std::shared_ptr<ParticleTrackerRos> ParticleTrackerBuilder::BuildRos() {
   auto camera_data = std::make_shared<dbot::CameraData>(camera_data_provider);
 
   std::shared_ptr<ParticleTrackerRos> ros_tracker(
-      new ParticleTrackerRos(tracker, camera_data, object_meshes_.size()));
+      new ParticleTrackerRos(tracker, camera_data, ori_.count_meshes()));
   return ros_tracker;
 }
 }  // namespace pbi
