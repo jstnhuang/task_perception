@@ -39,7 +39,7 @@ flags = [
 '-Wextra',
 '-Wno-unused-parameter',
 '-fno-strict-aliasing',
-#'-std=c++0x',
+'-std=c++11',
 '-x',
 'c++',
 '-isystem',
@@ -59,7 +59,14 @@ flags = [
 '-I',
 '/usr/local/caffe/include',
 '-I',
-'/usr/local/cuda/include'
+'/usr/local/cuda/include',
+'-I',
+'../dbot/source',
+'-I',
+'../dbot_ros/source',
+'-I',
+'../fl/include',
+'-I',
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
