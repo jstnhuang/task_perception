@@ -30,6 +30,8 @@ class ParticleTrackerBuilder {
 
 void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
               dbot::ObjectResourceIdentifier* ori);
+
+std::shared_ptr<dbot::CameraData> BuildCameraData(const ros::NodeHandle& nh);
 }  // namespace pbi
 
 #endif  // _PBI_PARTICLE_TRACKER_BUILDER_H_

@@ -168,24 +168,7 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
 
 std::shared_ptr<ParticleTrackerRos> ParticleTrackerBuilder::BuildRos() {
   auto tracker = Build();
-
-  int downsampling_factor;
-  std::string camera_info_topic;
-  std::string depth_image_topic;
-  dbot::CameraData::Resolution resolution;
-  nh_.getParam("camera_info_topic", camera_info_topic);
-  nh_.getParam("depth_image_topic", depth_image_topic);
-  nh_.getParam("downsampling_factor", downsampling_factor);
-  nh_.getParam("resolution/width", resolution.width);
-  nh_.getParam("resolution/height", resolution.height);
-
-  auto camera_data_provider = std::shared_ptr<dbot::CameraDataProvider>(
-      new dbot::RosCameraDataProvider(nh_, camera_info_topic, depth_image_topic,
-                                      resolution, downsampling_factor, 60.0));
-  // Create camera data from the RosCameraDataProvider which takes the data
-  // from a ros camera topic
-  auto camera_data = std::make_shared<dbot::CameraData>(camera_data_provider);
-
+  auto camera_data = BuildCameraData(nh_);
   std::shared_ptr<ParticleTrackerRos> ros_tracker(
       new ParticleTrackerRos(tracker, camera_data, ori_.count_meshes()));
   return ros_tracker;
@@ -200,5 +183,23 @@ void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
   ori->package_path(ros::package::getPath(object_package));
   ori->directory(object_directory);
   ori->meshes({mesh_name});
+}
+
+std::shared_ptr<dbot::CameraData> BuildCameraData(const ros::NodeHandle& nh) {
+  int downsampling_factor;
+  std::string camera_info_topic;
+  std::string depth_image_topic;
+  dbot::CameraData::Resolution resolution;
+  nh.getParam("camera_info_topic", camera_info_topic);
+  nh.getParam("depth_image_topic", depth_image_topic);
+  nh.getParam("downsampling_factor", downsampling_factor);
+  nh.getParam("resolution/width", resolution.width);
+  nh.getParam("resolution/height", resolution.height);
+  auto camera_data_provider = std::shared_ptr<dbot::CameraDataProvider>(
+      new dbot::RosCameraDataProvider(nh, camera_info_topic, depth_image_topic,
+                                      resolution, downsampling_factor, 60.0));
+  // Create camera data from the RosCameraDataProvider which takes the data
+  // from a ros camera topic
+  return std::make_shared<dbot::CameraData>(camera_data_provider);
 }
 }  // namespace pbi
