@@ -7,6 +7,7 @@
 
 #include "boost/shared_ptr.hpp"
 #include "dbot/object_resource_identifier.h"
+#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -25,7 +26,8 @@ class AnnotatorServer {
                   const ros::Publisher& color_pub,
                   const ros::Publisher& depth_pub,
                   const ros::Publisher& state_pub,
-                  const tf::TransformBroadcaster& tf_broadcaster);
+                  const tf::TransformBroadcaster& tf_broadcaster,
+                  const std::string& camera_frame);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
 
@@ -39,6 +41,7 @@ class AnnotatorServer {
   ros::Publisher depth_pub_;
   ros::Publisher state_pub_;
   tf::TransformBroadcaster tf_broadcaster_;
+  opi::InteractiveMarkerInitializer im_init_;
 
   ros::NodeHandle nh_;
   ros::Timer timer_;

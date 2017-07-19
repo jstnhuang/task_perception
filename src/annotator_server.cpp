@@ -5,6 +5,7 @@
 
 #include "boost/shared_ptr.hpp"
 #include "dbot/object_resource_identifier.h"
+#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "geometry_msgs/Transform.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "ros/package.h"
@@ -32,12 +33,14 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
                                  const ros::Publisher& color_pub,
                                  const ros::Publisher& depth_pub,
                                  const ros::Publisher& state_pub,
-                                 const tf::TransformBroadcaster& tf_broadcaster)
+                                 const tf::TransformBroadcaster& tf_broadcaster,
+                                 const std::string& camera_frame)
     : camera_info_pub_(camera_info_pub),
       color_pub_(color_pub),
       depth_pub_(depth_pub),
       state_pub_(state_pub),
       tf_broadcaster_(tf_broadcaster),
+      im_init_(camera_frame),
       nh_(),
       timer_(nh_.createTimer(ros::Duration(1 / 15.0), &AnnotatorServer::Loop,
                              this)),

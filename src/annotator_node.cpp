@@ -1,7 +1,9 @@
+#include "dbot/camera_data.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "task_perception/annotator_server.h"
+#include "task_perception/particle_tracker_builder.h"
 #include "task_perception/record_video_action_server.h"
 #include "task_perception/video_scrubber.h"
 #include "task_perception_msgs/AnnotatorState.h"
@@ -25,8 +27,10 @@ int main(int argc, char** argv) {
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
   tf::TransformBroadcaster tf_broadcaster;
 
+  std::shared_ptr<dbot::CameraData> camera_data = pbi::BuildCameraData(nh);
+
   pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub,
-                              tf_broadcaster);
+                              tf_broadcaster, camera_data->frame_id());
   server.Start();
 
   ros::Subscriber event_sub = nh.subscribe(
