@@ -1,0 +1,4 @@
+<launch>
+  <arg name="output" default="$(env HOME)/demonstration" />
+  <node pkg="rosbag" type="record" name="record_data_rosbag" args="/head_mount_kinect/depth_registered/camera_info /head_mount_kinect/rgb/image_rect_color /head_mount_kinect/depth_registered/image -o $(arg output) --lz4" />
+</launch>
