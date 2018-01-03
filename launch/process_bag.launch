@@ -1,0 +1,7 @@
+<launch>
+  <arg name="input" />
+  <arg name="output" />
+  <param name="bag_trim_front_seconds" value="3" />
+  <param name="bag_trim_back_seconds" value="3" />
+  <node pkg="task_perception" type="process_bag" name="process_bag" args="$(arg input) $(arg output)" required="true" />
+</launch>

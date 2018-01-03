@@ -8,6 +8,7 @@ add_compile_options(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  abseil_cpp
   actionlib
   dbot_ros
   rosbag
@@ -110,6 +111,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
     pbi_annotator_server
+    pbi_bag_utils
     pbi_particle_tracker_builder
     pbi_record_video_action_server
     pbi_track
@@ -140,9 +142,16 @@ include_directories(
 add_library(pbi_annotator_server src/annotator_server.cpp)
 add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_server
+  pbi_bag_utils
   pbi_particle_tracker_builder
   pbi_track
   pbi_video_scrubber
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_bag_utils src/bag_utils.cpp)
+add_dependencies(pbi_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_bag_utils
   ${catkin_LIBRARIES}
 )
 
@@ -179,6 +188,14 @@ target_link_libraries(pbi_annotator_node
   pbi_annotator_server
   pbi_record_video_action_server
   pbi_video_scrubber
+  ${catkin_LIBRARIES}
+)
+
+add_executable(pbi_process_bag_main src/process_bag_main.cpp)
+set_target_properties(pbi_process_bag_main PROPERTIES OUTPUT_NAME process_bag PREFIX "")
+add_dependencies(pbi_process_bag_main ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_process_bag_main
+  pbi_bag_utils
   ${catkin_LIBRARIES}
 )
 
