@@ -43,15 +43,13 @@
       ros="[[ros]]"></ros-topic>
     <div class="main layout vertical">
       <div class="layout horizontal center">
-        <paper-input class="flex" label="Bag file to annotate" value="{{state.bag_path}}"></paper-input>
+        <paper-input class="flex" id="bagPathInput" label="Bag file to annotate" value="[[state.bag_path]]"></paper-input>
         <paper-button class="open" on-tap="openFile">Open</paper-button>
-        <div class="flex"></div>
-        <a href="/recorder">Record a new video</a>
       </div>
-      <ros-rviz id="rviz" class="flex" global-options="{{globalOptions}}" ros="[[ros]]"></ros-rviz>
+      <ros-rviz id="rviz" class="flex" ros="[[ros]]"></ros-rviz>
       <div class="layout horizontal">
-        <paper-slider min="0" max="[[_bagLength]]" step="0.01" immediate-value="{{time}}"
-          pin editable class="flex" id="scrubber"></paper-slider>
+        <paper-slider min="0" max="[[state.frame_count]]" step="1" immediate-value="{{frameNum}}"
+          pin editable class="flex" id="scrubber" on-value-changed="_handleFrameId"></paper-slider>
       </div>
     </div>
   </template>
@@ -60,132 +58,71 @@
       static get is() { return 'pbi-annotator'; }
       static get properties() {
         return {
-          globalOptions: {
-            type: Object,
-            value: function() {
-              return {
-                fixedFrame: '/base_link',
-                background: '#113344',
-              };
-            }
-          },
           ros: Object,
-          state: {
-            type: Object,
-            value: function() {
-              return {
-                bag_path: '',
-              }
-            }
-          },
-          time: {
-            type: Number,
-            value: 0,
-            observer: '_timeChanged'
-          },
-          _bagLength: {
-            type: Number,
-            computed: '_computeBagLength(state)'
-          },
-          _videoUrl: {
-            type: String,
-            value: 'http://' + window.location.hostname + ':8888/stream?topic=/pbi_annotator/image_color'
-          },
         };
       }
 
       connectedCallback() {
         super.connectedCallback();
-        //this.$.image.height = this.$.image.offsetWidth * 0.75;
 
         var config = {
-          globalOptions: {
-            fixedFrame: '/base_link',
-            background: '#113344',
+          "globalOptions": {
+            "background": "#113344",
+            "colladaLoader": "collada2",
+            "colladaServer": "http://localhost:8001/",
+            "fixedFrame": "/base_link",
+            "url": "ws://localhost:9090",
+            "videoServer": "http://localhost:8888"
           },
-          displays: [
+          "sidebarOpened": false,
+          "displays": [
             {
-              isShown: true,
-              name: 'Grid',
-              type: 'grid',
-              options: {
-                cellSize: 1,
-                color: '#cccccc',
-                numCells: 20,
+              "isShown": true,
+              "name": "Grid",
+              "options": {
+                "cellSize": "1",
+                "color": "#cccccc",
+                "numCells": "10"
               },
-            }, {
-              isShown: false,
-              name: 'Objects',
-              type: 'markers',
-              options: {
-                topic: '/pbi_annotator/object_tracking_viz',
-              },
+              "type": "grid"
             },
-          ],
-          sidebarOpened: false,
+            {
+              "isShown": true,
+              "name": "Depth cloud",
+              "options": {
+                "topic": "depthcloud_encoded",
+                "frameId": "/head_mount_kinect_rgb_optical_frame"
+              },
+              "type": "depthCloud"
+            }
+          ]
         };
 
-        this.$.rviz.loadConfig(config);
-        this._depthCloud = new ROS3D.DepthCloud({
-          url: 'http://' + window.location.hostname + ':8888/streams/depthcloud_encoded.webm?enc=webm&bitrate=250000&framerate=15',
-          f: 525.0,
-          pointSize: 1,
-        });
-        this._depthCloud.startStream();
-        this._kinectNode = new ROS3D.SceneNode({
-          frameID: '/pbi_annotator/camera_frame',
-          tfClient: this.$.rviz.tfClient,
-          object: this._depthCloud
-        });
-
-        var that = this;
-        setTimeout(function() {
-        console.log(this.$.rviz, this.$.rviz._viewer);
-          this.$.rviz._viewer.scene.add(this._kinectNode);
-        }.bind(this), 0);
+        this.$.rviz.config = config;
       }
 
       openFile() {
-        if (!this.state || !this.state.bag_path) {
+        if (!this.$.bagPathInput.value) {
           console.error('No bag file specified.');
           return;
         }
         var msg = {
           type: 'open bag',
-          bag_path: this.state.bag_path
+          bag_path: this.$.bagPathInput.value
         };
         this.$.eventPub.publish(msg);
         var msg = {
-          type: 'view time',
-          time: {
-            secs: 0,
-            nsecs: 0
-          }
+          type: 'view frame',
+          frame_number: 0
         };
         this.$.eventPub.publish(msg);
       }
 
-      // Return the bag length, in seconds.
-      _computeBagLength(state) {
-        if (!state || !state.bag_length) {
-          return 0;
-        }
-        this.$.scrubber.value = 0;
-        return state.bag_length.secs + state.bag_length.nsecs / 1000000000.0;
-      }
-
-      _timeChanged(time) {
-        if (!time || isNaN(time)) {
-          return
-        }
-        var secs = Math.floor(time);
-        var nsecs = Math.round((time - secs) * 1000000000);
+      _handleFrameId(evt) {
+        var frameNum = evt.detail.value;
         var msg = {
-          type: 'view time',
-          time: {
-            secs: secs,
-            nsecs: nsecs
-          }
+          type: 'view frame',
+          frame_number: frameNum
         };
         this.$.eventPub.publish(msg);
       }
