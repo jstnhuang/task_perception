@@ -123,7 +123,6 @@ int main(int argc, char** argv) {
     } else if (it->getTopic() == depth_topic) {
       depth_cache.add(it->instantiate<sensor_msgs::Image>());
     }
-    ros::spinOnce();
   }
 
   output_writer.Close();
