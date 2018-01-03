@@ -34,6 +34,11 @@
       on-connection="_onWebsocketConnection"
       on-error="_onWebsocketError"
       on-close="_onWebsocketClose"></ros-websocket>
+    <ros-topic auto
+      on-message="_handleLog"
+      msg-type="rosgraph_msgs/Log"
+      topic="/rosout"
+      ros="[[ros]]"></ros-topic>
     <app-location route="{{route}}"></app-location>
     <app-route
       route="{{route}}"
@@ -98,6 +103,18 @@
           pageUrl = this.resolveUrl('pbi-annotator.html');
         }
         Polymer.importHref(pageUrl, null, null, true);
+      }
+      _handleLog(evt) {
+        var msg = evt.detail;
+        if (msg.level == 1) {
+          console.debug(msg.msg);
+        } else if (msg.level == 2) {
+          console.log(msg.msg);
+        } else if (msg.level == 4) {
+          console.warn(msg.msg);
+        } else {
+          console.error(msg.msg);
+        }
       }
     }
 
