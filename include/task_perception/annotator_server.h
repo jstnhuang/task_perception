@@ -25,34 +25,40 @@ class AnnotatorServer {
   AnnotatorServer(const ros::Publisher& camera_info_pub,
                   const ros::Publisher& color_pub,
                   const ros::Publisher& depth_pub,
-                  const ros::Publisher& state_pub,
-                  const tf::TransformBroadcaster& tf_broadcaster,
-                  const std::string& camera_frame);
+                  const ros::Publisher& state_pub);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
 
  private:
-  void Loop(const ros::TimerEvent& event);
   void HandleOpen(const std::string& bag_path);
-  void HandleViewDepthFrame(int frame_index);
+  void HandleViewFrame(int frame_num);
   void HandleAddObject(const std::string& mesh_name);
+
+  // Loop that continuously publishes the RGBD image. This is needed for the
+  // depthcloud_encoder node.
+  void Loop(const ros::TimerEvent& event);
+  void PublishState();
+
   ros::Publisher camera_info_pub_;
   ros::Publisher color_pub_;
   ros::Publisher depth_pub_;
   ros::Publisher state_pub_;
-  tf::TransformBroadcaster tf_broadcaster_;
-  opi::InteractiveMarkerInitializer im_init_;
 
   ros::NodeHandle nh_;
   ros::Timer timer_;
+
+  // Bag file state
+  boost::shared_ptr<rosbag::Bag> bag_;
+  std::string color_topic_;
+  std::string depth_topic_;
+  sensor_msgs::CameraInfo camera_info_;
+
+  task_perception_msgs::AnnotatorState state_;
+
   VideoScrubber color_scrubber_;
   VideoScrubber depth_scrubber_;
-  sensor_msgs::CameraInfo current_camera_info_;
   sensor_msgs::Image current_color_image_;
   sensor_msgs::Image current_depth_image_;
-  geometry_msgs::Transform camera_frame_;
-  boost::shared_ptr<rosbag::Bag> bag_;
-  task_perception_msgs::AnnotatorState state_;
 
   std::map<std::string, Track> tracks_;
 };

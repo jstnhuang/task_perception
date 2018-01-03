@@ -17,20 +17,19 @@ int main(int argc, char** argv) {
   pbi::RecordVideoActionServer record_server;
   record_server.Start();
 
-  ros::Publisher camera_info_pub =
-      nh.advertise<sensor_msgs::CameraInfo>("pbi_annotator/camera_info", 10);
+  ros::Publisher camera_info_pub = nh.advertise<sensor_msgs::CameraInfo>(
+      "pbi_annotator/camera_info", 10, true);
   ros::Publisher color_pub =
-      nh.advertise<sensor_msgs::Image>("pbi_annotator/image_color", 10);
+      nh.advertise<sensor_msgs::Image>("pbi_annotator/image_color", 10, true);
   ros::Publisher depth_pub =
-      nh.advertise<sensor_msgs::Image>("pbi_annotator/image_depth", 10);
+      nh.advertise<sensor_msgs::Image>("pbi_annotator/image_depth", 10, true);
   ros::Publisher state_pub =
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
   tf::TransformBroadcaster tf_broadcaster;
 
   std::shared_ptr<dbot::CameraData> camera_data = pbi::BuildCameraData(nh);
 
-  pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub,
-                              tf_broadcaster, camera_data->frame_id());
+  pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub);
   server.Start();
 
   ros::Subscriber event_sub = nh.subscribe(
