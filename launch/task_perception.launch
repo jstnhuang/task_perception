@@ -1,5 +1,4 @@
 <launch>
-  <arg name="sim" />
   <arg name="launch_websocket" default="true" />
 
   <include if="$(arg launch_websocket)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
@@ -10,20 +9,17 @@
     <param name="profile" value="best" />
   </node>
   <node pkg="tf2_web_republisher" type="tf2_web_republisher" name="tf2_web_republisher" />
-  <node pkg="nodelet" type="nodelet" name="pbi_convert_metric" args="standalone depth_image_proc/convert_metric">
+  <!--node pkg="nodelet" type="nodelet" name="pbi_convert_metric" args="standalone depth_image_proc/convert_metric">
     <remap from="image_raw" to="pbi_annotator/image_depth" />
     <remap from="image" to="pbi_annotator/image_depth_float" />
-  </node>
+  </node-->
   <node pkg="depthcloud_encoder" type="depthcloud_encoder_node" name="pbi_depthcloud_encoder">
     <param name="rgb" value="/pbi_annotator/image_color" />
-    <param name="depth" value="/pbi_annotator/image_depth_float" />
+    <param name="depth" value="/pbi_annotator/image_depth" />
     <param name="camera_frame_id" value="/head_mount_kinect_rgb_optical_frame" />
   </node>
-  <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true">
-    <remap from="color_in" to="/head_mount_kinect/rgb/image_raw" />
-    <remap if="$(arg sim)" from="depth_in" to="/head_mount_kinect/depth/image_raw" />
-    <remap unless="$(arg sim)" from="depth_in" to="/head_mount_kinect/depth_registered/image_raw" />
-    <remap if="$(arg sim)" from="camera_info" to="/head_mount_kinect/depth/camera_info" />
-    <remap unless="$(arg sim)" from="camera_info" to="/head_mount_kinect/depth_registered/camera_info" />
-  </node>
+  <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
+
+  <!-- Hard-coded camera pose -->
+  <node pkg="tf" type="static_transform_publisher" name="pbi_camera_pose_publisher" args="0.022 -0.017 1.747 0.614 -0.613 0.351 -0.352 base_link head_mount_kinect_rgb_optical_frame 10" />
 </launch>
