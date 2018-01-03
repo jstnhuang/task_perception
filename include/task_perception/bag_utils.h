@@ -18,10 +18,8 @@ bool GetImageTopics(const rosbag::Bag& bag, std::string* rgb_topic,
 bool GetCameraInfo(const rosbag::Bag& bag,
                    sensor_msgs::CameraInfo* camera_info);
 
-// Gets the duration of the recording.
-//
-// Duration of the recording is measured between the first and last images.
-double GetBagDuration(const rosbag::Bag& bag);
+// Gets the number of messages on the given topic.
+int GetNumMessagesOnTopic(const rosbag::Bag& bag, const std::string& topic);
 }  // namespace pbi
 
 #endif  // _PBI_BAG_UTILS_H_

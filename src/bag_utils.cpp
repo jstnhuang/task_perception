@@ -1,6 +1,7 @@
 #include "task_perception/bag_utils.h"
 
 #include <string>
+#include <vector>
 
 #include "absl/strings/match.h"
 #include "rosbag/bag.h"
@@ -41,11 +42,10 @@ bool GetCameraInfo(const rosbag::Bag& bag,
   return false;
 }
 
-double GetBagDuration(const rosbag::Bag& bag) {
-  rosbag::View view(bag);
-  ros::Time start = view.getBeginTime();
-  ros::Time end = view.getEndTime();
-  view.addQuery(bag, rosbag::TypeQuery("sensor_msgs/Image"));
-  return (view.getEndTime() - view.getBeginTime()).toSec();
+int GetNumMessagesOnTopic(const rosbag::Bag& bag, const std::string& topic) {
+  std::vector<std::string> topics;
+  topics.push_back(topic);
+  rosbag::View view(bag, rosbag::TopicQuery(topics));
+  return view.size();
 }
 }  // namespace pbi
