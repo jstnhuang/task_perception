@@ -9,7 +9,9 @@ project(task_perception_msgs)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
+  geometry_msgs
   message_generation
+  skin_segmentation_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,6 +52,8 @@ add_message_files(
   FILES
   AnnotatorEvent.msg
   AnnotatorState.msg
+  Demonstration.msg
+  Event.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -69,6 +73,8 @@ add_action_files(
 generate_messages(
   DEPENDENCIES
   actionlib_msgs
+  geometry_msgs
+  skin_segmentation_msgs
 )
 
 ################################################
@@ -105,7 +111,9 @@ catkin_package(
 #  LIBRARIES task_perception_msgs
   CATKIN_DEPENDS
     actionlib_msgs
+    geometry_msgs
     message_runtime
+    skin_segmentation_msgs
 #  DEPENDS system_lib
 )
 
