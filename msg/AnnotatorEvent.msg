@@ -1,8 +1,10 @@
 # Open a bag file
 string OPEN_BAG = open bag
-# Scrub to a specific time in the bag file
-string VIEW_TIME = view time
+# Step to the next frame
+string STEP = step
+# Add an object to track, depth_frame indicates when to start.
+string ADD_OBJECT = add object
 string type
 
-string bag_path # If type is OPEN, this specifies the path of the bag file
-duration time # If type is VIEW_TIME, this specifies the time to scrub to
+string bag_path # If type is OPEN_BAG, this specifies the path of the bag file
+string mesh_name # Name of .obj mesh file to track.
