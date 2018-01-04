@@ -15,22 +15,24 @@
 #include "rosbag/view.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "skin_segmentation_msgs/AdvanceSkeleton.h"
+#include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
-#include "tf/transform_broadcaster.h"
 
 #include "task_perception/bag_utils.h"
 #include "task_perception/names.h"
-#include "task_perception/particle_tracker_builder.h"
-#include "task_perception/track.h"
+//#include "task_perception/particle_tracker_builder.h"
+//#include "task_perception/track.h"
 #include "task_perception/video_scrubber.h"
 
 namespace msgs = task_perception_msgs;
+namespace ss_msgs = skin_segmentation_msgs;
 using sensor_msgs::CameraInfo;
 using sensor_msgs::Image;
-typedef dbot::ObjectTrackerRos<dbot::ParticleTracker> ParticleTrackerRos;
-typedef std::shared_ptr<ParticleTrackerRos> ParticleTrackerRosPtr;
 typedef message_filters::sync_policies::ExactTime<Image, Image> MyPolicy;
+// typedef dbot::ObjectTrackerRos<dbot::ParticleTracker> ParticleTrackerRos;
+// typedef std::shared_ptr<ParticleTrackerRos> ParticleTrackerRosPtr;
 
 namespace pbi {
 AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
@@ -53,7 +55,15 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
       depth_scrubber_(),
       current_color_image_(),
       current_depth_image_(),
-      tracks_() {}
+      reset_skeleton(nh_.serviceClient<ss_msgs::ResetSkeletonTracker>(
+          "reset_skeleton_tracker")),
+      advance_skeleton(
+          nh_.serviceClient<ss_msgs::AdvanceSkeleton>("advance_skeleton")) {
+  while (!reset_skeleton.waitForExistence(ros::Duration(2.0)) ||
+         !advance_skeleton.waitForExistence(ros::Duration(2.0))) {
+    ROS_WARN("Waiting for skeleton tracking service");
+  }
+}
 
 void AnnotatorServer::Start() { state_pub_.publish(state_); }
 
@@ -62,8 +72,8 @@ void AnnotatorServer::HandleEvent(
   try {
     if (event.type == msgs::AnnotatorEvent::OPEN_BAG) {
       HandleOpen(event.bag_path);
-    } else if (event.type == msgs::AnnotatorEvent::VIEW_FRAME) {
-      HandleViewFrame(event.frame_number);
+    } else if (event.type == msgs::AnnotatorEvent::STEP) {
+      HandleStep();
     } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
       HandleAddObject(event.mesh_name);
     } else {
@@ -86,6 +96,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   GetCameraInfo(*bag_, &camera_info_);
   int num_frames = GetNumMessagesOnTopic(*bag_, depth_topic_);
 
+  // Load images
   std::vector<std::string> topics(2);
   topics[0] = color_topic_;
   topics[1] = depth_topic_;
@@ -102,27 +113,29 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   color_scrubber_.set_images(color_images);
   depth_scrubber_.set_images(depth_images);
 
+  // Initialize skeleton tracker
+  ss_msgs::ResetSkeletonTrackerRequest reset_req;
+  ss_msgs::ResetSkeletonTrackerResponse reset_res;
+  reset_req.rgb_topic = color_topic_;
+  reset_req.depth_topic = depth_topic_;
+  reset_req.camera_info = camera_info_;
+  reset_skeleton.call(reset_req, reset_res);
+
   ROS_INFO("Opened bag: %s with %d frames", bag_path.c_str(), num_frames);
   state_.bag_path = bag_path;
   state_.frame_count = num_frames;
   state_.current_frame = 0;
 
-  PublishState();
+  ProcessCurrentStep();
 }
 
-void AnnotatorServer::HandleViewFrame(const int frame_index) {
-  int frame_idx = frame_index;
-  if (frame_index < 0) {
-    ROS_WARN("Out of bounds frame index: %d (%d)", frame_index,
-             state_.frame_count);
-    frame_idx = 0;
-  } else if (frame_index >= state_.frame_count) {
-    ROS_WARN("Out of bounds frame index: %d (%d)", frame_index,
-             state_.frame_count);
-    frame_idx = state_.frame_count - 1;
+void AnnotatorServer::HandleStep() {
+  state_.current_frame += 1;
+  if (state_.current_frame >= state_.frame_count) {
+    ROS_INFO("Reached end of bag file.");
+    return;
   }
-  state_.current_frame = frame_index;
-  PublishState();
+  ProcessCurrentStep();
 }
 
 void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
@@ -136,6 +149,25 @@ void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
 
   //  ROS_INFO("Created tracker for %s", mesh_name.c_str());
   //}
+}
+
+void AnnotatorServer::ProcessCurrentStep() {
+  if (state_.current_frame < 0 || state_.current_frame >= state_.frame_count) {
+    ROS_ERROR("Invalid step %d (%d).", state_.current_frame,
+              state_.frame_count);
+    return;
+  }
+
+  color_scrubber_.View(state_.current_frame, &current_color_image_);
+  depth_scrubber_.View(state_.current_frame, &current_depth_image_);
+
+  ss_msgs::AdvanceSkeletonRequest advance_req;
+  ss_msgs::AdvanceSkeletonResponse advance_res;
+  advance_req.rgb = current_color_image_;
+  advance_req.depth = current_depth_image_;
+  advance_skeleton.call(advance_req, advance_res);
+
+  PublishState();
 }
 
 void AnnotatorServer::Loop(const ros::TimerEvent& event) {
@@ -157,7 +189,10 @@ void AnnotatorServer::Loop(const ros::TimerEvent& event) {
 void AnnotatorServer::PublishState() {
   state_pub_.publish(state_);
 
-  color_scrubber_.View(state_.current_frame, &current_color_image_);
-  depth_scrubber_.View(state_.current_frame, &current_depth_image_);
+  // color_scrubber_.View(state_.current_frame, &current_color_image_);
+  // depth_scrubber_.View(state_.current_frame, &current_depth_image_);
+
+  // TODO: skeleton tracker manages its own state and visualization for now,
+  // maybe move into here
 }
 }  // namespace pbi

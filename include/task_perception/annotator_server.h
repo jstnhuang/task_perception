@@ -6,17 +6,17 @@
 #include <string>
 
 #include "boost/shared_ptr.hpp"
-#include "dbot/object_resource_identifier.h"
-#include "dbot_ros/util/interactive_marker_initializer.h"
+//#include "dbot/object_resource_identifier.h"
+//#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "skin_segmentation_msgs/NerfJointStates.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
-#include "tf/transform_broadcaster.h"
 
-#include "task_perception/track.h"
+//#include "task_perception/track.h"
 #include "task_perception/video_scrubber.h"
 
 namespace pbi {
@@ -31,8 +31,10 @@ class AnnotatorServer {
 
  private:
   void HandleOpen(const std::string& bag_path);
-  void HandleViewFrame(int frame_num);
+  void HandleStep();
   void HandleAddObject(const std::string& mesh_name);
+
+  void ProcessCurrentStep();
 
   // Loop that continuously publishes the RGBD image. This is needed for the
   // depthcloud_encoder node.
@@ -60,7 +62,12 @@ class AnnotatorServer {
   sensor_msgs::Image current_color_image_;
   sensor_msgs::Image current_depth_image_;
 
-  std::map<std::string, Track> tracks_;
+  // Skeleton tracker
+  ros::ServiceClient reset_skeleton;
+  ros::ServiceClient advance_skeleton;
+
+  // Object tracking
+  // std::map<std::string, Track> tracks_;
 };
 }  // namespace pbi
 

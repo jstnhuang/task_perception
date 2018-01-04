@@ -46,10 +46,11 @@
         <paper-input class="flex" id="bagPathInput" label="Bag file to annotate" value="[[state.bag_path]]"></paper-input>
         <paper-button class="open" on-tap="openFile">Open</paper-button>
       </div>
-      <ros-rviz id="rviz" class="flex" ros="[[ros]]"></ros-rviz>
+      <!--ros-rviz id="rviz" class="flex" ros="[[ros]]"></ros-rviz-->
       <div class="layout horizontal">
-        <paper-slider min="0" max="[[state.frame_count]]" step="1" immediate-value="{{frameNum}}"
-          pin editable class="flex" id="scrubber" on-value-changed="_handleFrameId"></paper-slider>
+        <paper-slider min="0" max="[[state.frame_count]]" step="1" value="[[state.current_frame]]"
+          pin class="flex" id="scrubber" disabled></paper-slider>
+        <paper-button on-tap="_handleNext">Next</paper-button>
       </div>
     </div>
   </template>
@@ -94,6 +95,14 @@
                 "frameId": "/head_mount_kinect_rgb_optical_frame"
               },
               "type": "depthCloud"
+            },
+            {
+              "isShown": true,
+              "name": "Skeleton",
+              "options": {
+                "topic": "/skeleton"
+              },
+              "type": "markerArray"
             }
           ]
         };
@@ -111,18 +120,11 @@
           bag_path: this.$.bagPathInput.value
         };
         this.$.eventPub.publish(msg);
-        var msg = {
-          type: 'view frame',
-          frame_number: 0
-        };
-        this.$.eventPub.publish(msg);
       }
 
-      _handleFrameId(evt) {
-        var frameNum = evt.detail.value;
+      _handleNext(evt) {
         var msg = {
-          type: 'view frame',
-          frame_number: frameNum
+          type: 'step',
         };
         this.$.eventPub.publish(msg);
       }

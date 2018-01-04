@@ -10,17 +10,18 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   abseil_cpp
   actionlib
-  dbot_ros
   rosbag
   roscpp
   rospy
   sensor_msgs
+  skin_segmentation_msgs
   tf
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
-
+#find_package(CUDA REQUIRED)
+#add_definitions(-DCUDA_BUILD)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -112,17 +113,18 @@ catkin_package(
   LIBRARIES
     pbi_annotator_server
     pbi_bag_utils
-    pbi_particle_tracker_builder
+    #pbi_particle_tracker_builder
     pbi_record_video_action_server
-    pbi_track
+    #pbi_track
     pbi_video_scrubber
   CATKIN_DEPENDS
+    abseil_cpp
     actionlib
-    dbot_ros
     rosbag
     roscpp
     rospy
     sensor_msgs
+    skin_segmentation_msgs
     tf
   DEPENDS Boost
 )
@@ -143,8 +145,7 @@ add_library(pbi_annotator_server src/annotator_server.cpp)
 add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_server
   pbi_bag_utils
-  pbi_particle_tracker_builder
-  pbi_track
+  #pbi_track
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
@@ -155,11 +156,11 @@ target_link_libraries(pbi_bag_utils
   ${catkin_LIBRARIES}
 )
 
-add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
-add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_particle_tracker_builder
-  ${catkin_LIBRARIES}
-)
+#add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
+#add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(pbi_particle_tracker_builder
+#  ${catkin_LIBRARIES}
+#)
 
 add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
 add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -167,12 +168,12 @@ target_link_libraries(pbi_record_video_action_server
   ${catkin_LIBRARIES}
 )
 
-add_library(pbi_track src/track.cpp)
-add_dependencies(pbi_track ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_track
-  pbi_particle_tracker_builder
-  ${catkin_LIBRARIES}
-)
+#add_library(pbi_track src/track.cpp)
+#add_dependencies(pbi_track ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(pbi_track
+#  pbi_particle_tracker_builder
+#  ${catkin_LIBRARIES}
+#)
 
 add_library(pbi_video_scrubber src/video_scrubber.cpp)
 add_dependencies(pbi_video_scrubber ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
