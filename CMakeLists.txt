@@ -10,6 +10,8 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   abseil_cpp
   actionlib
+  geometry_msgs
+  message_filters
   rosbag
   roscpp
   rospy
@@ -120,6 +122,8 @@ catkin_package(
   CATKIN_DEPENDS
     abseil_cpp
     actionlib
+    geometry_msgs
+    message_filters
     rosbag
     roscpp
     rospy

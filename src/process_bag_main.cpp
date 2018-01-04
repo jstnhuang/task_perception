@@ -1,9 +1,11 @@
 // Processes a bag file recorded using record_demonstration.launch.
+// You must run this on the robot without changing the camera pose.
 //
 // This performs the following:
 // - Trim the first and last few seconds
 // - Synchronize the color and depth images and assign them the same timestamp
 // - Remove all but the first CameraInfo message.
+// - Add the transform from base_link to the camera frame.
 //
 // The result is saved to a new bag file.
 
@@ -11,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "geometry_msgs/Pose.h"
 #include "message_filters/cache.h"
 #include "message_filters/sync_policies/approximate_time.h"
 #include "message_filters/synchronizer.h"
@@ -20,6 +23,7 @@
 #include "rosbag/view.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "tf/transform_listener.h"
 
 #include "task_perception/bag_utils.h"
 
@@ -32,6 +36,8 @@ class BagWriter {
   void ImageCallback(const sensor_msgs::ImageConstPtr& color,
                      const sensor_msgs::ImageConstPtr& depth);
   void WriteCameraInfo(const sensor_msgs::CameraInfo& camera_info,
+                       const ros::Time& time);
+  void WriteCameraPose(const geometry_msgs::Pose& camera_pose,
                        const ros::Time& time);
   void Close();
 
@@ -54,11 +60,18 @@ void BagWriter::WriteCameraInfo(const sensor_msgs::CameraInfo& camera_info,
   output_bag_.write("camera_info", time, camera_info);
 }
 
+void BagWriter::WriteCameraPose(const geometry_msgs::Pose& camera_pose,
+                                const ros::Time& time) {
+  output_bag_.write("camera_pose", time, camera_pose);
+}
+
 void BagWriter::Close() { output_bag_.close(); }
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "process_bag");
   ros::NodeHandle nh;
+  tf::TransformListener tf_listener;
+
   if (argc < 3) {
     std::cout
         << "Usage: rosrun task_perception process_bag INPUT.bag OUTPUT.bag"
@@ -104,11 +117,31 @@ int main(int argc, char** argv) {
   rosbag::View trimmed_view(input_bag, rosbag::TopicQuery(topics), start_time,
                             end_time);
 
+  // Get transform from base link to camera frame.
+  while (ros::ok() &&
+         !tf_listener.waitForTransform(camera_info.header.frame_id, "base_link",
+                                       ros::Time(0), ros::Duration(5.0))) {
+    ROS_WARN("Waiting for transform from base_link to %s",
+             camera_info.header.frame_id.c_str());
+  }
+  tf::StampedTransform camera_frame;
+  tf_listener.lookupTransform(camera_info.header.frame_id, "base_link",
+                              ros::Time(0), camera_frame);
+  geometry_msgs::Pose camera_pose;
+  camera_pose.position.x = camera_frame.getOrigin().x();
+  camera_pose.position.y = camera_frame.getOrigin().y();
+  camera_pose.position.z = camera_frame.getOrigin().z();
+  camera_pose.orientation.w = camera_frame.getRotation().w();
+  camera_pose.orientation.x = camera_frame.getRotation().x();
+  camera_pose.orientation.y = camera_frame.getRotation().y();
+  camera_pose.orientation.z = camera_frame.getRotation().z();
+
   // Start writing output
   std::string output_path(argv[2]);
   BagWriter output_writer(output_path);
 
   output_writer.WriteCameraInfo(camera_info, start_time);
+  output_writer.WriteCameraPose(camera_pose, start_time);
 
   message_filters::Cache<Image> rgb_cache(100);
   message_filters::Cache<Image> depth_cache(100);
