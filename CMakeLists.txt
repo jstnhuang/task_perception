@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   geometry_msgs
   message_filters
+  mongodb_store
   rosbag
   roscpp
   rospy
@@ -115,6 +116,7 @@ catkin_package(
   LIBRARIES
     pbi_annotator_server
     pbi_bag_utils
+    pbi_database
     #pbi_particle_tracker_builder
     pbi_record_video_action_server
     #pbi_track
@@ -124,6 +126,7 @@ catkin_package(
     actionlib
     geometry_msgs
     message_filters
+    mongodb_store
     rosbag
     roscpp
     rospy
@@ -157,6 +160,12 @@ target_link_libraries(pbi_annotator_server
 add_library(pbi_bag_utils src/bag_utils.cpp)
 add_dependencies(pbi_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_bag_utils
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_database src/database.cpp)
+add_dependencies(pbi_database ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_database
   ${catkin_LIBRARIES}
 )
 
