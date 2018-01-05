@@ -16,11 +16,11 @@ class DemonstrationDb {
 
   std::string Insert(const std::string& name);
   void Update(const std::string& db_id,
-              const task_perception_msgs::Demonstration& program);
+              const task_perception_msgs::Demonstration& demo);
   bool Get(const std::string& db_id,
-           task_perception_msgs::Demonstration* program) const;
-  bool GetByName(const std::string& name,
-                 task_perception_msgs::Demonstration* program) const;
+           task_perception_msgs::Demonstration* demo) const;
+  // Returns empty string if not found.
+  std::string GetIdByName(const std::string& name) const;
   void Delete(const std::string& db_id);
   void PublishDemonstration(const std::string& db_id);
 

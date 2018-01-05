@@ -39,37 +39,37 @@ bool DemonstrationDb::Get(const std::string& db_id, Demonstration* demo) const {
   vector<shared_ptr<Demonstration> > results;
   bool success = db_->queryID(db_id, results);
   if (!success || results.size() < 1) {
-    ROS_ERROR("Can't get demonstration with ID: \"%s\"", db_id.c_str());
+    ROS_INFO("Can't get demonstration with ID: \"%s\"", db_id.c_str());
     return false;
   }
   *demo = *results[0];
   return true;
 }
 
-bool DemonstrationDb::GetByName(const std::string& name,
-                                Demonstration* demo) const {
+std::string DemonstrationDb::GetIdByName(const std::string& name) const {
   vector<shared_ptr<Demonstration> > results;
   mongo::BSONObj query = BSON("name" << name);
   mongo::BSONObj meta_query;
   mongo::BSONObj sort_query;
   bool find_one = true;
-  bool decode_metas = false;
+  bool decode_metas = true;
   int limit = 1;
 
   vector<std::pair<shared_ptr<Demonstration>, mongo::BSONObj> > msg_and_metas;
   bool success = db_->query(msg_and_metas, query, meta_query, sort_query,
                             find_one, decode_metas, limit);
   if (!success || msg_and_metas.size() < 1) {
-    ROS_ERROR("Can't get demonstration with name: \"%s\"", name.c_str());
-    return false;
+    ROS_INFO("Can't get demonstration with name: \"%s\"", name.c_str());
+    return "";
   }
-  shared_ptr<Demonstration> demo_p = msg_and_metas[0].first;
-  if (!demo_p) {
-    ROS_ERROR("Database returned null message for name: \"%s\"", name.c_str());
-    return false;
+  mongo::BSONObj meta = msg_and_metas[0].second;
+  mongo::BSONElement id_elem;
+  success = meta.getObjectID(id_elem);
+  if (!success) {
+    ROS_ERROR("Failed to get object ID!");
+    return "";
   }
-  *demo = *demo_p;
-  return true;
+  return id_elem.OID().toString();
 }
 
 void DemonstrationDb::Delete(const std::string& db_id) {
