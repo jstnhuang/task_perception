@@ -18,6 +18,13 @@
     <param name="depth" value="/pbi_annotator/image_depth" />
     <param name="camera_frame_id" value="/head_mount_kinect_rgb_optical_frame" />
   </node>
+
+  <!-- MongoDB -->
+  <param name="mongodb_use_daemon" value="true" />
+  <param name="mongodb_host" value="localhost" />
+  <param name="mongodb_port" value="27017" />
+  <node name="message_store" pkg="mongodb_store" type="message_store_node.py" output="screen" required="true" /> 
+
   <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
   <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 
