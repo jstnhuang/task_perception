@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 
+#include "absl/strings/str_split.h"
 #include "boost/shared_ptr.hpp"
 //#include "dbot/object_resource_identifier.h"
 //#include "dbot_ros/util/interactive_marker_initializer.h"
@@ -53,6 +54,7 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
       color_topic_(""),
       depth_topic_(""),
       camera_info_(),
+      demo_id_(""),
       state_(),
       color_scrubber_(),
       depth_scrubber_(),
@@ -116,7 +118,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   color_scrubber_.set_images(color_images);
   depth_scrubber_.set_images(depth_images);
 
-  // Initialize skeleton tracker
+  // Reset skeleton tracker
   ss_msgs::ResetSkeletonTrackerRequest reset_req;
   ss_msgs::ResetSkeletonTrackerResponse reset_res;
   reset_req.rgb_topic = color_topic_;
@@ -124,6 +126,24 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   reset_req.camera_info = camera_info_;
   reset_skeleton.call(reset_req, reset_res);
 
+  // Insert/Retrieve demonstration data from DB.
+  std::vector<std::string> bag_path_parts = absl::StrSplit(bag_path, "/");
+  std::string last_bag_part(bag_path_parts[bag_path_parts.size() - 1]);
+  std::string bag_name(absl::StripSuffix(last_bag_part, ".bag"));
+
+  demo_id_ = demo_db_.GetIdByName(bag_name);
+  if (demo_id_ == "") {
+    msgs::Demonstration demo_new;
+    demo_new.name = bag_name;
+    demo_new.frame_count = num_frames;
+    demo_id_ = demo_db_.Insert(demo_new);
+  }
+  if (!demo_db_.Get(demo_id_, &demo_)) {
+    ROS_ERROR("Failed to get demonstration with ID: %s", demo_id_.c_str());
+    return;
+  }
+
+  // Initialize skeleton tracker
   ROS_INFO("Opened bag: %s with %d frames", bag_path.c_str(), num_frames);
   state_.bag_path = bag_path;
   state_.frame_count = num_frames;

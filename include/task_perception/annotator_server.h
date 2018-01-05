@@ -15,6 +15,7 @@
 #include "skin_segmentation_msgs/NerfJointStates.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
+#include "task_perception_msgs/Demonstration.h"
 
 #include "task_perception/database.h"
 #include "task_perception/video_scrubber.h"
@@ -56,6 +57,8 @@ class AnnotatorServer {
   std::string color_topic_;
   std::string depth_topic_;
   sensor_msgs::CameraInfo camera_info_;
+  std::string demo_id_;
+  task_perception_msgs::Demonstration demo_;
 
   task_perception_msgs::AnnotatorState state_;
 
