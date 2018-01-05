@@ -16,7 +16,7 @@
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
 
-//#include "task_perception/track.h"
+#include "task_perception/database.h"
 #include "task_perception/video_scrubber.h"
 
 namespace pbi {
@@ -25,7 +25,8 @@ class AnnotatorServer {
   AnnotatorServer(const ros::Publisher& camera_info_pub,
                   const ros::Publisher& color_pub,
                   const ros::Publisher& depth_pub,
-                  const ros::Publisher& state_pub);
+                  const ros::Publisher& state_pub,
+                  const DemonstrationDb& demo_db);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
 
@@ -45,6 +46,7 @@ class AnnotatorServer {
   ros::Publisher color_pub_;
   ros::Publisher depth_pub_;
   ros::Publisher state_pub_;
+  DemonstrationDb demo_db_;
 
   ros::NodeHandle nh_;
   ros::Timer timer_;

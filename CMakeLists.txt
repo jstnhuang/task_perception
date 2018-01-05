@@ -153,6 +153,7 @@ add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 target_link_libraries(pbi_annotator_server
   pbi_bag_utils
   #pbi_track
+  pbi_database
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )

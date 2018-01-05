@@ -21,6 +21,7 @@
 #include "task_perception_msgs/AnnotatorState.h"
 
 #include "task_perception/bag_utils.h"
+#include "task_perception/database.h"
 #include "task_perception/names.h"
 //#include "task_perception/particle_tracker_builder.h"
 //#include "task_perception/track.h"
@@ -38,11 +39,13 @@ namespace pbi {
 AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
                                  const ros::Publisher& color_pub,
                                  const ros::Publisher& depth_pub,
-                                 const ros::Publisher& state_pub)
+                                 const ros::Publisher& state_pub,
+                                 const DemonstrationDb& demo_db)
     : camera_info_pub_(camera_info_pub),
       color_pub_(color_pub),
       depth_pub_(depth_pub),
       state_pub_(state_pub),
+      demo_db_(demo_db),
       nh_(),
       timer_(nh_.createTimer(ros::Duration(1 / 15.0), &AnnotatorServer::Loop,
                              this)),

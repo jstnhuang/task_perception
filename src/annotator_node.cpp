@@ -1,11 +1,16 @@
+#include <string>
+
 //#include "dbot/camera_data.h"
+#include "mongodb_store/message_store.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/AnnotatorState.h"
+#include "task_perception_msgs/Demonstration.h"
 #include "tf/transform_broadcaster.h"
 
 #include "task_perception/annotator_server.h"
+#include "task_perception/database.h"
 #include "task_perception/particle_tracker_builder.h"
 #include "task_perception/record_video_action_server.h"
 #include "task_perception/video_scrubber.h"
@@ -29,7 +34,16 @@ int main(int argc, char** argv) {
 
   // std::shared_ptr<dbot::CameraData> camera_data = pbi::BuildCameraData(nh);
 
-  pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub);
+  // Build database
+  const std::string& kDatabaseName("pbi");
+  const std::string& kCollection("demonstrations");
+  mongodb_store::MessageStoreProxy message_store(kCollection, kDatabaseName);
+  ros::Publisher demo_pub = nh.advertise<task_perception_msgs::Demonstration>(
+      "pbi_annotator/demonstration", 1, true);
+  pbi::DemonstrationDb demo_db(&message_store, demo_pub);
+
+  pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub,
+                              demo_db);
   server.Start();
 
   ros::Subscriber event_sub = nh.subscribe(
