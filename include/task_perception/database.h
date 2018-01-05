@@ -14,7 +14,7 @@ class DemonstrationDb {
   DemonstrationDb(mongodb_store::MessageStoreProxy* db,
                   const ros::Publisher& demo_pub);
 
-  std::string Insert(const std::string& name);
+  std::string Insert(const task_perception_msgs::Demonstration& demo);
   void Update(const std::string& db_id,
               const task_perception_msgs::Demonstration& demo);
   bool Get(const std::string& db_id,

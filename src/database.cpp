@@ -17,9 +17,7 @@ DemonstrationDb::DemonstrationDb(mongodb_store::MessageStoreProxy* db,
                                  const ros::Publisher& demo_pub)
     : nh_(), db_(db), demo_pub_(demo_pub) {}
 
-std::string DemonstrationDb::Insert(const std::string& name) {
-  Demonstration demo;
-  demo.name = name;
+std::string DemonstrationDb::Insert(const Demonstration& demo) {
   std::string id = db_->insert(demo);
   PublishDemonstration(id);
   return id;
