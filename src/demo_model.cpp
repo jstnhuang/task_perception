@@ -1,5 +1,7 @@
 #include "task_perception/demo_model.h"
 
+#include <string>
+
 #include "ros/ros.h"
 #include "task_perception_msgs/Demonstration.h"
 #include "task_perception_msgs/Event.h"
@@ -34,6 +36,27 @@ std::vector<task_perception_msgs::Event> DemoModel::EventsAt(int frame_number) {
   }
 
   return timeline_[frame_number];
+}
+
+bool DemoModel::EventAt(const std::string& event_type, int frame_number,
+                        Event* event) {
+  if (frame_number < 0 || frame_number >= demo_.frame_count) {
+    ROS_ERROR("[HasEventTypeAt] Invalid frame number %d (%d)!", frame_number,
+              demo_.frame_count);
+    return false;
+  }
+  for (Event& evt : timeline_[frame_number]) {
+    if (evt.type == event_type) {
+      *event = evt;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DemoModel::HasEventAt(const std::string& event_type, int frame_number) {
+  Event unused_event;
+  return EventAt(event_type, frame_number, &unused_event);
 }
 
 void DemoModel::AddEvent(const task_perception_msgs::Event& event) {
