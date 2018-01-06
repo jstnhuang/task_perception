@@ -47,8 +47,9 @@
         <paper-button class="open" on-tap="openFile">Open</paper-button>
       </div>
       <!--ros-rviz id="rviz" class="flex" ros="[[ros]]"></ros-rviz-->
-      <div class="layout horizontal">
-        <paper-slider min="0" max="[[state.frame_count]]" step="1" value="[[state.current_frame]]"
+      <div class="layout horizontal center">
+        <span>Frame [[state.current_frame]] of [[_minusOne(state.frame_count)]]</span>
+        <paper-slider min="0" max="[[_minusOne(state.frame_count)]]" step="1" value="[[state.current_frame]]"
           pin class="flex" id="scrubber" disabled></paper-slider>
         <paper-button on-tap="_handleNext">Next</paper-button>
       </div>
@@ -127,6 +128,10 @@
           type: 'step',
         };
         this.$.eventPub.publish(msg);
+      }
+
+      _minusOne(num) {
+        return num-1;
       }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);
