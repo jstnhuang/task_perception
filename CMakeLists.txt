@@ -153,8 +153,8 @@ add_library(pbi_annotator_server src/annotator_server.cpp)
 add_dependencies(pbi_annotator_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_server
   pbi_bag_utils
-  #pbi_track
   pbi_database
+  pbi_demo_model
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
