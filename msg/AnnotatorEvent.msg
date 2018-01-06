@@ -7,6 +7,8 @@ string ADD_OBJECT = add object
 # After making manual adjustments to the skeleton, the user can trigger
 # SAVE_SKELETON to save the joint state to the annotation.
 string SAVE_SKELETON = save skeleton
+# Step through the skeleton tracker once
+string STEP_SKELETON = step skeleton
 string type
 
 string bag_path # If type is OPEN_BAG, this specifies the path of the bag file
