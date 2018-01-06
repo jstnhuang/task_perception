@@ -1,0 +1,47 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-event">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    Event
+    <template is="dom-if" if="[[typeIs(event.type, 'set skeleton state')]]">
+      Set Skeleton State
+    </template>
+    <template is="dom-if" if="[[typeIs(event.type, 'grasp')]]">
+      Grasp
+    </template>
+    <template is="dom-if" if="[[typeIs(event.type, 'ungrasp')]]">
+      Ungrasp
+    </template>
+    <template is="dom-if" if="[[typeIs(event.type, 'spawn object')]]">
+      Spawn object
+    </template>
+    <template is="dom-if" if="[[typeIs(event.type, 'unspawn object')]]">
+      Unspawn object
+    </template>
+    <template is="dom-if" if="[[typeIs(event.type, 'set object pose')]]">
+      Set object pose
+    </template>
+  </template>
+  <script>
+    class PbiEvent extends Polymer.Element {
+      static get is() { return 'pbi-event'; }
+      static get properties() {
+        return {
+          event: Object,
+          ros: Object,
+        };
+      }
+      typeIs(evtType, desired) {
+        return evtType === desired;
+      }
+    };
+    window.customElements.define(PbiEvent.is, PbiEvent);
+  </script>
+</dom-module>
