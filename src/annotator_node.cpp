@@ -5,6 +5,7 @@
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "skin_segmentation_msgs/NerfJointStates.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
 #include "tf/transform_broadcaster.h"
@@ -32,18 +33,22 @@ int main(int argc, char** argv) {
   ros::Publisher state_pub =
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
 
+  ros::Publisher nerf_pub =
+      nh.advertise<skin_segmentation_msgs::NerfJointStates>("nerf_controls", 1);
+
   // std::shared_ptr<dbot::CameraData> camera_data = pbi::BuildCameraData(nh);
 
   // Build database
   const std::string& kDatabaseName("pbi");
   const std::string& kCollection("demonstrations");
-  mongodb_store::MessageStoreProxy message_store(kCollection, kDatabaseName);
+  mongodb_store::MessageStoreProxy message_store(nh, kCollection,
+                                                 kDatabaseName);
   ros::Publisher demo_pub = nh.advertise<task_perception_msgs::Demonstration>(
       "pbi_annotator/demonstration", 1, true);
   pbi::DemonstrationDb demo_db(&message_store, demo_pub);
 
   pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub,
-                              demo_db);
+                              nerf_pub, demo_db);
   server.Start();
 
   ros::Subscriber event_sub = nh.subscribe(

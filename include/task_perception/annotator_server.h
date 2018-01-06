@@ -18,6 +18,7 @@
 #include "task_perception_msgs/Demonstration.h"
 
 #include "task_perception/database.h"
+#include "task_perception/demo_model.h"
 #include "task_perception/video_scrubber.h"
 
 namespace pbi {
@@ -27,6 +28,7 @@ class AnnotatorServer {
                   const ros::Publisher& color_pub,
                   const ros::Publisher& depth_pub,
                   const ros::Publisher& state_pub,
+                  const ros::Publisher& nerf_pub,
                   const DemonstrationDb& demo_db);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
@@ -47,6 +49,7 @@ class AnnotatorServer {
   ros::Publisher color_pub_;
   ros::Publisher depth_pub_;
   ros::Publisher state_pub_;
+  ros::Publisher nerf_pub_;
   DemonstrationDb demo_db_;
 
   ros::NodeHandle nh_;
@@ -58,7 +61,7 @@ class AnnotatorServer {
   std::string depth_topic_;
   sensor_msgs::CameraInfo camera_info_;
   std::string demo_id_;
-  task_perception_msgs::Demonstration demo_;
+  boost::shared_ptr<DemoModel> demo_model_;
 
   task_perception_msgs::AnnotatorState state_;
 
@@ -74,6 +77,10 @@ class AnnotatorServer {
   // Object tracking
   // std::map<std::string, Track> tracks_;
 };
+
+// Returns an initial skeleton that works well for the PR2 at full height and
+// camera at 45 degrees.
+skin_segmentation_msgs::NerfJointStates DefaultSkeleton();
 }  // namespace pbi
 
 #endif  // _PBI_ANNOTATOR_SERVER_H_
