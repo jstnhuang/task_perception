@@ -117,6 +117,7 @@ catkin_package(
     pbi_annotator_server
     pbi_bag_utils
     pbi_database
+    pbi_demo_model
     #pbi_particle_tracker_builder
     pbi_record_video_action_server
     #pbi_track
@@ -161,6 +162,12 @@ target_link_libraries(pbi_annotator_server
 add_library(pbi_bag_utils src/bag_utils.cpp)
 add_dependencies(pbi_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_bag_utils
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_demo_model src/demo_model.cpp)
+add_dependencies(pbi_demo_model ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_demo_model
   ${catkin_LIBRARIES}
 )
 
