@@ -140,6 +140,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
     ROS_ERROR("Failed to get demonstration with ID: %s", demo_id_.c_str());
     return;
   }
+  demo_db_.PublishDemonstration(demo_id_);
   demo_model_.reset(new DemoModel(demo));
 
   // Reset skeleton tracker
