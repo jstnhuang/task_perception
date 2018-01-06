@@ -17,6 +17,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "skin_segmentation_msgs/AdvanceSkeleton.h"
+#include "skin_segmentation_msgs/GetSkeletonState.h"
 #include "skin_segmentation_msgs/NerfJointStates.h"
 #include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
@@ -68,9 +69,12 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
       reset_skeleton(nh_.serviceClient<ss_msgs::ResetSkeletonTracker>(
           "reset_skeleton_tracker")),
       advance_skeleton(
-          nh_.serviceClient<ss_msgs::AdvanceSkeleton>("advance_skeleton")) {
+          nh_.serviceClient<ss_msgs::AdvanceSkeleton>("advance_skeleton")),
+      get_skeleton_state(
+          nh_.serviceClient<ss_msgs::GetSkeletonState>("get_skeleton_state")) {
   while (!reset_skeleton.waitForExistence(ros::Duration(2.0)) ||
-         !advance_skeleton.waitForExistence(ros::Duration(2.0))) {
+         !advance_skeleton.waitForExistence(ros::Duration(2.0)) ||
+         !get_skeleton_state.waitForExistence(ros::Duration(2.0))) {
     ROS_WARN("Waiting for skeleton tracking service");
   }
 }
@@ -84,6 +88,10 @@ void AnnotatorServer::HandleEvent(
       HandleOpen(event.bag_path);
     } else if (event.type == msgs::AnnotatorEvent::STEP) {
       HandleStep();
+    } else if (event.type == msgs::AnnotatorEvent::SAVE_SKELETON) {
+      HandleSaveSkeleton();
+    } else if (event.type == msgs::AnnotatorEvent::STEP_SKELETON) {
+      HandleAdvanceSkeleton();
     } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
       HandleAddObject(event.mesh_name);
     } else {
@@ -155,6 +163,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   if (!demo_model_->HasEventAt(msgs::Event::SET_SKELETON_STATE, 0)) {
     msgs::Event event;
     event.type = msgs::Event::SET_SKELETON_STATE;
+    event.frame_number = 0;
     event.nerf_joint_states = DefaultSkeleton();
     demo_model_->AddEvent(event);
     demo_db_.Update(demo_id_, demo_model_->ToMsg());
@@ -164,17 +173,49 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   state_.bag_path = bag_path;
   state_.frame_count = num_frames;
   state_.current_frame = 0;
+  // state_.events gets set in ProcessCurrentStep
 
   ProcessCurrentStep();
 }
 
 void AnnotatorServer::HandleStep() {
+  if (!bag_) {
+    ROS_ERROR("No bag file loaded");
+    return;
+  }
+
   state_.current_frame += 1;
   if (state_.current_frame >= state_.frame_count) {
     ROS_INFO("Reached end of bag file.");
     return;
   }
   ProcessCurrentStep();
+}
+
+void AnnotatorServer::HandleSaveSkeleton() {
+  if (!bag_) {
+    ROS_ERROR("No bag file loaded");
+    return;
+  }
+
+  msgs::Event event;
+  event.frame_number = state_.current_frame;
+  event.type = msgs::Event::SET_SKELETON_STATE;
+  ss_msgs::GetSkeletonStateRequest get_req;
+  ss_msgs::GetSkeletonStateResponse get_res;
+  get_skeleton_state.call(get_req, get_res);
+  event.nerf_joint_states = get_res.nerf_joint_states;
+  demo_model_->AddEvent(event);
+  demo_db_.Update(demo_id_, demo_model_->ToMsg());
+  ProcessCurrentStep();
+}
+
+void AnnotatorServer::HandleAdvanceSkeleton() {
+  if (!bag_) {
+    ROS_ERROR("No bag file loaded");
+    return;
+  }
+  AdvanceSkeleton(current_color_image_, current_depth_image_);
 }
 
 void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
@@ -209,14 +250,21 @@ void AnnotatorServer::ProcessCurrentStep() {
                            state_.current_frame, &skel_event)) {
     nerf_pub_.publish(skel_event.nerf_joint_states);
   } else {
-    ss_msgs::AdvanceSkeletonRequest advance_req;
-    ss_msgs::AdvanceSkeletonResponse advance_res;
-    advance_req.rgb = current_color_image_;
-    advance_req.depth = current_depth_image_;
-    advance_skeleton.call(advance_req, advance_res);
+    AdvanceSkeleton(current_color_image_, current_depth_image_);
   }
 
+  state_.events = demo_model_->EventsAt(state_.current_frame);
+
   PublishState();
+}
+
+void AnnotatorServer::AdvanceSkeleton(const sensor_msgs::Image& color,
+                                      const sensor_msgs::Image& depth) {
+  ss_msgs::AdvanceSkeletonRequest advance_req;
+  ss_msgs::AdvanceSkeletonResponse advance_res;
+  advance_req.rgb = color;
+  advance_req.depth = depth;
+  advance_skeleton.call(advance_req, advance_res);
 }
 
 void AnnotatorServer::Loop(const ros::TimerEvent& event) {

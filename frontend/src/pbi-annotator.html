@@ -5,6 +5,7 @@
 <link rel="import" href="../bower_components/paper-slider/paper-slider.html">
 <link rel="import" href="../bower_components/ros-topic/ros-topic.html">
 <link rel="import" href="../bower_components/ros-rviz/ros-rviz.html">
+<link rel="import" href="pbi-event.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-annotator">
@@ -53,6 +54,16 @@
           pin class="flex" id="scrubber" disabled></paper-slider>
         <paper-button on-tap="_handleNext">Next</paper-button>
       </div>
+      Step actions
+      <div class="layout horizontal center">
+        <paper-button on-tap="_handleSaveSkeleton">Save skeleton</paper-button>
+        <paper-button on-tap="_handleStepSkeleton">Step skeleton</paper-button>
+      </div>
+      Events:
+      <span hidden$=[[_hasEvents(state.events)]]>None</span>
+      <template is="dom-repeat" items="[[state.events]]">
+        <pbi-event event="[[item]]" ros="[[ros]]"></pbi-event>
+      </template>
     </div>
   </template>
   <script>
@@ -123,15 +134,33 @@
         this.$.eventPub.publish(msg);
       }
 
-      _handleNext(evt) {
+      _handleNext() {
         var msg = {
           type: 'step',
         };
         this.$.eventPub.publish(msg);
       }
 
+      _handleSaveSkeleton() {
+        var msg = {
+          type: 'save skeleton',
+        };
+        this.$.eventPub.publish(msg);
+      }
+
+      _handleStepSkeleton() {
+        var msg = {
+          type: 'step skeleton',
+        };
+        this.$.eventPub.publish(msg);
+      }
+
       _minusOne(num) {
         return num-1;
+      }
+
+      _hasEvents(events) {
+        return events && events.length !== 0;
       }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);

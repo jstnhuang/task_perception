@@ -36,9 +36,15 @@ class AnnotatorServer {
  private:
   void HandleOpen(const std::string& bag_path);
   void HandleStep();
+  void HandleSaveSkeleton();
+  void HandleAdvanceSkeleton();
   void HandleAddObject(const std::string& mesh_name);
 
   void ProcessCurrentStep();
+
+  // Advances the skeleton tracker with the given color/depth frame.
+  void AdvanceSkeleton(const sensor_msgs::Image& color,
+                       const sensor_msgs::Image& depth);
 
   // Loop that continuously publishes the RGBD image. This is needed for the
   // depthcloud_encoder node.
@@ -73,6 +79,7 @@ class AnnotatorServer {
   // Skeleton tracker
   ros::ServiceClient reset_skeleton;
   ros::ServiceClient advance_skeleton;
+  ros::ServiceClient get_skeleton_state;
 
   // Object tracking
   // std::map<std::string, Track> tracks_;
