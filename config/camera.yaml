@@ -1,0 +1,6 @@
+downsampling_factor: 8
+
+resolution:
+  width: 640
+  height: 480
+
