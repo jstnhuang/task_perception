@@ -175,7 +175,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   // of different types.
   pbi::ParticleTrackerBuilder object_tracker_builder(nh_, camera_info_);
   dbot::ObjectResourceIdentifier ori;
-  pbi::BuildOri(nh_, "bowl_1k.obj", &ori);
+  pbi::BuildOri(nh_, "pringles_1k.obj", &ori);
   object_tracker_builder.set_object(ori);
   object_tracker_ = object_tracker_builder.BuildRos();
   object_pub_.reset(new dbot::ObjectStatePublisher(ori, 0, 255, 0));
@@ -183,16 +183,18 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
       new opi::InteractiveMarkerInitializer(camera_info_.header.frame_id));
 
   // Initial pose for the hard-coded object.
+  color_scrubber_.View(0, &current_color_image_);
+  depth_scrubber_.View(0, &current_depth_image_);
   geometry_msgs::Pose obj_init_pose;
   obj_init_pose.position.z = 1;
   obj_init_pose.orientation.w = 1;
-  object_init_->set_object(ros::package::getPath(ori.package()),
-                           ori.directory(), "bowl_1k.obj", obj_init_pose,
-                           false);
+  object_init_->set_object(ori.package(), ori.directory(), "pringles_1k.obj",
+                           obj_init_pose, false);
   object_init_->wait_for_object_poses();
   geometry_msgs::Pose initial_pose = object_init_->poses()[0];
   object_tracker_->tracker()->initialize(
       {ri::to_pose_velocity_vector(initial_pose)});
+  ROS_INFO_STREAM("Set initial pose to " << initial_pose);
 
   ROS_INFO("Opened bag: %s with %d frames", bag_path.c_str(), num_frames);
   state_.bag_path = bag_path;
