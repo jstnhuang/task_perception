@@ -4,9 +4,10 @@
 #include <memory>
 
 #include "absl/strings/str_split.h"
-#include "boost/shared_ptr.hpp"
-//#include "dbot/object_resource_identifier.h"
-//#include "dbot_ros/util/interactive_marker_initializer.h"
+#include "dbot/object_resource_identifier.h"
+#include "dbot_ros/object_tracker_publisher.h"
+#include "dbot_ros/util/interactive_marker_initializer.h"
+#include "dbot_ros/util/ros_interface.h"
 #include "geometry_msgs/Transform.h"
 #include "message_filters/sync_policies/exact_time.h"
 #include "message_filters/synchronizer.h"
@@ -27,8 +28,7 @@
 #include "task_perception/database.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/names.h"
-//#include "task_perception/particle_tracker_builder.h"
-//#include "task_perception/track.h"
+#include "task_perception/particle_tracker_builder.h"
 #include "task_perception/video_scrubber.h"
 
 namespace msgs = task_perception_msgs;
@@ -71,7 +71,8 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
       advance_skeleton(
           nh_.serviceClient<ss_msgs::AdvanceSkeleton>("advance_skeleton")),
       get_skeleton_state(
-          nh_.serviceClient<ss_msgs::GetSkeletonState>("get_skeleton_state")) {
+          nh_.serviceClient<ss_msgs::GetSkeletonState>("get_skeleton_state")),
+      object_tracker_() {
   while (!reset_skeleton.waitForExistence(ros::Duration(2.0)) ||
          !advance_skeleton.waitForExistence(ros::Duration(2.0)) ||
          !get_skeleton_state.waitForExistence(ros::Duration(2.0))) {
@@ -169,6 +170,30 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
     demo_db_.Update(demo_id_, demo_model_->ToMsg());
   }
 
+  // Set up object tracker
+  // TODO: Hard coded object for demo purposes. Need to support multiple objects
+  // of different types.
+  pbi::ParticleTrackerBuilder object_tracker_builder(nh_, camera_info_);
+  dbot::ObjectResourceIdentifier ori;
+  pbi::BuildOri(nh_, "bowl_1k.obj", &ori);
+  object_tracker_builder.set_object(ori);
+  object_tracker_ = object_tracker_builder.BuildRos();
+  object_pub_.reset(new dbot::ObjectStatePublisher(ori, 0, 255, 0));
+  object_init_.reset(
+      new opi::InteractiveMarkerInitializer(camera_info_.header.frame_id));
+
+  // Initial pose for the hard-coded object.
+  geometry_msgs::Pose obj_init_pose;
+  obj_init_pose.position.z = 1;
+  obj_init_pose.orientation.w = 1;
+  object_init_->set_object(ros::package::getPath(ori.package()),
+                           ori.directory(), "bowl_1k.obj", obj_init_pose,
+                           false);
+  object_init_->wait_for_object_poses();
+  geometry_msgs::Pose initial_pose = object_init_->poses()[0];
+  object_tracker_->tracker()->initialize(
+      {ri::to_pose_velocity_vector(initial_pose)});
+
   ROS_INFO("Opened bag: %s with %d frames", bag_path.c_str(), num_frames);
   state_.bag_path = bag_path;
   state_.frame_count = num_frames;
@@ -242,9 +267,12 @@ void AnnotatorServer::ProcessCurrentStep() {
     return;
   }
 
+  // Load RGBD for this frame.
   color_scrubber_.View(state_.current_frame, &current_color_image_);
   depth_scrubber_.View(state_.current_frame, &current_depth_image_);
 
+  // Show the saved skeleton from the annotation. If it doesn't exist, use the
+  // skeleton tracker to get the skeleton pose.
   msgs::Event skel_event;
   if (demo_model_->EventAt(msgs::Event::SET_SKELETON_STATE,
                            state_.current_frame, &skel_event)) {
@@ -252,6 +280,11 @@ void AnnotatorServer::ProcessCurrentStep() {
   } else {
     AdvanceSkeleton(current_color_image_, current_depth_image_);
   }
+
+  // Show the pose of the objects being tracked.
+  object_tracker_->update_obsrv(current_depth_image_);
+  object_tracker_->run_once();
+  object_pub_->publish(object_tracker_->current_state_messages());
 
   state_.events = demo_model_->EventsAt(state_.current_frame);
 

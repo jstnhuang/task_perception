@@ -5,9 +5,8 @@
 #include <memory>
 #include <string>
 
-#include "boost/shared_ptr.hpp"
-//#include "dbot/object_resource_identifier.h"
-//#include "dbot_ros/util/interactive_marker_initializer.h"
+#include "dbot_ros/object_tracker_publisher.h"
+#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -19,6 +18,7 @@
 
 #include "task_perception/database.h"
 #include "task_perception/demo_model.h"
+#include "task_perception/particle_tracker_builder.h"
 #include "task_perception/video_scrubber.h"
 
 namespace pbi {
@@ -62,12 +62,12 @@ class AnnotatorServer {
   ros::Timer timer_;
 
   // Bag file state
-  boost::shared_ptr<rosbag::Bag> bag_;
+  std::shared_ptr<rosbag::Bag> bag_;
   std::string color_topic_;
   std::string depth_topic_;
   sensor_msgs::CameraInfo camera_info_;
   std::string demo_id_;
-  boost::shared_ptr<DemoModel> demo_model_;
+  std::shared_ptr<DemoModel> demo_model_;
 
   task_perception_msgs::AnnotatorState state_;
 
@@ -82,7 +82,10 @@ class AnnotatorServer {
   ros::ServiceClient get_skeleton_state;
 
   // Object tracking
-  // std::map<std::string, Track> tracks_;
+  std::shared_ptr<dbot::ObjectTrackerRos<dbot::ParticleTracker> >
+      object_tracker_;
+  std::shared_ptr<dbot::ObjectStatePublisher> object_pub_;
+  std::shared_ptr<opi::InteractiveMarkerInitializer> object_init_;
 };
 
 // Returns an initial skeleton that works well for the PR2 at full height and

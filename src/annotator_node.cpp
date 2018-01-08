@@ -1,6 +1,5 @@
 #include <string>
 
-//#include "dbot/camera_data.h"
 #include "mongodb_store/message_store.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -35,8 +34,6 @@ int main(int argc, char** argv) {
 
   ros::Publisher nerf_pub =
       nh.advertise<skin_segmentation_msgs::NerfJointStates>("nerf_controls", 1);
-
-  // std::shared_ptr<dbot::CameraData> camera_data = pbi::BuildCameraData(nh);
 
   // Build database
   const std::string& kDatabaseName("pbi");
