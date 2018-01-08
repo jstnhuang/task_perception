@@ -10,6 +10,8 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   abseil_cpp
   actionlib
+  dbot
+  dbot_ros
   geometry_msgs
   message_filters
   mongodb_store
@@ -116,15 +118,18 @@ catkin_package(
   LIBRARIES
     pbi_annotator_server
     pbi_bag_utils
+    pbi_camera_info_camera_provider
     pbi_database
     pbi_demo_model
-    #pbi_particle_tracker_builder
+    pbi_particle_tracker_builder
     pbi_record_video_action_server
     #pbi_track
     pbi_video_scrubber
   CATKIN_DEPENDS
     abseil_cpp
     actionlib
+    dbot
+    dbot_ros
     geometry_msgs
     message_filters
     mongodb_store
@@ -155,6 +160,7 @@ target_link_libraries(pbi_annotator_server
   pbi_bag_utils
   pbi_database
   pbi_demo_model
+  pbi_particle_tracker_builder
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
@@ -162,6 +168,12 @@ target_link_libraries(pbi_annotator_server
 add_library(pbi_bag_utils src/bag_utils.cpp)
 add_dependencies(pbi_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_bag_utils
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_camera_info_camera_provider src/camera_info_camera_provider.cpp)
+add_dependencies(pbi_camera_info_camera_provider ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_camera_info_camera_provider
   ${catkin_LIBRARIES}
 )
 
@@ -177,11 +189,12 @@ target_link_libraries(pbi_database
   ${catkin_LIBRARIES}
 )
 
-#add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
-#add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(pbi_particle_tracker_builder
-#  ${catkin_LIBRARIES}
-#)
+add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
+add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_particle_tracker_builder
+  pbi_camera_info_camera_provider
+  ${catkin_LIBRARIES}
+)
 
 add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
 add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

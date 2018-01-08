@@ -10,13 +10,17 @@
 #include "dbot/tracker/particle_tracker.h"
 #include "dbot_ros/util/ros_camera_data_provider.h"
 #include "ros/ros.h"
+#include "sensor_msgs/CameraInfo.h"
+
+#include "task_perception/camera_info_camera_provider.h"
 
 using dbot::ParticleTracker;
 typedef dbot::ObjectTrackerRos<ParticleTracker> ParticleTrackerRos;
 
 namespace pbi {
-ParticleTrackerBuilder::ParticleTrackerBuilder(const ros::NodeHandle& nh)
-    : nh_(nh), ori_() {}
+ParticleTrackerBuilder::ParticleTrackerBuilder(
+    const ros::NodeHandle& nh, const sensor_msgs::CameraInfo& camera_info)
+    : nh_(nh), camera_info_(camera_info), ori_() {}
 
 void ParticleTrackerBuilder::set_object(
     const dbot::ObjectResourceIdentifier& ori) {
@@ -30,18 +34,10 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
   /* ------------------------------ */
   /* - Create the object model    - */
   /* ------------------------------ */
-  // get object parameters
-  std::string object_package;
-  std::string object_directory;
-
-  /// \todo nh_.getParam does not check whether the parameter exists in the
-  /// config file. this is dangerous, we should use ri::read instead
-  nh_.getParam("object/package", object_package);
-  nh_.getParam("object/directory", object_directory);
-
   // Use the ORI to load the object model usign the
   // SimpleWavefrontObjectLoader
   if (ori_.count_meshes() == 0) {
+    ROS_ERROR("No meshes given in ORI!");
     return nullptr;
   }
 
@@ -59,20 +55,10 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
   /* - Setup camera data          - */
   /* ------------------------------ */
   int downsampling_factor;
-  std::string camera_info_topic;
-  std::string depth_image_topic;
-  dbot::CameraData::Resolution resolution;
-  nh_.getParam("camera_info_topic", camera_info_topic);
-  nh_.getParam("depth_image_topic", depth_image_topic);
   nh_.getParam("downsampling_factor", downsampling_factor);
-  nh_.getParam("resolution/width", resolution.width);
-  nh_.getParam("resolution/height", resolution.height);
 
   auto camera_data_provider = std::shared_ptr<dbot::CameraDataProvider>(
-      new dbot::RosCameraDataProvider(nh_, camera_info_topic, depth_image_topic,
-                                      resolution, downsampling_factor, 60.0));
-  // Create camera data from the RosCameraDataProvider which takes the data
-  // from a ros camera topic
+      new CameraInfoCameraProvider(camera_info_, downsampling_factor));
   auto camera_data = std::make_shared<dbot::CameraData>(camera_data_provider);
 
   /* ------------------------------ */
