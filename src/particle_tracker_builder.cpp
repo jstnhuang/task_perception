@@ -59,7 +59,7 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
 
   auto camera_data_provider = std::shared_ptr<dbot::CameraDataProvider>(
       new CameraInfoCameraProvider(camera_info_, downsampling_factor));
-  auto camera_data = std::make_shared<dbot::CameraData>(camera_data_provider);
+  camera_data_ = std::make_shared<dbot::CameraData>(camera_data_provider);
 
   /* ------------------------------ */
   /* - Few types we will be using - */
@@ -135,7 +135,7 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
 
   auto sensor_builder =
       std::shared_ptr<SensorBuilder>(new dbot::RbSensorBuilder<State>(
-          object_model, camera_data, params_obsrv));
+          object_model, camera_data_, params_obsrv));
 
   /* ------------------------------ */
   /* - Create Filter & Tracker    - */
@@ -154,9 +154,8 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
 
 std::shared_ptr<ParticleTrackerRos> ParticleTrackerBuilder::BuildRos() {
   auto tracker = Build();
-  auto camera_data = BuildCameraData(nh_);
   std::shared_ptr<ParticleTrackerRos> ros_tracker(
-      new ParticleTrackerRos(tracker, camera_data, ori_.count_meshes()));
+      new ParticleTrackerRos(tracker, camera_data_, ori_.count_meshes()));
   return ros_tracker;
 }
 

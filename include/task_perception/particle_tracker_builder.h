@@ -30,6 +30,7 @@ class ParticleTrackerBuilder {
   sensor_msgs::CameraInfo camera_info_;
 
   dbot::ObjectResourceIdentifier ori_;
+  std::shared_ptr<dbot::CameraData> camera_data_;
 };
 
 void BuildOri(const ros::NodeHandle& nh, const std::string& mesh_name,
