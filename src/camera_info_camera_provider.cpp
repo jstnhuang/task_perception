@@ -32,6 +32,7 @@ Eigen::Matrix3d CameraInfoCameraProvider::camera_matrix() const {
       camera_matrix(row, col) = camera_info_.K[col + row * 3];
     }
   }
+  camera_matrix.topLeftCorner(2, 3) /= downsampling_factor_;
   return camera_matrix;
 }
 
