@@ -1,6 +1,12 @@
 <launch>
   <arg name="launch_websocket" default="true" />
 
+  <!-- MongoDB -->
+  <param name="mongodb_use_daemon" value="true" />
+  <param name="mongodb_host" value="localhost" />
+  <param name="mongodb_port" value="27017" />
+  <node name="message_store" pkg="mongodb_store" type="message_store_node.py" output="screen" required="true" /> 
+
   <!-- Web -->
   <include if="$(arg launch_websocket)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
   <node pkg="ros_web_video" type="ros_web_video" name="pbi_video_server" required="true">
@@ -29,12 +35,8 @@
   <rosparam command="load" file="$(find task_perception)/config/camera.yaml" />
   <rosparam command="load" file="$(find task_perception)/config/object.yaml" />
 
-  <!-- MongoDB -->
-  <param name="mongodb_use_daemon" value="true" />
-  <param name="mongodb_host" value="localhost" />
-  <param name="mongodb_port" value="27017" />
-  <node name="message_store" pkg="mongodb_store" type="message_store_node.py" output="screen" required="true" /> 
+  <!-- Skeleton tracker -->
+  <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 
   <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
-  <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 </launch>
