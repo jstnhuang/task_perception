@@ -7,12 +7,10 @@
 #include "skin_segmentation_msgs/NerfJointStates.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
-#include "tf/transform_broadcaster.h"
 
 #include "task_perception/annotator_server.h"
 #include "task_perception/database.h"
 #include "task_perception/particle_tracker_builder.h"
-#include "task_perception/record_video_action_server.h"
 #include "task_perception/video_scrubber.h"
 
 namespace msgs = task_perception_msgs;
@@ -20,8 +18,6 @@ namespace msgs = task_perception_msgs;
 int main(int argc, char** argv) {
   ros::init(argc, argv, "pbi_annotator_node");
   ros::NodeHandle nh;
-  pbi::RecordVideoActionServer record_server;
-  record_server.Start();
 
   ros::Publisher camera_info_pub = nh.advertise<sensor_msgs::CameraInfo>(
       "pbi_annotator/camera_info", 10, true);
@@ -47,6 +43,7 @@ int main(int argc, char** argv) {
   pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub,
                               nerf_pub, demo_db);
   server.Start();
+  ROS_INFO("Annotator server ready.");
 
   ros::Subscriber event_sub = nh.subscribe(
       "pbi_annotator/events", 100, &pbi::AnnotatorServer::HandleEvent, &server);
