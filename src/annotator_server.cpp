@@ -73,9 +73,10 @@ AnnotatorServer::AnnotatorServer(const ros::Publisher& camera_info_pub,
       get_skeleton_state(
           nh_.serviceClient<ss_msgs::GetSkeletonState>("get_skeleton_state")),
       object_tracker_() {
-  while (!reset_skeleton.waitForExistence(ros::Duration(2.0)) ||
-         !advance_skeleton.waitForExistence(ros::Duration(2.0)) ||
-         !get_skeleton_state.waitForExistence(ros::Duration(2.0))) {
+  while (ros::ok() &&
+         (!reset_skeleton.waitForExistence(ros::Duration(1.0)) ||
+          !advance_skeleton.waitForExistence(ros::Duration(1.0)) ||
+          !get_skeleton_state.waitForExistence(ros::Duration(1.0)))) {
     ROS_WARN("Waiting for skeleton tracking service");
   }
 }
