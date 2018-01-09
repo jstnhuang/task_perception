@@ -24,7 +24,7 @@ void DemoModel::Reindex() {
                 demo_.frame_count);
       continue;
     }
-    timeline_[event.frame_number].push_back(event);
+    AddEvent(event);
   }
 }
 
