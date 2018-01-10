@@ -208,6 +208,8 @@
           object_name: objName
         };
         this.$.eventPub.publish(msg);
+        this.objectName = "";
+        this.objectMesh = ""
       }
 
       _handleUnspawnObject(evt) {
@@ -217,14 +219,15 @@
           object_name: objName
         };
         this.$.eventPub.publish(msg);
+        this.objectName = "";
+        this.objectMesh = ""
       }
 
       _canSpawnObject(objName, objMesh) {
-        return (this.$.objName.value && this.$.objName.value !== ""
-          && this.$.objMesh.value && this.$.objMesh.value !== "");
+        return objName && objName !== "" && objMesh && objMesh !== "";
       }
       _canUnspawnObject(objName) {
-        return this.$.objName.value && this.$.objName.value !== "";
+        return objName && objName !== "";
       }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);
