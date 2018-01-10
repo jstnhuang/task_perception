@@ -4,7 +4,7 @@ string OPEN_BAG = open bag
 string STEP = step
 # Add an object to track, frame_number indicates when to start, mesh_name determines object model, object_name gives the user-friendly semantic name to the object.
 string ADD_OBJECT = add object
-# Only frame_number and object_name need to be given. Adds an unspawn event.
+# Only object_name need to be given. Adds an unspawn event.
 string REMOVE_OBJECT = remove object
 # After making manual adjustments to the skeleton, the user can trigger
 # SAVE_SKELETON to save the joint state to the annotation.
@@ -17,6 +17,4 @@ string type
 string bag_path # If type is OPEN_BAG, this specifies the path of the bag file
 string mesh_name # Name of .obj mesh file to track.
 string object_name # Semantic name given to a particular object
-int frame_number # The frame number of the event to be deleted
 string event_type # The type of the event to be deleted
-
