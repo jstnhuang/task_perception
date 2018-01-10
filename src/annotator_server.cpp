@@ -269,8 +269,9 @@ void AnnotatorServer::HandleAddObject(const std::string& object_name,
   }
   msgs::Event event;
   event.frame_number = state_.current_frame;
-  event.type = msgs::Event::UNSPAWN_OBJECT;
+  event.type = msgs::Event::SPAWN_OBJECT;
   event.object_name = object_name;
+  event.object_mesh_path = "package://object_meshes/object_modesl/" + mesh_name;
   demo_model_->AddEvent(event);
 
   // TODO: create a new tracker
