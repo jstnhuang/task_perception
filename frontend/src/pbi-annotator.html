@@ -69,10 +69,12 @@
         <paper-button on-tap="_handleStepSkeleton">Step skeleton</paper-button>
       </div>
       <div class="layout horizontal center commands">
-        <paper-input id="objName" label="Object name"></paper-input>
-        <paper-input id="objMesh" label="Object mesh"></paper-input>
-        <paper-button on-tap="_handleSpawnObject">Spawn object</paper-button>
-        <paper-button on-tap="_handleUnspawnObject">Unspawn object</paper-button>
+        <paper-input id="objName" label="Object name" value="{{objectName}}"></paper-input>
+        <paper-input id="objMesh" label="Object mesh" value="{{objectMesh}}"></paper-input>
+        <paper-button on-tap="_handleSpawnObject"
+          disabled="[[!_canSpawnObject(objectName, objectMesh)]]">Spawn object</paper-button>
+        <paper-button on-tap="_handleUnspawnObject"
+          disabled="[[!_canUnspawnObject(objectName)]]">Unspawn object</paper-button>
       </div>
       <h3>Events for this frame:</h3>
       <span hidden$=[[_hasEvents(state.events)]]>None</span>
@@ -99,6 +101,9 @@
 
       connectedCallback() {
         super.connectedCallback();
+
+        this.objectName = "";
+        this.objectMesh = "";
 
         var config = {
           "globalOptions": {
@@ -212,6 +217,14 @@
           object_name: objName
         };
         this.$.eventPub.publish(msg);
+      }
+
+      _canSpawnObject(objName, objMesh) {
+        return (this.$.objName.value && this.$.objName.value !== ""
+          && this.$.objMesh.value && this.$.objMesh.value !== "");
+      }
+      _canUnspawnObject(objName) {
+        return this.$.objName.value && this.$.objName.value !== "";
       }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);
