@@ -91,7 +91,9 @@ void AnnotatorServer::HandleEvent(
     } else if (event.type == msgs::AnnotatorEvent::STEP) {
       HandleStep();
     } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
-      HandleAddObject(event.mesh_name);
+      HandleAddObject(event.object_name, event.mesh_name);
+    } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
+      HandleRemoveObject(event.object_name);
     } else if (event.type == msgs::AnnotatorEvent::SAVE_SKELETON) {
       HandleSaveSkeleton();
     } else if (event.type == msgs::AnnotatorEvent::STEP_SKELETON) {
@@ -259,17 +261,33 @@ void AnnotatorServer::HandleDeleteEvent(const std::string& event_type) {
   PublishState();
 }
 
-void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
-  // TODO: we assume object exists since the beginning of the demonstration
-  // i.e., depth_frame is 0.
-  // if (tracks_.find(mesh_name) == tracks_.end()) {
-  //  dbot::ObjectResourceIdentifier ori;
-  //  BuildOri(nh_, mesh_name, &ori);
-  //  Track track(nh_, ori, &depth_scrubber_);
-  //  tracks_.insert(std::pair<std::string, Track>(mesh_name, track));
+void AnnotatorServer::HandleAddObject(const std::string& object_name,
+                                      const std::string& mesh_name) {
+  if (!demo_model_) {
+    ROS_ERROR("No demo model loaded");
+    return;
+  }
+  msgs::Event event;
+  event.frame_number = state_.current_frame;
+  event.type = msgs::Event::UNSPAWN_OBJECT;
+  event.object_name = object_name;
+  demo_model_->AddEvent(event);
 
-  //  ROS_INFO("Created tracker for %s", mesh_name.c_str());
-  //}
+  // TODO: create a new tracker
+}
+
+void AnnotatorServer::HandleRemoveObject(const std::string& object_name) {
+  if (!demo_model_) {
+    ROS_ERROR("No demo model loaded");
+    return;
+  }
+  msgs::Event event;
+  event.frame_number = state_.current_frame;
+  event.type = msgs::Event::UNSPAWN_OBJECT;
+  event.object_name = object_name;
+  demo_model_->AddEvent(event);
+
+  // TODO: stop tracker
 }
 
 void AnnotatorServer::ProcessCurrentStep() {

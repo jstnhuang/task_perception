@@ -36,7 +36,9 @@ class AnnotatorServer {
  private:
   void HandleOpen(const std::string& bag_path);
   void HandleStep();
-  void HandleAddObject(const std::string& mesh_name);
+  void HandleAddObject(const std::string& object_name,
+                       const std::string& mesh_name);
+  void HandleRemoveObject(const std::string& object_name);
   void HandleSaveSkeleton();
   void HandleAdvanceSkeleton();
   void HandleDeleteEvent(const std::string& event_type);
