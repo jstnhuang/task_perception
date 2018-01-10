@@ -9,24 +9,23 @@
         display: block;
       }
     </style>
-    Event
     <template is="dom-if" if="[[typeIs(event.type, 'set skeleton state')]]">
-      Set Skeleton State
+      <strong>Set Skeleton State</strong>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'grasp')]]">
-      Grasp
+      <strong>Grasp</strong>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'ungrasp')]]">
-      Ungrasp
+      <strong>Ungrasp</strong>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'spawn object')]]">
-      Spawn object
+      <strong>Spawn object</strong>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'unspawn object')]]">
-      Unspawn object
+      <strong>Unspawn object</strong>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'set object pose')]]">
-      Set object pose
+      <strong>Set object pose</strong>
     </template>
   </template>
   <script>
