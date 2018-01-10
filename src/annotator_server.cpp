@@ -273,6 +273,8 @@ void AnnotatorServer::HandleAddObject(const std::string& object_name,
   event.object_name = object_name;
   event.object_mesh_path = "package://object_meshes/object_modesl/" + mesh_name;
   demo_model_->AddEvent(event);
+  demo_db_.Update(demo_id_, demo_model_->ToMsg());
+  PublishState();
 
   // TODO: create a new tracker
 }
@@ -287,6 +289,8 @@ void AnnotatorServer::HandleRemoveObject(const std::string& object_name) {
   event.type = msgs::Event::UNSPAWN_OBJECT;
   event.object_name = object_name;
   demo_model_->AddEvent(event);
+  demo_db_.Update(demo_id_, demo_model_->ToMsg());
+  PublishState();
 
   // TODO: stop tracker
 }
