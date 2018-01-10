@@ -186,6 +186,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   // Initial pose for the hard-coded object.
   color_scrubber_.View(0, &current_color_image_);
   depth_scrubber_.View(0, &current_depth_image_);
+  PublishState();
   geometry_msgs::Pose obj_init_pose;
   obj_init_pose.position.z = 1;
   obj_init_pose.orientation.w = 1;
@@ -290,7 +291,6 @@ void AnnotatorServer::ProcessCurrentStep() {
   object_pub_->publish(object_tracker_->current_state_messages());
 
   state_.events = demo_model_->EventsAt(state_.current_frame);
-
   PublishState();
 }
 
