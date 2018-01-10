@@ -59,6 +59,12 @@
         <paper-button on-tap="_handleSaveSkeleton">Save skeleton</paper-button>
         <paper-button on-tap="_handleStepSkeleton">Step skeleton</paper-button>
       </div>
+      <div class="layout horizontal center">
+        <paper-input id="objName" label="Object name"></paper-input>
+        <paper-input id="objMesh" label="Object mesh"></paper-input>
+        <paper-button on-tap="_handleSpawnObject">Spawn object</paper-button>
+        <paper-button on-tap="_handleUnspawnObject">Unspawn object</paper-button>
+      </div>
       Events:
       <span hidden$=[[_hasEvents(state.events)]]>None</span>
       <template is="dom-repeat" items="[[state.events]]">
@@ -176,6 +182,26 @@
           type: 'delete event',
           frame_number: item.frame_number,
           event_type: item.type
+        };
+        this.$.eventPub.publish(msg);
+      }
+
+      _handleSpawnObject(evt) {
+        var objName = this.$.objName.value;
+        var meshName = this.$.objMesh.value;
+        var msg = {
+          type: 'add object',
+          mesh_name: meshName,
+          object_name: objName
+        };
+        this.$.eventPub.publish(msg);
+      }
+
+      _handleUnspawnObject(evt) {
+        var objName = this.$.objName.value;
+        var msg = {
+          type: 'remove object',
+          object_name: objName
         };
         this.$.eventPub.publish(msg);
       }
