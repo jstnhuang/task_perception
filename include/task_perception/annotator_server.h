@@ -39,7 +39,7 @@ class AnnotatorServer {
   void HandleAddObject(const std::string& mesh_name);
   void HandleSaveSkeleton();
   void HandleAdvanceSkeleton();
-  void HandleDeleteEvent(const int frame_number, const std::string& event_type);
+  void HandleDeleteEvent(const std::string& event_type);
 
   void ProcessCurrentStep();
 

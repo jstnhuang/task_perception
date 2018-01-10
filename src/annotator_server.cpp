@@ -97,7 +97,7 @@ void AnnotatorServer::HandleEvent(
     } else if (event.type == msgs::AnnotatorEvent::STEP_SKELETON) {
       HandleAdvanceSkeleton();
     } else if (event.type == msgs::AnnotatorEvent::DELETE_EVENT) {
-      HandleDeleteEvent(event.frame_number, event.event_type);
+      HandleDeleteEvent(event.event_type);
     } else {
       ROS_ERROR("Unknown event type: \"%s\"", event.type.c_str());
     }
@@ -249,13 +249,12 @@ void AnnotatorServer::HandleAdvanceSkeleton() {
   AdvanceSkeleton(current_color_image_, current_depth_image_);
 }
 
-void AnnotatorServer::HandleDeleteEvent(const int frame_number,
-                                        const std::string& event_type) {
+void AnnotatorServer::HandleDeleteEvent(const std::string& event_type) {
   if (!demo_model_) {
     ROS_ERROR("No demo model loaded");
     return;
   }
-  demo_model_->DeleteEvent(event_type, frame_number);
+  demo_model_->DeleteEvent(event_type, state_.current_frame);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
   PublishState();
 }

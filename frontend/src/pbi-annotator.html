@@ -24,6 +24,9 @@
         background-color: var(--paper-green-500);
         color: #fff;
       }
+      .open:hover {
+        background-color: var(--paper-green-600);
+      }
       ros-rviz {
         display: block;
         width: 100%;
@@ -186,7 +189,6 @@
         var item = evt.model.item;
         var msg = {
           type: 'delete event',
-          frame_number: item.frame_number,
           event_type: item.type
         };
         this.$.eventPub.publish(msg);
