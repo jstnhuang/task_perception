@@ -22,6 +22,7 @@ class DemoModel {
   // Adds an event to the timeline. Replaces any event of the same type at the
   // same time.
   void AddEvent(const task_perception_msgs::Event& event);
+  void DeleteEvent(const std::string& event_type, int frame_number);
   task_perception_msgs::Demonstration ToMsg();
 
  private:

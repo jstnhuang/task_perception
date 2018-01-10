@@ -90,12 +90,14 @@ void AnnotatorServer::HandleEvent(
       HandleOpen(event.bag_path);
     } else if (event.type == msgs::AnnotatorEvent::STEP) {
       HandleStep();
+    } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
+      HandleAddObject(event.mesh_name);
     } else if (event.type == msgs::AnnotatorEvent::SAVE_SKELETON) {
       HandleSaveSkeleton();
     } else if (event.type == msgs::AnnotatorEvent::STEP_SKELETON) {
       HandleAdvanceSkeleton();
-    } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
-      HandleAddObject(event.mesh_name);
+    } else if (event.type == msgs::AnnotatorEvent::DELETE_EVENT) {
+      HandleDeleteEvent(event.frame_number, event.event_type);
     } else {
       ROS_ERROR("Unknown event type: \"%s\"", event.type.c_str());
     }
@@ -178,6 +180,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   dbot::ObjectResourceIdentifier ori;
   pbi::BuildOri(nh_, "pringles_1k.obj", &ori);
   object_tracker_builder.set_object(ori);
+  object_tracker_.reset();
   object_tracker_ = object_tracker_builder.BuildRos();
   object_pub_.reset(new dbot::ObjectStatePublisher(ori, 0, 255, 0));
   object_init_.reset(
@@ -202,7 +205,6 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   state_.bag_path = bag_path;
   state_.frame_count = num_frames;
   state_.current_frame = 0;
-  // state_.events gets set in ProcessCurrentStep
 
   ProcessCurrentStep();
 }
@@ -245,6 +247,17 @@ void AnnotatorServer::HandleAdvanceSkeleton() {
     return;
   }
   AdvanceSkeleton(current_color_image_, current_depth_image_);
+}
+
+void AnnotatorServer::HandleDeleteEvent(const int frame_number,
+                                        const std::string& event_type) {
+  if (!demo_model_) {
+    ROS_ERROR("No demo model loaded");
+    return;
+  }
+  demo_model_->DeleteEvent(event_type, frame_number);
+  demo_db_.Update(demo_id_, demo_model_->ToMsg());
+  PublishState();
 }
 
 void AnnotatorServer::HandleAddObject(const std::string& mesh_name) {
@@ -290,7 +303,6 @@ void AnnotatorServer::ProcessCurrentStep() {
   object_tracker_->run_once();
   object_pub_->publish(object_tracker_->current_state_messages());
 
-  state_.events = demo_model_->EventsAt(state_.current_frame);
   PublishState();
 }
 
@@ -320,6 +332,7 @@ void AnnotatorServer::Loop(const ros::TimerEvent& event) {
 }
 
 void AnnotatorServer::PublishState() {
+  state_.events = demo_model_->EventsAt(state_.current_frame);
   state_pub_.publish(state_);
 
   // color_scrubber_.View(state_.current_frame, &current_color_image_);

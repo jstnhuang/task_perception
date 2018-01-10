@@ -62,7 +62,14 @@
       Events:
       <span hidden$=[[_hasEvents(state.events)]]>None</span>
       <template is="dom-repeat" items="[[state.events]]">
-        <pbi-event event="[[item]]" ros="[[ros]]"></pbi-event>
+        <div class="layout horizontal center">
+          <pbi-event event="[[item]]" ros="[[ros]]"></pbi-event>
+          <paper-button on-tap="_handleDeleteEvent"
+              data-frame-number="[[state.current_frame]]"
+              data-event-type="[[item.type]]">
+            Delete
+          </paper-button>
+        </div>
       </template>
     </div>
   </template>
@@ -161,6 +168,16 @@
 
       _hasEvents(events) {
         return events && events.length !== 0;
+      }
+
+      _handleDeleteEvent(evt) {
+        var item = evt.model.item;
+        var msg = {
+          type: 'delete event',
+          frame_number: item.frame_number,
+          event_type: item.type
+        };
+        this.$.eventPub.publish(msg);
       }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);

@@ -74,6 +74,22 @@ void DemoModel::AddEvent(const task_perception_msgs::Event& event) {
   timeline_[event.frame_number].push_back(event);
 }
 
+void DemoModel::DeleteEvent(const std::string& event_type, int frame_number) {
+  if (frame_number < 0 || frame_number >= demo_.frame_count) {
+    ROS_ERROR("[DeleteEvent] Invalid frame number %d (%d)!", frame_number,
+              demo_.frame_count);
+    return;
+  }
+
+  std::vector<Event> cleaned;
+  for (const Event& evt : timeline_[frame_number]) {
+    if (evt.type != event_type) {
+      cleaned.push_back(evt);
+    }
+  }
+  timeline_[frame_number] = cleaned;
+}
+
 Demonstration DemoModel::ToMsg() {
   // This copying is necessary because of the de-duping in AddEvent.
   Demonstration demo = demo_;
