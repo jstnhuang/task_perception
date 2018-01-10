@@ -31,6 +31,12 @@
       .main {
         height: 100%;
       }
+      h3 {
+        border-bottom: 1px solid #ccc;
+      }
+      paper-input + paper-input {
+        margin-left: 5px;
+      }
     </style>
     <ros-topic auto
       last-message="{{state}}"
@@ -54,18 +60,18 @@
           pin class="flex" id="scrubber" disabled></paper-slider>
         <paper-button on-tap="_handleNext">Next</paper-button>
       </div>
-      Step actions
-      <div class="layout horizontal center">
+      <h3>Actions you can take:</h3>
+      <div class="layout horizontal center commands">
         <paper-button on-tap="_handleSaveSkeleton">Save skeleton</paper-button>
         <paper-button on-tap="_handleStepSkeleton">Step skeleton</paper-button>
       </div>
-      <div class="layout horizontal center">
+      <div class="layout horizontal center commands">
         <paper-input id="objName" label="Object name"></paper-input>
         <paper-input id="objMesh" label="Object mesh"></paper-input>
         <paper-button on-tap="_handleSpawnObject">Spawn object</paper-button>
         <paper-button on-tap="_handleUnspawnObject">Unspawn object</paper-button>
       </div>
-      Events:
+      <h3>Events for this frame:</h3>
       <span hidden$=[[_hasEvents(state.events)]]>None</span>
       <template is="dom-repeat" items="[[state.events]]">
         <div class="layout horizontal center">
