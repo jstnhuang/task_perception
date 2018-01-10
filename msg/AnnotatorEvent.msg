@@ -2,7 +2,7 @@
 string OPEN_BAG = open bag
 # Step to the next frame
 string STEP = step
-# Add an object to track, frame_number indicates when to start, mesh_name determines object model, object_name gives the user-friendly semantic name to the object.
+# Add an object to track, mesh_name determines object model, object_name gives the user-friendly semantic name to the object.
 string ADD_OBJECT = add object
 # Only object_name need to be given. Adds an unspawn event.
 string REMOVE_OBJECT = remove object
