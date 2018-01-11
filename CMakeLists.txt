@@ -53,7 +53,10 @@ add_message_files(
   AnnotatorEvent.msg
   AnnotatorState.msg
   Demonstration.msg
+  DemoState.msg
   Event.msg
+  HandState.msg
+  ObjectState.msg
 )
 
 ## Generate services in the 'srv' folder
