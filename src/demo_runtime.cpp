@@ -105,13 +105,76 @@ void DemoRuntime::Step() {
     current_state.nerf_joint_states = advance_res.joint_states;
   }
 
-  // Update object states
-  // Set the object states from annotation events if they exist. Otherwise, step
-  // through all the object trackers.
-  // TODO: finish this
-  // object_tracker_->update_obsrv(current_depth_image_);
-  // object_tracker_->run_once();
-  // object_pub_->publish(object_tracker_->current_state_messages());
+  // Handle spawn object events
+  std::vector<msgs::Event> spawn_events =
+      demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number_);
+  for (const msgs::Event& spawn_event : spawn_events) {
+    ObjectTracker tracker;
+    tracker.Instantiate(spawn_event.object_name, spawn_event.object_mesh,
+                        camera_info_);
+    object_trackers_[spawn_event.object_name] = tracker;
+  }
+
+  // Handle unspawn object events
+  std::vector<msgs::Event> unspawn_events =
+      demo_model_->EventsAt(msgs::Event::UNSPAWN_OBJECT, frame_number_);
+  for (const msgs::Event& unspawn_event : unspawn_events) {
+    if (object_trackers_.find(unspawn_event.object_name) ==
+        object_trackers_.end()) {
+      ROS_ERROR("No SPAWN event found when UNSPAWNing \"%s\"",
+                unspawn_event.object_name.c_str());
+      continue;
+    }
+    object_trackers_.erase(unspawn_event.object_name);
+  }
+
+  // Figure out where all the objects are
+  // For each object the pose is determined using the following algorithm:
+  // 1. If a user annotated its location, use that
+  // 2. If it had pose in the previous frame, then step through the tracker once
+  // 3. Otherwise, its pose needs to be initialized via interactive marker
+  std::vector<msgs::Event> object_pose_events =
+      demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number_);
+  for (auto& kv : object_trackers_) {
+    const std::string& object_name = kv.first;
+    ObjectTracker& tracker = kv.second;
+
+    msgs::ObjectState object_state;
+    object_state.object_name = object_name;
+    object_state.mesh_name = kv.second.mesh_name();
+
+    bool done = false;
+    // Case 1
+    for (const msgs::Event& pose_evt : object_pose_events) {
+      if (pose_evt.object_name == object_name) {
+        object_state.object_pose = pose_evt.object_pose;
+        done = true;
+      }
+    }
+    if (done) {
+      current_state.object_states.push_back(object_state);
+      continue;
+    }
+
+    // Case 2
+    for (const auto& prev_obj : prev_state.object_states) {
+      if (prev_obj.object_name == object_name) {
+        tracker.SetPose(prev_obj.object_pose);
+        tracker.Step(current_depth_image_);
+        tracker.GetPose(&object_state.object_pose);
+        done = true;
+      }
+    }
+    if (done) {
+      current_state.object_states.push_back(object_state);
+      continue;
+    }
+
+    // Case 3
+    tracker.SetInitialPose();
+    tracker.GetPose(&object_state.object_pose);
+    current_state.object_states.push_back(object_state);
+  }
 
   PublishViz();
 

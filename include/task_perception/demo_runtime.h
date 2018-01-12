@@ -1,6 +1,7 @@
 #ifndef _PBI_DEMO_RUNTIME_H_
 #define _PBI_DEMO_RUNTIME_H_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -60,7 +61,9 @@ class DemoRuntime {
   void GetState(const int frame_number,
                 task_perception_msgs::DemoState* state) const;
 
-  // Mid-execution modifications
+  // Rewind to a given frame number such that the frame will be executed on the
+  // next call to Step()
+  //  void Rewind(const int frame_number);
 
  private:
   void ResetState();
@@ -80,7 +83,7 @@ class DemoRuntime {
   sensor_msgs::CameraInfo camera_info_;
 
   // Object tracking
-  std::vector<pbi::ObjectTracker> object_trackers_;
+  std::map<std::string, pbi::ObjectTracker> object_trackers_;
 
   // Execution state
   int frame_number_;
