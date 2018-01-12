@@ -200,8 +200,6 @@ void AnnotatorServer::HandleAddObject(const std::string& object_name,
   demo_model_->AddEvent(event);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
   PublishState();
-
-  // TODO: create a new tracker
 }
 
 void AnnotatorServer::HandleRemoveObject(const std::string& object_name) {
@@ -216,8 +214,6 @@ void AnnotatorServer::HandleRemoveObject(const std::string& object_name) {
   demo_model_->AddEvent(event);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
   PublishState();
-
-  // TODO: stop tracker
 }
 
 void AnnotatorServer::ProcessCurrentStep() {
