@@ -28,7 +28,8 @@ void DemoModel::Reindex() {
   }
 }
 
-std::vector<task_perception_msgs::Event> DemoModel::EventsAt(int frame_number) {
+std::vector<task_perception_msgs::Event> DemoModel::EventsAt(
+    int frame_number) const {
   if (frame_number < 0 || frame_number >= demo_.frame_count) {
     ROS_ERROR("[EventsAt] Invalid frame number %d (%d)!", frame_number,
               demo_.frame_count);
@@ -38,14 +39,32 @@ std::vector<task_perception_msgs::Event> DemoModel::EventsAt(int frame_number) {
   return timeline_[frame_number];
 }
 
+std::vector<task_perception_msgs::Event> DemoModel::EventsAt(
+    const std::string& event_type, int frame_number) const {
+  if (frame_number < 0 || frame_number >= demo_.frame_count) {
+    ROS_ERROR("[EventsAt] Invalid frame number %d (%d)!", frame_number,
+              demo_.frame_count);
+    return {};
+  }
+
+  std::vector<Event> filtered;
+  for (const Event& evt : timeline_[frame_number]) {
+    if (evt.type == event_type) {
+      filtered.push_back(evt);
+    }
+  }
+
+  return filtered;
+}
+
 bool DemoModel::EventAt(const std::string& event_type, int frame_number,
-                        Event* event) {
+                        Event* event) const {
   if (frame_number < 0 || frame_number >= demo_.frame_count) {
     ROS_ERROR("[HasEventTypeAt] Invalid frame number %d (%d)!", frame_number,
               demo_.frame_count);
     return false;
   }
-  for (Event& evt : timeline_[frame_number]) {
+  for (const Event& evt : timeline_[frame_number]) {
     if (evt.type == event_type) {
       *event = evt;
       return true;
@@ -54,7 +73,8 @@ bool DemoModel::EventAt(const std::string& event_type, int frame_number,
   return false;
 }
 
-bool DemoModel::HasEventAt(const std::string& event_type, int frame_number) {
+bool DemoModel::HasEventAt(const std::string& event_type,
+                           int frame_number) const {
   Event unused_event;
   return EventAt(event_type, frame_number, &unused_event);
 }
@@ -66,7 +86,12 @@ void DemoModel::AddEvent(const task_perception_msgs::Event& event) {
     return;
   }
   for (Event& evt : timeline_[event.frame_number]) {
-    if (evt.type == event.type) {
+    if (event.type != Event::SET_OBJECT_POSE && evt.type == event.type) {
+      evt = event;
+      return;
+    }
+    if (event.type == Event::SET_OBJECT_POSE && evt.type == event.type &&
+        evt.object_name == event.object_name) {
       evt = event;
       return;
     }
@@ -74,7 +99,7 @@ void DemoModel::AddEvent(const task_perception_msgs::Event& event) {
   timeline_[event.frame_number].push_back(event);
 }
 
-void DemoModel::DeleteEvent(const std::string& event_type, int frame_number) {
+void DemoModel::DeleteEvent(const Event& event, int frame_number) {
   if (frame_number < 0 || frame_number >= demo_.frame_count) {
     ROS_ERROR("[DeleteEvent] Invalid frame number %d (%d)!", frame_number,
               demo_.frame_count);
@@ -83,14 +108,18 @@ void DemoModel::DeleteEvent(const std::string& event_type, int frame_number) {
 
   std::vector<Event> cleaned;
   for (const Event& evt : timeline_[frame_number]) {
-    if (evt.type != event_type) {
+    if (event.type != Event::SET_OBJECT_POSE && evt.type != event.type) {
+      cleaned.push_back(evt);
+    }
+    if (event.type == Event::SET_OBJECT_POSE &&
+        (evt.type != event.type || evt.object_name != event.object_name)) {
       cleaned.push_back(evt);
     }
   }
   timeline_[frame_number] = cleaned;
 }
 
-Demonstration DemoModel::ToMsg() {
+Demonstration DemoModel::ToMsg() const {
   // This copying is necessary because of the de-duping in AddEvent.
   Demonstration demo = demo_;
   for (const auto& frame_events : timeline_) {

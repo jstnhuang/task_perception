@@ -5,8 +5,6 @@
 #include <memory>
 #include <string>
 
-#include "dbot_ros/object_tracker_publisher.h"
-#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -18,17 +16,17 @@
 
 #include "task_perception/database.h"
 #include "task_perception/demo_model.h"
-#include "task_perception/particle_tracker_builder.h"
-#include "task_perception/video_scrubber.h"
+#include "task_perception/demo_runtime.h"
+#include "task_perception/demo_visualizer.h"
+#include "task_perception/skeleton_services.h"
 
 namespace pbi {
+// AnnotatorServer edits the annotation in response to AnnotationEvents from the
+// frontend.
 class AnnotatorServer {
  public:
-  AnnotatorServer(const ros::Publisher& camera_info_pub,
-                  const ros::Publisher& color_pub,
-                  const ros::Publisher& depth_pub,
-                  const ros::Publisher& state_pub,
-                  const ros::Publisher& nerf_pub,
+  AnnotatorServer(const DemoVisualizer& demo_viz,
+                  const SkeletonServices& skel_services,
                   const DemonstrationDb& demo_db);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
@@ -41,7 +39,8 @@ class AnnotatorServer {
   void HandleRemoveObject(const std::string& object_name);
   void HandleSaveSkeleton();
   void HandleAdvanceSkeleton();
-  void HandleDeleteEvent(const std::string& event_type);
+  void HandleDeleteEvent(const std::string& event_type,
+                         const std::string& object_name);
 
   void ProcessCurrentStep();
 
@@ -49,51 +48,24 @@ class AnnotatorServer {
   void AdvanceSkeleton(const sensor_msgs::Image& color,
                        const sensor_msgs::Image& depth);
 
-  // Loop that continuously publishes the RGBD image. This is needed for the
-  // depthcloud_encoder node.
-  void Loop(const ros::TimerEvent& event);
   void PublishState();
 
-  ros::Publisher camera_info_pub_;
-  ros::Publisher color_pub_;
-  ros::Publisher depth_pub_;
-  ros::Publisher state_pub_;
-  ros::Publisher nerf_pub_;
+  DemoVisualizer demo_viz_;
+  SkeletonServices skel_services_;
   DemonstrationDb demo_db_;
 
   ros::NodeHandle nh_;
-  ros::Timer timer_;
 
   // Bag file state
   std::shared_ptr<rosbag::Bag> bag_;
-  std::string color_topic_;
-  std::string depth_topic_;
   sensor_msgs::CameraInfo camera_info_;
   std::string demo_id_;
   std::shared_ptr<DemoModel> demo_model_;
 
   task_perception_msgs::AnnotatorState state_;
 
-  VideoScrubber color_scrubber_;
-  VideoScrubber depth_scrubber_;
-  sensor_msgs::Image current_color_image_;
-  sensor_msgs::Image current_depth_image_;
-
-  // Skeleton tracker
-  ros::ServiceClient reset_skeleton;
-  ros::ServiceClient advance_skeleton;
-  ros::ServiceClient get_skeleton_state;
-
-  // Object tracking
-  std::shared_ptr<dbot::ObjectTrackerRos<dbot::ParticleTracker> >
-      object_tracker_;
-  std::shared_ptr<dbot::ObjectStatePublisher> object_pub_;
-  std::shared_ptr<opi::InteractiveMarkerInitializer> object_init_;
+  DemoRuntime demo_runtime_;
 };
-
-// Returns an initial skeleton that works well for the PR2 at full height and
-// camera at 45 degrees.
-skin_segmentation_msgs::NerfJointStates DefaultSkeleton();
 }  // namespace pbi
 
 #endif  // _PBI_ANNOTATOR_SERVER_H_

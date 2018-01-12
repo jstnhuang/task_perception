@@ -4,32 +4,51 @@
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "skin_segmentation_msgs/AdvanceSkeleton.h"
+#include "skin_segmentation_msgs/GetSkeletonState.h"
 #include "skin_segmentation_msgs/NerfJointStates.h"
+#include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
 
 #include "task_perception/annotator_server.h"
 #include "task_perception/database.h"
-#include "task_perception/particle_tracker_builder.h"
-#include "task_perception/video_scrubber.h"
+#include "task_perception/demo_visualizer.h"
+#include "task_perception/skeleton_services.h"
 
 namespace msgs = task_perception_msgs;
+namespace ss_msgs = skin_segmentation_msgs;
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "pbi_annotator_node");
   ros::NodeHandle nh;
 
-  ros::Publisher camera_info_pub = nh.advertise<sensor_msgs::CameraInfo>(
+  pbi::DemoVisualizer demo_viz;
+  demo_viz.camera_info_pub = nh.advertise<sensor_msgs::CameraInfo>(
       "pbi_annotator/camera_info", 10, true);
-  ros::Publisher color_pub =
+  demo_viz.color_pub =
       nh.advertise<sensor_msgs::Image>("pbi_annotator/image_color", 10, true);
-  ros::Publisher depth_pub =
+  demo_viz.depth_pub =
       nh.advertise<sensor_msgs::Image>("pbi_annotator/image_depth", 10, true);
-  ros::Publisher state_pub =
+  demo_viz.state_pub =
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
 
-  ros::Publisher nerf_pub =
+  // Skeleton tracker services
+  pbi::SkeletonServices skel_services;
+  skel_services.reset =
+      nh.serviceClient<ss_msgs::ResetSkeletonTracker>("reset_skeleton_tracker");
+  skel_services.advance =
+      nh.serviceClient<ss_msgs::AdvanceSkeleton>("advance_skeleton");
+  skel_services.get_state =
+      nh.serviceClient<ss_msgs::GetSkeletonState>("get_skeleton_state");
+  skel_services.nerf_pub =
       nh.advertise<skin_segmentation_msgs::NerfJointStates>("nerf_controls", 1);
+  while (ros::ok() &&
+         (!skel_services.reset.waitForExistence(ros::Duration(1.0)) ||
+          !skel_services.advance.waitForExistence(ros::Duration(1.0)) ||
+          !skel_services.get_state.waitForExistence(ros::Duration(1.0)))) {
+    ROS_WARN("Waiting for skeleton tracking service");
+  }
 
   // Build database
   const std::string& kDatabaseName("pbi");
@@ -40,8 +59,7 @@ int main(int argc, char** argv) {
       "pbi_annotator/demonstration", 1, true);
   pbi::DemonstrationDb demo_db(&message_store, demo_pub);
 
-  pbi::AnnotatorServer server(camera_info_pub, color_pub, depth_pub, state_pub,
-                              nerf_pub, demo_db);
+  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db);
   server.Start();
   ROS_INFO("Annotator server ready.");
 

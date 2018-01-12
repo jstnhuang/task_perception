@@ -120,10 +120,13 @@ catkin_package(
     pbi_bag_utils
     pbi_camera_info_camera_provider
     pbi_database
+    pbi_default_skeleton
     pbi_demo_model
+    pbi_demo_runtime
+    pbi_demo_visualizer
+    pbi_object_tracker
     pbi_particle_tracker_builder
     pbi_record_video_action_server
-    #pbi_track
     pbi_video_scrubber
   CATKIN_DEPENDS
     abseil_cpp
@@ -160,7 +163,8 @@ target_link_libraries(pbi_annotator_server
   pbi_bag_utils
   pbi_database
   pbi_demo_model
-  pbi_particle_tracker_builder
+  pbi_demo_runtime
+  pbi_demo_visualizer
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
@@ -177,15 +181,46 @@ target_link_libraries(pbi_camera_info_camera_provider
   ${catkin_LIBRARIES}
 )
 
+add_library(pbi_database src/database.cpp)
+add_dependencies(pbi_database ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_database
+  ${catkin_LIBRARIES}
+)
+
 add_library(pbi_demo_model src/demo_model.cpp)
 add_dependencies(pbi_demo_model ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_demo_model
   ${catkin_LIBRARIES}
 )
 
-add_library(pbi_database src/database.cpp)
-add_dependencies(pbi_database ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_database
+add_library(pbi_demo_runtime src/demo_runtime.cpp)
+add_dependencies(pbi_demo_runtime ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_demo_runtime
+  pbi_default_skeleton
+  pbi_demo_model
+  pbi_demo_visualizer
+  pbi_object_tracker
+  pbi_video_scrubber
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_demo_visualizer src/demo_visualizer.cpp)
+add_dependencies(pbi_demo_visualizer ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_demo_visualizer
+  pbi_object_tracker
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_default_skeleton src/default_skeleton.cpp)
+add_dependencies(pbi_default_skeleton ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_default_skeleton
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_object_tracker src/object_tracker.cpp)
+add_dependencies(pbi_object_tracker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_object_tracker
+  pbi_particle_tracker_builder
   ${catkin_LIBRARIES}
 )
 
@@ -202,13 +237,6 @@ target_link_libraries(pbi_record_video_action_server
   ${catkin_LIBRARIES}
 )
 
-#add_library(pbi_track src/track.cpp)
-#add_dependencies(pbi_track ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(pbi_track
-#  pbi_particle_tracker_builder
-#  ${catkin_LIBRARIES}
-#)
-
 add_library(pbi_video_scrubber src/video_scrubber.cpp)
 add_dependencies(pbi_video_scrubber ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_video_scrubber
@@ -221,9 +249,11 @@ set_target_properties(pbi_annotator_node PROPERTIES OUTPUT_NAME annotator PREFIX
 add_dependencies(pbi_annotator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_annotator_node
   pbi_annotator_server
-  pbi_record_video_action_server
+  pbi_database
+  pbi_demo_visualizer
   pbi_video_scrubber
   ${catkin_LIBRARIES}
+  ${CUDA_LIBRARIES}
 )
 
 add_executable(pbi_process_bag_main src/process_bag_main.cpp)
