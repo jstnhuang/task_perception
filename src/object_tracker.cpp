@@ -50,6 +50,10 @@ void ObjectTracker::SetInitialPose() {
   ROS_INFO_STREAM("Set initial pose to " << initial_pose);
 }
 
+void ObjectTracker::SetPose(const geometry_msgs::Pose& pose) {
+  object_tracker_->tracker()->initialize({ri::to_pose_velocity_vector(pose)});
+}
+
 void ObjectTracker::Step(const sensor_msgs::Image& depth) {
   if (!object_tracker_) {
     ROS_ERROR("Object tracker for \"%s\" not instantiated", name_.c_str());
@@ -64,6 +68,14 @@ void ObjectTracker::GetPose(geometry_msgs::PoseStamped* pose_stamped) const {
     return;
   }
   *pose_stamped = object_tracker_->current_pose();
+}
+
+void ObjectTracker::GetPose(geometry_msgs::Pose* pose) const {
+  if (!object_tracker_) {
+    ROS_ERROR("Object tracker for \"%s\" not instantiated", name_.c_str());
+    return;
+  }
+  *pose = object_tracker_->current_pose().pose;
 }
 
 std::string ObjectTracker::name() const { return name_; }

@@ -20,8 +20,10 @@ class ObjectTracker {
   void Instantiate(const std::string& name, const std::string& mesh_path,
                    const sensor_msgs::CameraInfo& camera_info);
   void SetInitialPose();
+  void SetPose(const geometry_msgs::Pose& pose);
   void Step(const sensor_msgs::Image& depth);
   void GetPose(geometry_msgs::PoseStamped* pose_stamped) const;
+  void GetPose(geometry_msgs::Pose* pose) const;
   std::string name() const;
   std::string mesh_name() const;
 
