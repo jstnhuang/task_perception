@@ -32,6 +32,8 @@ int main(int argc, char** argv) {
       nh.advertise<sensor_msgs::Image>("pbi_annotator/image_depth", 10, true);
   demo_viz.state_pub =
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
+  demo_viz.objects_pub = nh.advertise<visualization_msgs::Marker>(
+      "pbi_annotator/objects", 10, true);
 
   // Skeleton tracker services
   pbi::SkeletonServices skel_services;

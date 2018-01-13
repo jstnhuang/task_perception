@@ -159,6 +159,8 @@ void DemoRuntime::Step() {
     for (const msgs::Event& pose_evt : object_pose_events) {
       if (pose_evt.object_name == object_name) {
         object_state.object_pose = pose_evt.object_pose;
+        ROS_INFO("%d: Set object pose for %s", frame_number,
+                 object_name.c_str());
         done = true;
       }
     }
@@ -171,24 +173,24 @@ void DemoRuntime::Step() {
     for (const auto& prev_obj : prev_state.object_states) {
       if (prev_obj.object_name == object_name) {
         tracker.SetPose(prev_obj.object_pose);
+        ROS_INFO("%d: Stepped through object tracker for %s", frame_number,
+                 object_name.c_str());
         tracker.Step(current_depth_image_);
         tracker.GetPose(&object_state.object_pose);
         done = true;
       }
     }
-    if (done) {
-      current_state.object_states.push_back(object_state);
+    if (!done) {
+      ROS_ERROR("%d: Unable to step through object tracking for object %s",
+                frame_number, object_name.c_str());
       continue;
     }
+    current_state.object_states.push_back(object_state);
   }
 
-  PublishViz();
-  ROS_INFO("Published viz");
-
   states_[frame_number] = current_state;
-  ROS_INFO("Saved current state");
-
   ++last_executed_frame_;
+  PublishViz();
 }
 
 void DemoRuntime::current_color_image(sensor_msgs::Image* image) const {
@@ -244,6 +246,16 @@ void DemoRuntime::PublishViz() {
   current_depth_image_.header.stamp = now;
   viz_.color_pub.publish(current_color_image_);
   viz_.depth_pub.publish(current_depth_image_);
-}
 
+  if (last_executed_frame_ > 0) {
+    msgs::DemoState prev_state;
+    prev_state = states_[last_executed_frame_ - 1];
+    viz_.ClearObjects(prev_state.object_states);
+  }
+
+  if (last_executed_frame_ >= 0) {
+    viz_.PublishObjects(states_[last_executed_frame_].object_states,
+                        camera_info_.header.frame_id);
+  }
+}
 }  // namespace pbi
