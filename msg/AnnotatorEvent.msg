@@ -12,6 +12,9 @@ string SAVE_SKELETON = save skeleton
 # Step through the skeleton tracker once
 string STEP_SKELETON = step skeleton
 string DELETE_EVENT = delete event
+# Set the pose of an object that has been spawned.
+# Must specify object_name
+string SET_OBJECT_POSE = set object pose
 string type
 
 string bag_path # If type is OPEN_BAG, this specifies the path of the bag file

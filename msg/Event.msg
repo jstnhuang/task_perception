@@ -35,11 +35,13 @@ string type
 #   UNSPAWNED.
 # UNSPAWN_OBJECT: object_name must be specified. The object must have been
 #   SPAWNED before.
+# SET_OBJECT_POSE: object_name and object_pose must be specified. The object must
+#   have been SPAWNED before.
 
 skin_segmentation_msgs/NerfJointStates nerf_joint_states
 
 string object_name
-string object_mesh_path # E.g, package://object_meshes/object_models/bowl_1k.obj
+string object_mesh # E.g, bowl_1k.obj, must be in package://object_meshes/object_models
 geometry_msgs/Pose object_pose # Object pose is relative to the base_link of the robot.
 
 string LEFT_HAND = left hand
