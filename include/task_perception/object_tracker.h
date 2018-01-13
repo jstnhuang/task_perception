@@ -6,7 +6,6 @@
 
 #include "dbot/tracker/particle_tracker.h"
 #include "dbot_ros/object_tracker_ros.h"
-#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "dbot_ros_msgs/ObjectState.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "ros/ros.h"
@@ -19,7 +18,6 @@ class ObjectTracker {
   ObjectTracker();
   void Instantiate(const std::string& name, const std::string& mesh_path,
                    const sensor_msgs::CameraInfo& camera_info);
-  void SetInitialPose();
   void SetPose(const geometry_msgs::Pose& pose);
   void Step(const sensor_msgs::Image& depth);
   void GetPose(geometry_msgs::PoseStamped* pose_stamped) const;
@@ -40,7 +38,6 @@ class ObjectTracker {
 
   std::shared_ptr<dbot::ObjectTrackerRos<dbot::ParticleTracker> >
       object_tracker_;
-  std::shared_ptr<opi::InteractiveMarkerInitializer> object_init_;
 };
 }  // namespace pbi
 

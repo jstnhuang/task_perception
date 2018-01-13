@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "dbot_ros/util/interactive_marker_initializer.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -41,12 +42,16 @@ class AnnotatorServer {
   void HandleAdvanceSkeleton();
   void HandleDeleteEvent(const std::string& event_type,
                          const std::string& object_name);
+  void HandleSetObjectPose(const std::string& object_name);
 
-  void ProcessCurrentStep();
+  void RunCurrentStep();
+  void RerunCurrentStep();
 
   // Advances the skeleton tracker with the given color/depth frame.
   void AdvanceSkeleton(const sensor_msgs::Image& color,
                        const sensor_msgs::Image& depth);
+  bool SetObjectPose(const std::string& object_name,
+                     const std::string& object_mesh, geometry_msgs::Pose* pose);
 
   void PublishState();
 
@@ -65,6 +70,8 @@ class AnnotatorServer {
   task_perception_msgs::AnnotatorState state_;
 
   DemoRuntime demo_runtime_;
+
+  std::unique_ptr<opi::InteractiveMarkerInitializer> object_init_;
 };
 }  // namespace pbi
 

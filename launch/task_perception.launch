@@ -1,5 +1,6 @@
 <launch>
   <arg name="launch_websocket" default="true" />
+  <arg name="debug" default="false" />
 
   <!-- MongoDB -->
   <param name="mongodb_use_daemon" value="true" />
@@ -38,5 +39,6 @@
   <!-- Skeleton tracker -->
   <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 
-  <node pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
+  <node if="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" launch-prefix="xterm -e gdb --args" />
+  <node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
 </launch>

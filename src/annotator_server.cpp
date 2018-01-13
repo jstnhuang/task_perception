@@ -40,8 +40,9 @@ AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
       bag_(),
       demo_id_(""),
       demo_model_(),
+      state_(),
       demo_runtime_(demo_viz_, skel_services_),
-      state_() {}
+      object_init_() {}
 
 void AnnotatorServer::Start() { demo_viz_.state_pub.publish(state_); }
 
@@ -62,6 +63,8 @@ void AnnotatorServer::HandleEvent(
       HandleAdvanceSkeleton();
     } else if (event.type == msgs::AnnotatorEvent::DELETE_EVENT) {
       HandleDeleteEvent(event.event_type, event.object_name);
+    } else if (event.type == msgs::AnnotatorEvent::SET_OBJECT_POSE) {
+      HandleSetObjectPose(event.object_name);
     } else {
       ROS_ERROR("Unknown event type: \"%s\"", event.type.c_str());
     }
@@ -121,11 +124,16 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   demo_runtime_.LoadDemo(color_topic, depth_topic, camera_info_, color_images,
                          depth_images, demo_model_);
 
+  object_init_.reset(
+      new opi::InteractiveMarkerInitializer(camera_info_.header.frame_id));
+
   ROS_INFO("Opened bag: %s with %d frames", bag_path.c_str(), num_frames);
   state_.bag_path = bag_path;
   state_.frame_count = num_frames;
-  state_.current_frame = 0;
-  ProcessCurrentStep();
+  // current_frame points to the most recently executed frame, or -1 to start.
+  state_.current_frame = -1;
+
+  RunCurrentStep();
 }
 
 void AnnotatorServer::HandleStep() {
@@ -134,17 +142,23 @@ void AnnotatorServer::HandleStep() {
     return;
   }
 
-  state_.current_frame += 1;
-  if (state_.current_frame >= state_.frame_count) {
+  int step_to_execute = state_.current_frame + 1;
+  if (step_to_execute >= state_.frame_count) {
     ROS_INFO("Reached end of bag file.");
     return;
   }
-  ProcessCurrentStep();
+
+  RunCurrentStep();
 }
 
 void AnnotatorServer::HandleSaveSkeleton() {
   if (!bag_) {
     ROS_ERROR("No bag file loaded");
+    return;
+  }
+  if (state_.current_frame < 0 || state_.current_frame >= state_.frame_count) {
+    ROS_ERROR("Invalid current frame %d (%d)", state_.current_frame,
+              state_.frame_count);
     return;
   }
 
@@ -157,7 +171,8 @@ void AnnotatorServer::HandleSaveSkeleton() {
   event.nerf_joint_states = get_res.nerf_joint_states;
   demo_model_->AddEvent(event);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
-  ProcessCurrentStep();
+
+  RerunCurrentStep();
 }
 
 void AnnotatorServer::HandleAdvanceSkeleton() {
@@ -178,12 +193,17 @@ void AnnotatorServer::HandleDeleteEvent(const std::string& event_type,
     ROS_ERROR("No demo model loaded");
     return;
   }
+  if (state_.current_frame < 0 || state_.current_frame >= state_.frame_count) {
+    ROS_ERROR("Invalid current frame %d (%d)", state_.current_frame,
+              state_.frame_count);
+    return;
+  }
   msgs::Event event;
   event.type = event_type;
   event.object_name = object_name;
   demo_model_->DeleteEvent(event, state_.current_frame);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
-  PublishState();
+  RerunCurrentStep();
 }
 
 void AnnotatorServer::HandleAddObject(const std::string& object_name,
@@ -192,19 +212,37 @@ void AnnotatorServer::HandleAddObject(const std::string& object_name,
     ROS_ERROR("No demo model loaded");
     return;
   }
-  msgs::Event event;
-  event.frame_number = state_.current_frame;
-  event.type = msgs::Event::SPAWN_OBJECT;
-  event.object_name = object_name;
-  event.object_mesh = mesh_name;
-  demo_model_->AddEvent(event);
+  if (state_.current_frame < 0 || state_.current_frame >= state_.frame_count) {
+    ROS_ERROR("Invalid current frame %d (%d)", state_.current_frame,
+              state_.frame_count);
+    return;
+  }
+  msgs::Event spawn_event;
+  spawn_event.frame_number = state_.current_frame;
+  spawn_event.type = msgs::Event::SPAWN_OBJECT;
+  spawn_event.object_name = object_name;
+  spawn_event.object_mesh = mesh_name;
+  demo_model_->AddEvent(spawn_event);
+
+  msgs::Event pose_event;
+  pose_event.frame_number = state_.current_frame;
+  pose_event.type = msgs::Event::SET_OBJECT_POSE;
+  pose_event.object_name = object_name;
+  SetObjectPose(object_name, mesh_name, &pose_event.object_pose);
+  demo_model_->AddEvent(pose_event);
+
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
-  PublishState();
+  RerunCurrentStep();
 }
 
 void AnnotatorServer::HandleRemoveObject(const std::string& object_name) {
   if (!demo_model_) {
     ROS_ERROR("No demo model loaded");
+    return;
+  }
+  if (state_.current_frame < 0 || state_.current_frame >= state_.frame_count) {
+    ROS_ERROR("Invalid current frame %d (%d)", state_.current_frame,
+              state_.frame_count);
     return;
   }
   msgs::Event event;
@@ -213,10 +251,89 @@ void AnnotatorServer::HandleRemoveObject(const std::string& object_name) {
   event.object_name = object_name;
   demo_model_->AddEvent(event);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
+  RerunCurrentStep();
+}
+
+void AnnotatorServer::HandleSetObjectPose(const std::string& object_name) {
+  if (!demo_model_) {
+    ROS_ERROR("No demo model loaded");
+    return;
+  }
+  if (state_.current_frame < 0 || state_.current_frame >= state_.frame_count) {
+    ROS_ERROR("Invalid current frame %d (%d)", state_.current_frame,
+              state_.frame_count);
+    return;
+  }
+
+  msgs::ObjectState object_state;
+  bool found = demo_runtime_.GetObjectState(state_.current_frame, object_name,
+                                            &object_state);
+  if (!found) {
+    ROS_ERROR("No object named \"%s\"", object_name.c_str());
+    return;
+  }
+
+  msgs::Event event;
+  event.frame_number = state_.current_frame;
+  event.type = msgs::Event::SET_OBJECT_POSE;
+  event.object_name = object_name;
+  bool success =
+      SetObjectPose(object_name, object_state.mesh_name, &event.object_pose);
+  if (!success) {
+    return;
+  }
+
+  demo_model_->AddEvent(event);
+  demo_db_.Update(demo_id_, demo_model_->ToMsg());
+  RerunCurrentStep();
+}
+
+bool AnnotatorServer::SetObjectPose(const std::string& object_name,
+                                    const std::string& object_mesh,
+                                    geometry_msgs::Pose* pose) {
+  msgs::ObjectState object_state;
+  demo_runtime_.GetObjectState(state_.current_frame, object_name,
+                               &object_state);
+
+  if (object_state.object_pose.position.x == 0 &&
+      object_state.object_pose.position.y == 0 &&
+      object_state.object_pose.position.z == 0 &&
+      object_state.object_pose.orientation.w == 0 &&
+      object_state.object_pose.orientation.x == 0 &&
+      object_state.object_pose.orientation.y == 0 &&
+      object_state.object_pose.orientation.z == 0) {
+    object_state.object_pose.position.z = 1;
+    object_state.object_pose.orientation.w = 1;
+  }
+  object_init_->set_object("object_meshes", "object_models", object_mesh,
+                           object_state.object_pose, false);
+  object_init_->wait_for_object_poses();
+  if (object_init_->poses().size() == 0) {
+    ROS_ERROR("Interactive marker not initialized properly!");
+    return false;
+  }
+  *pose = object_init_->poses()[0];
+  return true;
+}
+
+void AnnotatorServer::RunCurrentStep() {
+  if (!demo_model_) {
+    ROS_ERROR("No demo model loaded");
+    return;
+  }
+  int step_to_execute = state_.current_frame + 1;
+  if (step_to_execute < 0 || step_to_execute >= state_.frame_count) {
+    ROS_ERROR("Invalid step %d (%d).", state_.current_frame,
+              state_.frame_count);
+    return;
+  }
+  state_.current_frame += 1;
+  PublishState();
+  demo_runtime_.Step();
   PublishState();
 }
 
-void AnnotatorServer::ProcessCurrentStep() {
+void AnnotatorServer::RerunCurrentStep() {
   if (!demo_model_) {
     ROS_ERROR("No demo model loaded");
     return;
@@ -226,9 +343,8 @@ void AnnotatorServer::ProcessCurrentStep() {
               state_.frame_count);
     return;
   }
-
+  demo_runtime_.Rewind(state_.current_frame - 1);
   demo_runtime_.Step();
-
   PublishState();
 }
 
@@ -243,6 +359,7 @@ void AnnotatorServer::AdvanceSkeleton(const sensor_msgs::Image& color,
 
 void AnnotatorServer::PublishState() {
   state_.events = demo_model_->EventsAt(state_.current_frame);
+  // TODO: include objects here
   demo_viz_.state_pub.publish(state_);
 
   // TODO: skeleton tracker manages its own state and visualization for now,

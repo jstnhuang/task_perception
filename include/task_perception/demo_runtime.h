@@ -9,6 +9,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/DemoState.h"
+#include "task_perception_msgs/ObjectState.h"
 
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
@@ -54,16 +55,18 @@ class DemoRuntime {
 
   // Returns frame number, which is the index of the earliest frame that has not
   // yet been evaluated.
-  int current_frame_number() const;
+  int last_executed_frame() const;
   void current_color_image(sensor_msgs::Image* image) const;
   void current_depth_image(sensor_msgs::Image* image) const;
 
   void GetState(const int frame_number,
                 task_perception_msgs::DemoState* state) const;
+  bool GetObjectState(const int frame_number, const std::string& object_name,
+                      task_perception_msgs::ObjectState* object_state);
 
-  // Rewind to a given frame number such that the frame will be executed on the
-  // next call to Step()
-  //  void Rewind(const int frame_number);
+  // Rewind the runtime. The given frame number specifies the last executed
+  // frame, or -1 to start over from the beginning.
+  void Rewind(const int last_executed_frame);
 
  private:
   void ResetState();
@@ -82,11 +85,10 @@ class DemoRuntime {
   sensor_msgs::Image current_depth_image_;
   sensor_msgs::CameraInfo camera_info_;
 
-  // Object tracking
-  std::map<std::string, pbi::ObjectTracker> object_trackers_;
-
   // Execution state
-  int frame_number_;
+  // 0-based index of the last video frame that was executed. -1 if nothing has
+  // been executed.
+  int last_executed_frame_;
   int num_frames_;
   std::vector<task_perception_msgs::DemoState> states_;
 };

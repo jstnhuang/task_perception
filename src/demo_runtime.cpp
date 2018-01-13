@@ -33,8 +33,7 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       current_color_image_(),
       current_depth_image_(),
       camera_info_(),
-      object_trackers_(),
-      frame_number_(0),
+      last_executed_frame_(-1),
       num_frames_(0),
       states_() {}
 
@@ -62,14 +61,16 @@ void DemoRuntime::LoadDemo(const std::string& color_topic,
 }
 
 void DemoRuntime::Step() {
-  if (frame_number_ >= num_frames_) {
+  // frame_number is the index of the frame to execute.
+  int frame_number = last_executed_frame_ + 1;
+  if (frame_number >= num_frames_) {
     ROS_INFO("Reached end of demonstration.");
     return;
   }
 
   msgs::DemoState prev_state;
-  if (frame_number_ > 0) {
-    prev_state = states_[frame_number_ - 1];
+  if (frame_number > 0) {
+    prev_state = states_[frame_number - 1];
   }
 
   msgs::DemoState current_state;
@@ -77,15 +78,15 @@ void DemoRuntime::Step() {
   // Update images
   sensor_msgs::Image color_image;
   sensor_msgs::Image depth_image;
-  color_scrubber_.View(frame_number_, &current_color_image_);
-  depth_scrubber_.View(frame_number_, &current_depth_image_);
+  color_scrubber_.View(frame_number, &current_color_image_);
+  depth_scrubber_.View(frame_number, &current_depth_image_);
 
   // Update skeleton state
   // Set skeleton state from annotation if it exists. Otherwise, step through
   // the skeleton tracker.
-  if (demo_model_->HasEventAt(msgs::Event::SET_SKELETON_STATE, frame_number_)) {
+  if (demo_model_->HasEventAt(msgs::Event::SET_SKELETON_STATE, frame_number)) {
     msgs::Event skeleton_event;
-    demo_model_->EventAt(msgs::Event::SET_SKELETON_STATE, frame_number_,
+    demo_model_->EventAt(msgs::Event::SET_SKELETON_STATE, frame_number,
                          &skeleton_event);
     current_state.nerf_joint_states = skeleton_event.nerf_joint_states;
     skel_services_.nerf_pub.publish(current_state.nerf_joint_states);
@@ -105,37 +106,47 @@ void DemoRuntime::Step() {
     current_state.nerf_joint_states = advance_res.joint_states;
   }
 
+  // Figure out what objects exist in the previous state
+  std::map<std::string, pbi::ObjectTracker> object_trackers;
+  for (const msgs::ObjectState& obj_state : prev_state.object_states) {
+    const std::string& name = obj_state.object_name;
+    object_trackers[name].Instantiate(name, obj_state.mesh_name, camera_info_);
+  }
+
   // Handle spawn object events
   std::vector<msgs::Event> spawn_events =
-      demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number_);
+      demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number);
   for (const msgs::Event& spawn_event : spawn_events) {
-    ObjectTracker tracker;
-    tracker.Instantiate(spawn_event.object_name, spawn_event.object_mesh,
-                        camera_info_);
-    object_trackers_[spawn_event.object_name] = tracker;
+    const std::string& name = spawn_event.object_name;
+    if (object_trackers.find(name) != object_trackers.end()) {
+      ROS_ERROR("SPAWNed object \"%s\", but it already exists.", name.c_str());
+      continue;
+    }
+    object_trackers[name].Instantiate(name, spawn_event.object_mesh,
+                                      camera_info_);
   }
 
   // Handle unspawn object events
   std::vector<msgs::Event> unspawn_events =
-      demo_model_->EventsAt(msgs::Event::UNSPAWN_OBJECT, frame_number_);
+      demo_model_->EventsAt(msgs::Event::UNSPAWN_OBJECT, frame_number);
   for (const msgs::Event& unspawn_event : unspawn_events) {
-    if (object_trackers_.find(unspawn_event.object_name) ==
-        object_trackers_.end()) {
-      ROS_ERROR("No SPAWN event found when UNSPAWNing \"%s\"",
-                unspawn_event.object_name.c_str());
+    const std::string& name = unspawn_event.object_name;
+    if (object_trackers.find(name) == object_trackers.end()) {
+      ROS_ERROR("No SPAWN event found when UNSPAWNing \"%s\"", name.c_str());
       continue;
     }
-    object_trackers_.erase(unspawn_event.object_name);
+    object_trackers.erase(name);
   }
 
   // Figure out where all the objects are
+  // All SPAWN events should be accompanied by a SET_OBJECT_POSE event for the
+  // same object.
   // For each object the pose is determined using the following algorithm:
   // 1. If a user annotated its location, use that
   // 2. If it had pose in the previous frame, then step through the tracker once
-  // 3. Otherwise, its pose needs to be initialized via interactive marker
   std::vector<msgs::Event> object_pose_events =
-      demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number_);
-  for (auto& kv : object_trackers_) {
+      demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number);
+  for (auto& kv : object_trackers) {
     const std::string& object_name = kv.first;
     ObjectTracker& tracker = kv.second;
 
@@ -169,21 +180,16 @@ void DemoRuntime::Step() {
       current_state.object_states.push_back(object_state);
       continue;
     }
-
-    // Case 3
-    tracker.SetInitialPose();
-    tracker.GetPose(&object_state.object_pose);
-    current_state.object_states.push_back(object_state);
   }
 
   PublishViz();
+  ROS_INFO("Published viz");
 
-  states_[frame_number_] = current_state;
+  states_[frame_number] = current_state;
+  ROS_INFO("Saved current state");
 
-  ++frame_number_;
+  ++last_executed_frame_;
 }
-
-int DemoRuntime::current_frame_number() const { return frame_number_; }
 
 void DemoRuntime::current_color_image(sensor_msgs::Image* image) const {
   *image = current_color_image_;
@@ -203,9 +209,31 @@ void DemoRuntime::GetState(const int frame_number,
   *state = states_[frame_number];
 }
 
+bool DemoRuntime::GetObjectState(const int frame_number,
+                                 const std::string& object_name,
+                                 msgs::ObjectState* object_state) {
+  if (frame_number < 0 || frame_number >= static_cast<int>(states_.size())) {
+    ROS_ERROR("Invalid frame number %d (out of %ld)", frame_number,
+              states_.size());
+    return false;
+  }
+
+  for (const auto& os : states_[frame_number].object_states) {
+    if (os.object_name == object_name) {
+      *object_state = os;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void DemoRuntime::Rewind(const int frame_number) {
+  last_executed_frame_ = frame_number;
+}
+
 void DemoRuntime::ResetState() {
-  object_trackers_.clear();
-  frame_number_ = 0;
+  last_executed_frame_ = -1;
   states_.clear();
 }
 
