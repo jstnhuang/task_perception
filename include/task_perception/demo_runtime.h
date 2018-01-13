@@ -66,7 +66,10 @@ class DemoRuntime {
 
   // Rewind the runtime. The given frame number specifies the last executed
   // frame, or -1 to start over from the beginning.
-  void Rewind(const int last_executed_frame);
+  void RerunLastFrame();
+  void RemoveSpawnObjectEvent(const std::string& object_name);
+  void RemoveUnspawnObjectEvent(const std::string& object_name,
+                                const std::string& object_mesh);
 
  private:
   void ResetState();
@@ -84,6 +87,9 @@ class DemoRuntime {
   sensor_msgs::Image current_color_image_;
   sensor_msgs::Image current_depth_image_;
   sensor_msgs::CameraInfo camera_info_;
+
+  // Object state
+  std::map<std::string, ObjectTracker> object_trackers_;
 
   // Execution state
   // 0-based index of the last video frame that was executed. -1 if nothing has

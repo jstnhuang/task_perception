@@ -62,7 +62,7 @@ void AnnotatorServer::HandleEvent(
     } else if (event.type == msgs::AnnotatorEvent::STEP_SKELETON) {
       HandleAdvanceSkeleton();
     } else if (event.type == msgs::AnnotatorEvent::DELETE_EVENT) {
-      HandleDeleteEvent(event.event_type, event.object_name);
+      HandleDeleteEvent(event);
     } else if (event.type == msgs::AnnotatorEvent::SET_OBJECT_POSE) {
       HandleSetObjectPose(event.object_name);
     } else {
@@ -187,8 +187,7 @@ void AnnotatorServer::HandleAdvanceSkeleton() {
   AdvanceSkeleton(color, depth);
 }
 
-void AnnotatorServer::HandleDeleteEvent(const std::string& event_type,
-                                        const std::string& object_name) {
+void AnnotatorServer::HandleDeleteEvent(const msgs::AnnotatorEvent& event) {
   if (!demo_model_) {
     ROS_ERROR("No demo model loaded");
     return;
@@ -198,10 +197,21 @@ void AnnotatorServer::HandleDeleteEvent(const std::string& event_type,
               state_.frame_count);
     return;
   }
-  msgs::Event event;
-  event.type = event_type;
-  event.object_name = object_name;
-  demo_model_->DeleteEvent(event, state_.current_frame);
+
+  const std::string& event_type(event.event_type);
+  if (event_type == msgs::Event::SET_OBJECT_POSE) {
+    ROS_INFO("Removing a SET_OBJECT_POSE event is not supported.");
+    return;
+  } else if (event_type == msgs::Event::SPAWN_OBJECT) {
+    demo_runtime_.RemoveSpawnObjectEvent(event.object_name);
+  } else if (event_type == msgs::Event::UNSPAWN_OBJECT) {
+    demo_runtime_.RemoveUnspawnObjectEvent(event.object_name, event.mesh_name);
+  }
+
+  msgs::Event evt;
+  evt.type = event_type;
+  evt.object_name = event.object_name;
+  demo_model_->DeleteEvent(evt, state_.current_frame);
   demo_db_.Update(demo_id_, demo_model_->ToMsg());
   RerunCurrentStep();
 }
@@ -343,7 +353,7 @@ void AnnotatorServer::RerunCurrentStep() {
               state_.frame_count);
     return;
   }
-  demo_runtime_.Rewind(state_.current_frame - 1);
+  demo_runtime_.RerunLastFrame();
   demo_runtime_.Step();
   PublishState();
 }

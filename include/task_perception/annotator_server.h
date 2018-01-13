@@ -40,8 +40,7 @@ class AnnotatorServer {
   void HandleRemoveObject(const std::string& object_name);
   void HandleSaveSkeleton();
   void HandleAdvanceSkeleton();
-  void HandleDeleteEvent(const std::string& event_type,
-                         const std::string& object_name);
+  void HandleDeleteEvent(const task_perception_msgs::AnnotatorEvent& event);
   void HandleSetObjectPose(const std::string& object_name);
 
   void RunCurrentStep();

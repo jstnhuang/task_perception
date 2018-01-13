@@ -194,7 +194,9 @@
         var item = evt.model.item;
         var msg = {
           type: 'delete event',
-          event_type: item.type
+          event_type: item.type,
+          object_name: = item.object_name,
+          object_mesh: = item.object_mesh
         };
         this.$.eventPub.publish(msg);
       }
