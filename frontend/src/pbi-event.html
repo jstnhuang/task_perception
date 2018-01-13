@@ -22,14 +22,20 @@
       <strong>Spawn object</strong>
       <div>
         Name: [[event.object_name]]<br />
-        Mesh: [[event.object_mesh_path]]<br />
+        Mesh: [[event.object_mesh]]<br />
       </div>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'unspawn object')]]">
       <strong>Unspawn object</strong>
+      <div>
+        Name: [[event.object_name]]<br />
+      </div>
     </template>
     <template is="dom-if" if="[[typeIs(event.type, 'set object pose')]]">
       <strong>Set object pose</strong>
+      <div>
+        Name: [[event.object_name]]<br />
+      </div>
     </template>
   </template>
   <script>
