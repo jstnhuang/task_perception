@@ -187,13 +187,12 @@ void DemoRuntime::StepSkeleton(const int frame_number,
 
 void DemoRuntime::StepSpawnUnspawn(
     const int frame_number, const task_perception_msgs::DemoState& prev_state) {
-  // Handle spawn object events
   std::vector<msgs::Event> spawn_events =
       demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number);
   for (const msgs::Event& spawn_event : spawn_events) {
     const std::string& name = spawn_event.object_name;
     if (object_trackers_.find(name) != object_trackers_.end()) {
-      ROS_ERROR("SPAWNed object \"%s\", but it already exists.", name.c_str());
+      ROS_INFO("Reusing tracker for object \"%s\"", name.c_str());
       continue;
     }
     object_trackers_[name].Instantiate(name, spawn_event.object_mesh,
