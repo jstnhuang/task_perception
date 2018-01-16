@@ -90,119 +90,7 @@ void DemoRuntime::Step() {
   PublishViz();
 }
 
-void DemoRuntime::StepObjectPose(
-    const int frame_number, const msgs::DemoState& prev_state,
-    std::vector<msgs::ObjectState>* object_states) {
-  // Figure out where all the objects are
-  // All SPAWN events should be accompanied by a SET_OBJECT_POSE event for the
-  // same object.
-  // SET_OBJECT_POSE should not be used if the object is in motion, since we
-  // only reset the pose, not the velocity.
-  // For each object, the pose is determined using the following algorithm:
-  // 1. If a user annotated its location, use that
-  // 2. Otherwise, step through the tracker once
-  std::vector<msgs::Event> object_pose_events =
-      demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number);
-  for (auto& kv : object_trackers_) {
-    const std::string& object_name = kv.first;
-    ObjectTracker& tracker = kv.second;
-
-    msgs::ObjectState object_state;
-    object_state.object_name = object_name;
-    object_state.mesh_name = tracker.mesh_name();
-
-    bool done = false;
-    // Case 1
-    for (const msgs::Event& pose_evt : object_pose_events) {
-      if (pose_evt.object_name == object_name) {
-        object_state.object_pose = pose_evt.object_pose;
-        tracker.SetPose(pose_evt.object_pose);
-        ROS_INFO("%d: Set object pose for %s", frame_number,
-                 object_name.c_str());
-        done = true;
-        break;
-      }
-    }
-    if (done) {
-      object_states->push_back(object_state);
-      continue;
-    }
-
-    // Case 2
-    for (const auto& prev_obj : prev_state.object_states) {
-      if (prev_obj.object_name == object_name) {
-        tracker.Step(current_depth_image_);
-        tracker.GetPose(&object_state.object_pose);
-        done = true;
-        break;
-      }
-    }
-    if (!done) {
-      ROS_ERROR("%d: Unable to step through object tracking for object %s",
-                frame_number, object_name.c_str());
-      continue;
-    }
-    object_states->push_back(object_state);
-  }
-}
-
-void DemoRuntime::StepSkeleton(const int frame_number,
-                               const msgs::DemoState& prev_state,
-                               ss_msgs::NerfJointStates* nerf_joint_states) {
-  // Update skeleton state
-  // Set skeleton state from annotation if it exists. Otherwise, step through
-  // the skeleton tracker.
-  if (demo_model_->HasEventAt(msgs::Event::SET_SKELETON_STATE, frame_number)) {
-    msgs::Event skeleton_event;
-    demo_model_->EventAt(msgs::Event::SET_SKELETON_STATE, frame_number,
-                         &skeleton_event);
-    *nerf_joint_states = skeleton_event.nerf_joint_states;
-    skel_services_.nerf_pub.publish(*nerf_joint_states);
-  } else {
-    // If the previous state was blank (e.g., first frame), then set it to a
-    // default skeleton pose.
-    if (prev_state.nerf_joint_states.values.size() == 0) {
-      skel_services_.nerf_pub.publish(DefaultSkeleton());
-      // TODO: no guarantee this initialization occurs before advancing
-      ros::spinOnce();
-    }
-    ss_msgs::AdvanceSkeletonRequest advance_req;
-    ss_msgs::AdvanceSkeletonResponse advance_res;
-    advance_req.rgb = current_color_image_;
-    advance_req.depth = current_depth_image_;
-    skel_services_.advance.call(advance_req, advance_res);
-    *nerf_joint_states = advance_res.joint_states;
-  }
-}
-
-void DemoRuntime::StepSpawnUnspawn(
-    const int frame_number, const task_perception_msgs::DemoState& prev_state) {
-  // Handle spawn object events
-  std::vector<msgs::Event> spawn_events =
-      demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number);
-  for (const msgs::Event& spawn_event : spawn_events) {
-    const std::string& name = spawn_event.object_name;
-    if (object_trackers_.find(name) != object_trackers_.end()) {
-      ROS_ERROR("SPAWNed object \"%s\", but it already exists.", name.c_str());
-      continue;
-    }
-    object_trackers_[name].Instantiate(name, spawn_event.object_mesh,
-                                       camera_info_);
-  }
-
-  // Handle unspawn object events
-  std::vector<msgs::Event> unspawn_events =
-      demo_model_->EventsAt(msgs::Event::UNSPAWN_OBJECT, frame_number);
-  for (const msgs::Event& unspawn_event : unspawn_events) {
-    const std::string& name = unspawn_event.object_name;
-    if (object_trackers_.find(name) == object_trackers_.end()) {
-      ROS_ERROR("No SPAWN event found when UNSPAWNing \"%s\"", name.c_str());
-      continue;
-    }
-    object_trackers_.erase(name);
-  }
-}
-
+int DemoRuntime::last_executed_frame() const { return last_executed_frame_; }
 void DemoRuntime::current_color_image(sensor_msgs::Image* image) const {
   *image = current_color_image_;
 }
@@ -266,6 +154,119 @@ void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
   }
   ROS_ERROR("Unable to find previous state of %s", object_name.c_str());
   object_trackers_.erase(object_name);
+}
+
+void DemoRuntime::StepSkeleton(const int frame_number,
+                               const msgs::DemoState& prev_state,
+                               ss_msgs::NerfJointStates* nerf_joint_states) {
+  // Update skeleton state
+  // Set skeleton state from annotation if it exists. Otherwise, step through
+  // the skeleton tracker.
+  if (demo_model_->HasEventAt(msgs::Event::SET_SKELETON_STATE, frame_number)) {
+    msgs::Event skeleton_event;
+    demo_model_->EventAt(msgs::Event::SET_SKELETON_STATE, frame_number,
+                         &skeleton_event);
+    *nerf_joint_states = skeleton_event.nerf_joint_states;
+    skel_services_.nerf_pub.publish(*nerf_joint_states);
+  } else {
+    // If the previous state was blank (e.g., first frame), then set it to a
+    // default skeleton pose.
+    if (prev_state.nerf_joint_states.values.size() == 0) {
+      skel_services_.nerf_pub.publish(DefaultSkeleton());
+      // TODO: no guarantee this initialization occurs before advancing
+      ros::spinOnce();
+    }
+    ss_msgs::AdvanceSkeletonRequest advance_req;
+    ss_msgs::AdvanceSkeletonResponse advance_res;
+    advance_req.rgb = current_color_image_;
+    advance_req.depth = current_depth_image_;
+    skel_services_.advance.call(advance_req, advance_res);
+    *nerf_joint_states = advance_res.joint_states;
+  }
+}
+
+void DemoRuntime::StepSpawnUnspawn(
+    const int frame_number, const task_perception_msgs::DemoState& prev_state) {
+  // Handle spawn object events
+  std::vector<msgs::Event> spawn_events =
+      demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number);
+  for (const msgs::Event& spawn_event : spawn_events) {
+    const std::string& name = spawn_event.object_name;
+    if (object_trackers_.find(name) != object_trackers_.end()) {
+      ROS_ERROR("SPAWNed object \"%s\", but it already exists.", name.c_str());
+      continue;
+    }
+    object_trackers_[name].Instantiate(name, spawn_event.object_mesh,
+                                       camera_info_);
+  }
+
+  // Handle unspawn object events
+  std::vector<msgs::Event> unspawn_events =
+      demo_model_->EventsAt(msgs::Event::UNSPAWN_OBJECT, frame_number);
+  for (const msgs::Event& unspawn_event : unspawn_events) {
+    const std::string& name = unspawn_event.object_name;
+    if (object_trackers_.find(name) == object_trackers_.end()) {
+      ROS_ERROR("No SPAWN event found when UNSPAWNing \"%s\"", name.c_str());
+      continue;
+    }
+    object_trackers_.erase(name);
+  }
+}
+
+void DemoRuntime::StepObjectPose(
+    const int frame_number, const msgs::DemoState& prev_state,
+    std::vector<msgs::ObjectState>* object_states) {
+  // Figure out where all the objects are
+  // All SPAWN events should be accompanied by a SET_OBJECT_POSE event for the
+  // same object.
+  // SET_OBJECT_POSE should not be used if the object is in motion, since we
+  // only reset the pose, not the velocity.
+  // For each object, the pose is determined using the following algorithm:
+  // 1. If a user annotated its location, use that
+  // 2. Otherwise, step through the tracker once
+  std::vector<msgs::Event> object_pose_events =
+      demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number);
+  for (auto& kv : object_trackers_) {
+    const std::string& object_name = kv.first;
+    ObjectTracker& tracker = kv.second;
+
+    msgs::ObjectState object_state;
+    object_state.object_name = object_name;
+    object_state.mesh_name = tracker.mesh_name();
+
+    bool done = false;
+    // Case 1
+    for (const msgs::Event& pose_evt : object_pose_events) {
+      if (pose_evt.object_name == object_name) {
+        object_state.object_pose = pose_evt.object_pose;
+        tracker.SetPose(pose_evt.object_pose);
+        ROS_INFO("%d: Set object pose for %s", frame_number,
+                 object_name.c_str());
+        done = true;
+        break;
+      }
+    }
+    if (done) {
+      object_states->push_back(object_state);
+      continue;
+    }
+
+    // Case 2
+    for (const auto& prev_obj : prev_state.object_states) {
+      if (prev_obj.object_name == object_name) {
+        tracker.Step(current_depth_image_);
+        tracker.GetPose(&object_state.object_pose);
+        done = true;
+        break;
+      }
+    }
+    if (!done) {
+      ROS_ERROR("%d: Unable to step through object tracking for object %s",
+                frame_number, object_name.c_str());
+      continue;
+    }
+    object_states->push_back(object_state);
+  }
 }
 
 void DemoRuntime::ResetState() {
