@@ -122,6 +122,7 @@ void DemoModel::DeleteEvent(const Event& event, int frame_number) {
 Demonstration DemoModel::ToMsg() const {
   // This copying is necessary because of the de-duping in AddEvent.
   Demonstration demo = demo_;
+  demo.events.clear();
   for (const auto& frame_events : timeline_) {
     demo.events.insert(demo.events.end(), frame_events.begin(),
                        frame_events.end());
