@@ -72,6 +72,18 @@ class DemoRuntime {
                                 const std::string& object_mesh);
 
  private:
+  // Given the previous state, steps through the skeleton tracker if needed.
+  void StepSkeleton(const int frame_number,
+                    const task_perception_msgs::DemoState& prev_state,
+                    skin_segmentation_msgs::NerfJointStates* nerf_joint_states);
+  // Given the previous state, steps through SPAWN and UNSPAWN events.
+  // This involves adding or removing object trackers as needed.
+  void StepSpawnUnspawn(const int frame_number,
+                        const task_perception_msgs::DemoState& prev_state);
+  void StepObjectPose(
+      const int frame_number, const task_perception_msgs::DemoState& prev_state,
+      std::vector<task_perception_msgs::ObjectState>* object_states);
+
   void ResetState();
   void PublishViz();
 
