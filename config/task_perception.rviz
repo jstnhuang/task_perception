@@ -7,11 +7,8 @@ Panels:
         - /Global Options1
         - /Status1
         - /DepthCloud1/Auto Size1
-        - /MarkerArray1/Status1
         - /InteractiveMarkers1
-        - /InteractiveMarkers1/Status1
         - /Marker1
-        - /Marker1/Status1
       Splitter Ratio: 0.5
     Tree Height: 843
   - Class: rviz/Selection
@@ -118,10 +115,10 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /pbi_annotator/object_model
+      Marker Topic: /pbi_annotator/objects
       Name: Marker
       Namespaces:
-        object: true
+        Pringles: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -148,7 +145,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.083
+      Distance: 2.72174
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -160,10 +157,10 @@ Visualization Manager:
         Z: 0.802168
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.944797
+      Pitch: 0.809798
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.19863
+      Yaw: 2.69362
     Saved: ~
 Window Geometry:
   Displays:
