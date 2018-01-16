@@ -351,7 +351,6 @@ void AnnotatorServer::RerunCurrentStep() {
     return;
   }
   demo_runtime_.RerunLastFrame();
-  demo_runtime_.Step();
   PublishState();
 }
 
