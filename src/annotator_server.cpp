@@ -199,10 +199,7 @@ void AnnotatorServer::HandleDeleteEvent(const msgs::AnnotatorEvent& event) {
   }
 
   const std::string& event_type(event.event_type);
-  if (event_type == msgs::Event::SET_OBJECT_POSE) {
-    ROS_INFO("Removing a SET_OBJECT_POSE event is not supported.");
-    return;
-  } else if (event_type == msgs::Event::SPAWN_OBJECT) {
+  if (event_type == msgs::Event::SPAWN_OBJECT) {
     demo_runtime_.RemoveSpawnObjectEvent(event.object_name);
   } else if (event_type == msgs::Event::UNSPAWN_OBJECT) {
     demo_runtime_.RemoveUnspawnObjectEvent(event.object_name, event.mesh_name);
@@ -368,6 +365,9 @@ void AnnotatorServer::AdvanceSkeleton(const sensor_msgs::Image& color,
 }
 
 void AnnotatorServer::PublishState() {
+  msgs::DemoState demo_state;
+  demo_runtime_.GetState(state_.current_frame, &demo_state);
+  state_.objects = demo_state.object_states;
   state_.events = demo_model_->EventsAt(state_.current_frame);
   // TODO: include objects here
   demo_viz_.state_pub.publish(state_);

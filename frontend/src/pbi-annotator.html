@@ -76,8 +76,15 @@
         <paper-button on-tap="_handleUnspawnObject"
           disabled="[[!_canUnspawnObject(objectName)]]">Unspawn object</paper-button>
       </div>
+      <h3>Current objects</h3>
+      <span hidden$="[[_hasEvents(state.objects)]]">None</span>
+      <ul hidden$="[[!_hasEvents(state.objects)]]">
+      <template is="dom-repeat" items="[[state.objects]]">
+        <li>[[item.object_name]] ([[item.mesh_name]])</li>
+      </template>
+      </ul>
       <h3>Events for this frame:</h3>
-      <span hidden$=[[_hasEvents(state.events)]]>None</span>
+      <span hidden$="[[_hasEvents(state.events)]]">None</span>
       <template is="dom-repeat" items="[[state.events]]">
         <div class="layout horizontal center">
           <pbi-event event="[[item]]" ros="[[ros]]"></pbi-event>
@@ -195,8 +202,8 @@
         var msg = {
           type: 'delete event',
           event_type: item.type,
-          object_name: = item.object_name,
-          object_mesh: = item.object_mesh
+          object_name: item.object_name,
+          mesh_name: item.object_mesh
         };
         this.$.eventPub.publish(msg);
       }
