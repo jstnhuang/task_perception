@@ -31,17 +31,15 @@ namespace pbi {
 //     runtime.Step();
 //   }
 //
-// The execution state at frame N depends on the state at frame N-1 and the set
-// of events that occur at time N. So, if you have already executed frame N but
-// want to change its events, just reset to the state at N-1 and execute the new
-// set of events.
-//
-// runtime.Rewind(5);
-// demo_model.DeleteEvent("set skeleton pose", 5);
-// runtime.Execute(demo_model.EventsAt(5));
+// You can also model the most recently executed step and re-execute it:
+//   runtime.RerunLastFrame();
+// If the modification you are making is to remove a SPAWN or UNSPAWN event,
+// then you must call RemoveSpawnObjectEvent or RemoveUnspawnObjectEvent before
+// calling RerunLastFrame.
 class DemoRuntime {
  public:
-  DemoRuntime(const DemoVisualizer& viz, const SkeletonServices& skel_services);
+  DemoRuntime(const DemoVisualizer& viz, const SkeletonServices& skel_services,
+              const ros::ServiceClient& predict_hands);
 
   void LoadDemo(const std::string& color_topic, const std::string& depth_topic,
                 const sensor_msgs::CameraInfo& camera_info,
@@ -70,6 +68,12 @@ class DemoRuntime {
   void RemoveSpawnObjectEvent(const std::string& object_name);
   void RemoveUnspawnObjectEvent(const std::string& object_name,
                                 const std::string& object_mesh);
+  // TODO: If the user removes a SET_OBJECT_POSE event, we should reset the
+  // tracker to the previous state's pose. However, we don't keep track of the
+  // object's velocity, so the object tracking state gets messed up either way.
+  // To get around it, the user can just re-run the annotation from the
+  // beginning.
+  // void RemoveObjectPoseEvent();
 
  private:
   // Given the previous state, steps through the skeleton tracker if needed.
@@ -83,14 +87,17 @@ class DemoRuntime {
   void StepObjectPose(
       const int frame_number, const task_perception_msgs::DemoState& prev_state,
       std::vector<task_perception_msgs::ObjectState>* object_states);
+  void DetectContact(const int frame_number,
+                     const task_perception_msgs::DemoState& prev_state);
 
   void ResetState();
   void PublishViz();
 
   DemoVisualizer viz_;
   SkeletonServices skel_services_;
-  std::shared_ptr<DemoModel> demo_model_;
+  ros::ServiceClient predict_hands_;
 
+  std::shared_ptr<DemoModel> demo_model_;
   ros::NodeHandle nh_;
 
   // Image state

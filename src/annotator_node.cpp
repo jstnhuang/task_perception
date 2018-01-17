@@ -7,6 +7,7 @@
 #include "skin_segmentation_msgs/AdvanceSkeleton.h"
 #include "skin_segmentation_msgs/GetSkeletonState.h"
 #include "skin_segmentation_msgs/NerfJointStates.h"
+#include "skin_segmentation_msgs/PredictHands.h"
 #include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
@@ -52,6 +53,9 @@ int main(int argc, char** argv) {
     ROS_WARN("Waiting for skeleton tracking service");
   }
 
+  ros::ServiceClient predict_hands =
+      nh.serviceClient<ss_msgs::PredictHands>("predict_hands");
+
   // Build database
   const std::string& kDatabaseName("pbi");
   const std::string& kCollection("demonstrations");
@@ -61,7 +65,7 @@ int main(int argc, char** argv) {
       "pbi_annotator/demonstration", 1, true);
   pbi::DemonstrationDb demo_db(&message_store, demo_pub);
 
-  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db);
+  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db, predict_hands);
   server.Start();
   ROS_INFO("Annotator server ready.");
 

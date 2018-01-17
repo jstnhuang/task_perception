@@ -32,7 +32,8 @@ using sensor_msgs::Image;
 namespace pbi {
 AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
                                  const SkeletonServices& skel_services,
-                                 const DemonstrationDb& demo_db)
+                                 const DemonstrationDb& demo_db,
+                                 const ros::ServiceClient& predict_hands)
     : demo_viz_(demo_viz),
       skel_services_(skel_services),
       demo_db_(demo_db),
@@ -41,7 +42,7 @@ AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
       demo_id_(""),
       demo_model_(),
       state_(),
-      demo_runtime_(demo_viz_, skel_services_),
+      demo_runtime_(demo_viz_, skel_services_, predict_hands),
       object_init_() {}
 
 void AnnotatorServer::Start() { demo_viz_.state_pub.publish(state_); }

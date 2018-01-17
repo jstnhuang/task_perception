@@ -28,7 +28,8 @@ class AnnotatorServer {
  public:
   AnnotatorServer(const DemoVisualizer& demo_viz,
                   const SkeletonServices& skel_services,
-                  const DemonstrationDb& demo_db);
+                  const DemonstrationDb& demo_db,
+                  const ros::ServiceClient& predict_hands);
   void Start();
   void HandleEvent(const task_perception_msgs::AnnotatorEvent& event);
 

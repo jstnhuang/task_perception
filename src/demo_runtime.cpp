@@ -8,6 +8,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "skin_segmentation_msgs/AdvanceSkeleton.h"
+#include "skin_segmentation_msgs/PredictHands.h"
 #include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/Demonstration.h"
 
@@ -23,9 +24,11 @@ namespace msgs = task_perception_msgs;
 
 namespace pbi {
 DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
-                         const SkeletonServices& skel_services)
+                         const SkeletonServices& skel_services,
+                         const ros::ServiceClient& predict_hands)
     : viz_(viz),
       skel_services_(skel_services),
+      predict_hands_(predict_hands),
       demo_model_(),
       nh_(),
       color_scrubber_(),
@@ -266,6 +269,14 @@ void DemoRuntime::StepObjectPose(
     }
     object_states->push_back(object_state);
   }
+}
+
+void DemoRuntime::DetectContact(const int frame_number,
+                                const msgs::DemoState& prev_state) {
+  ss_msgs::PredictHandsRequest req;
+  req.rgb = current_color_image_;
+  req.depth_registered = current_depth_image_;
+  ss_msgs::PredictHandsResponse res;
 }
 
 void DemoRuntime::ResetState() {
