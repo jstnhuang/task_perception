@@ -11,6 +11,7 @@
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 
+#include "task_perception/contact_detection.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
 #include "task_perception/object_tracker.h"
@@ -88,6 +89,7 @@ class DemoRuntime {
       const int frame_number, const task_perception_msgs::DemoState& prev_state,
       std::vector<task_perception_msgs::ObjectState>* object_states);
   void DetectContact(const int frame_number,
+                     const task_perception_msgs::DemoState& current_state,
                      const task_perception_msgs::DemoState& prev_state);
 
   void ResetState();
@@ -106,6 +108,8 @@ class DemoRuntime {
   sensor_msgs::Image current_color_image_;
   sensor_msgs::Image current_depth_image_;
   sensor_msgs::CameraInfo camera_info_;
+
+  ContactDetection contact_detection_;
 
   // Object state
   std::map<std::string, ObjectTracker> object_trackers_;

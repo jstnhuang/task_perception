@@ -120,6 +120,7 @@ catkin_package(
     pbi_annotator_server
     pbi_bag_utils
     pbi_camera_info_camera_provider
+    pbi_contact_detection
     pbi_database
     pbi_default_skeleton
     pbi_demo_model
@@ -183,6 +184,12 @@ target_link_libraries(pbi_camera_info_camera_provider
   ${catkin_LIBRARIES}
 )
 
+add_library(pbi_contact_detection src/contact_detection.cpp)
+add_dependencies(pbi_contact_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_contact_detection
+  ${catkin_LIBRARIES}
+)
+
 add_library(pbi_database src/database.cpp)
 add_dependencies(pbi_database ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_database
@@ -198,6 +205,7 @@ target_link_libraries(pbi_demo_model
 add_library(pbi_demo_runtime src/demo_runtime.cpp)
 add_dependencies(pbi_demo_runtime ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_demo_runtime
+  pbi_contact_detection
   pbi_default_skeleton
   pbi_demo_model
   pbi_demo_visualizer

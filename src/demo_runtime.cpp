@@ -12,6 +12,7 @@
 #include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/Demonstration.h"
 
+#include "task_perception/contact_detection.h"
 #include "task_perception/default_skeleton.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
@@ -36,6 +37,7 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       current_color_image_(),
       current_depth_image_(),
       camera_info_(),
+      contact_detection_(skel_services, predict_hands),
       last_executed_frame_(-1),
       num_frames_(0),
       states_() {}
@@ -87,6 +89,7 @@ void DemoRuntime::Step() {
   StepSkeleton(frame_number, prev_state, &current_state.nerf_joint_states);
   StepSpawnUnspawn(frame_number, prev_state);
   StepObjectPose(frame_number, prev_state, &current_state.object_states);
+  DetectContact(frame_number, current_state, prev_state);
 
   states_[frame_number] = current_state;
   ++last_executed_frame_;
@@ -272,12 +275,10 @@ void DemoRuntime::StepObjectPose(
 }
 
 void DemoRuntime::DetectContact(const int frame_number,
+                                const msgs::DemoState& current_state,
                                 const msgs::DemoState& prev_state) {
-  ss_msgs::PredictHandsRequest req;
-  req.rgb = current_color_image_;
-  req.depth_registered = current_depth_image_;
-  ss_msgs::PredictHandsResponse res;
-  predict_hands_.call(req, res);
+  contact_detection_.Predict(current_state, prev_state, current_color_image_,
+                             current_depth_image_, camera_info_);
 }
 
 void DemoRuntime::ResetState() {
