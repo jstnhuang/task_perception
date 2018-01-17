@@ -11,6 +11,8 @@ string REMOVE_OBJECT = remove object
 string SAVE_SKELETON = save skeleton
 # Step through the skeleton tracker once
 string STEP_SKELETON = step skeleton
+# If deleting a SPAWN, must specify object_name.
+# If deleting an UNSPAWN, must specify the object_name and the mesh_name.
 string DELETE_EVENT = delete event
 # Set the pose of an object that has been spawned.
 # Must specify object_name
