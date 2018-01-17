@@ -277,6 +277,7 @@ void DemoRuntime::DetectContact(const int frame_number,
   req.rgb = current_color_image_;
   req.depth_registered = current_depth_image_;
   ss_msgs::PredictHandsResponse res;
+  predict_hands_.call(req, res);
 }
 
 void DemoRuntime::ResetState() {
