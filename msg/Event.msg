@@ -42,7 +42,7 @@ skin_segmentation_msgs/NerfJointStates nerf_joint_states
 
 string object_name
 string object_mesh # E.g, bowl_1k.obj, must be in package://object_meshes/object_models
-geometry_msgs/Pose object_pose # Object pose is relative to the base_link of the robot.
+geometry_msgs/Pose object_pose # Object pose is relative to the camera frame
 
 string LEFT_HAND = left hand
 string RIGHT_HAND = right hand
