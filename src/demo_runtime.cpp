@@ -245,8 +245,6 @@ void DemoRuntime::StepObjectPose(
       if (pose_evt.object_name == object_name) {
         object_state.object_pose = pose_evt.object_pose;
         tracker.SetPose(pose_evt.object_pose);
-        ROS_INFO("%d: Set object pose for %s", frame_number,
-                 object_name.c_str());
         done = true;
         break;
       }
