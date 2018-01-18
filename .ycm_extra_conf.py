@@ -53,7 +53,7 @@ flags = [
 '-I',
 'include',
 '-I',
-'/usr/include/pcl-1.7',
+'/usr/local/include/pcl-1.8/',
 '-I',
 '/usr/include/eigen3',
 '-I',
