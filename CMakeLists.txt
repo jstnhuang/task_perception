@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_filters
   mongodb_store
+  pcl_conversions
   rosbag
   roscpp
   rospy
@@ -26,6 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(PCL 1.8 REQUIRED)
 #find_package(CUDA REQUIRED)
 #add_definitions(-DCUDA_BUILD)
 
@@ -138,6 +140,7 @@ catkin_package(
     geometry_msgs
     message_filters
     mongodb_store
+    pcl_conversions
     rosbag
     roscpp
     rospy
@@ -157,6 +160,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -188,6 +192,7 @@ add_library(pbi_contact_detection src/contact_detection.cpp)
 add_dependencies(pbi_contact_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_contact_detection
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_library(pbi_database src/database.cpp)
