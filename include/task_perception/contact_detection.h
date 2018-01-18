@@ -35,7 +35,7 @@ class ContactDetection {
   ros::Publisher viz_;
   ros::Publisher obj_viz_;
 
-  std::string package_dir_;
+  const std::string package_dir_;
 };
 }  // namespace pbi
 

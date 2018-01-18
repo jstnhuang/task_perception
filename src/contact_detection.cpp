@@ -32,9 +32,7 @@ ContactDetection::ContactDetection(const SkeletonServices& skel_services,
           "contact_detection/markers", 10)),
       obj_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
           "contact_detection/object_clouds", 1, true)),
-      package_dir_("") {
-  package_dir_ = ros::package::getPath("object_meshes") + "/object_models/";
-  ROS_INFO("Mesh package dir: %s", package_dir_.c_str());
+      package_dir_(ros::package::getPath("object_meshes") + "/object_models/") {
 }
 
 void ContactDetection::Predict(
