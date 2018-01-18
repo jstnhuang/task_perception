@@ -3,8 +3,11 @@
 #include <map>
 #include <string>
 
+#include "Eigen/Dense"
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/strip.h"
+#include "eigen_conversions/eigen_msg.h"
 #include "pcl/common/transforms.h"
 #include "pcl/io/pcd_io.h"
 #include "ros/package.h"
@@ -69,8 +72,11 @@ void ContactDetection::Predict(
   for (const auto& object : current_state.object_states) {
     PointCloudP::Ptr object_model = LoadModel(object.mesh_name);
     object_model->header.frame_id = camera_info.header.frame_id;
-    PublishPointCloud(obj_viz_, *object_model);
-    // pcl::transformPointCloud(object_model, object_cloud, transform);
+    Eigen::Affine3d object_transform;
+    tf::poseMsgToEigen(object.object_pose, object_transform);
+    PointCloudP::Ptr object_cloud(new PointCloudP);
+    pcl::transformPointCloud(*object_model, *object_cloud, object_transform);
+    PublishPointCloud(obj_viz_, *object_cloud);
   }
 }
 
@@ -105,6 +111,8 @@ PointCloudP::Ptr ContactDetection::LoadModel(const std::string& mesh_name_obj) {
     PointCloudP::Ptr object_cloud(new PointCloudP);
     pcl::io::loadPCDFile(mesh_path, *object_model);
     model_cache_[mesh_name_obj] = object_model;
+    ROS_INFO("Loaded mesh %s with %ld points", mesh_name_obj.c_str(),
+             object_model->size());
   }
   return model_cache_[mesh_name_obj];
 }

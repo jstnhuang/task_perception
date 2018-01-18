@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   dbot
   dbot_ros
+  eigen_conversions
   geometry_msgs
   message_filters
   mongodb_store
@@ -138,6 +139,7 @@ catkin_package(
     actionlib
     dbot
     dbot_ros
+    eigen_conversions
     geometry_msgs
     message_filters
     mongodb_store
