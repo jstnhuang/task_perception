@@ -39,6 +39,8 @@
   <!-- Skeleton tracker -->
   <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 
+  <!-- Annotator -->
+  <param name="contact_detection/debug" value="true" />
   <node if="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" launch-prefix="xterm -e gdb --args" />
   <node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
 </launch>
