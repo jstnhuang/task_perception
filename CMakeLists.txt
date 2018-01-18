@@ -149,7 +149,9 @@ catkin_package(
     skin_segmentation_msgs
     tf
     visualization_msgs
-  DEPENDS Boost
+  DEPENDS
+    Boost
+    PCL
 )
 
 ###########
@@ -251,6 +253,7 @@ add_library(pbi_pcl_utils src/pcl_utils.cpp)
 add_dependencies(pbi_pcl_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_pcl_utils
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
