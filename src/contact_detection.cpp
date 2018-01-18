@@ -8,6 +8,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/strip.h"
 #include "eigen_conversions/eigen_msg.h"
+#include "image_geometry/pinhole_camera_model.h"
 #include "pcl/common/transforms.h"
 #include "pcl/io/pcd_io.h"
 #include "ros/package.h"
@@ -68,6 +69,10 @@ void ContactDetection::Predict(
   predict_hands_.call(req, res);
   const sensor_msgs::Image& hands = res.prediction;
 
+  // Create point cloud for hands
+  PointCloudP::Ptr hand_cloud = HandPointCloud(hands, depth_image, camera_info);
+  PublishPointCloud(obj_viz_, *hand_cloud);
+
   // Check if hand is close to an object
   for (const auto& object : current_state.object_states) {
     PointCloudP::Ptr object_model = LoadModel(object.mesh_name);
@@ -76,7 +81,6 @@ void ContactDetection::Predict(
     tf::poseMsgToEigen(object.object_pose, object_transform);
     PointCloudP::Ptr object_cloud(new PointCloudP);
     pcl::transformPointCloud(*object_model, *object_cloud, object_transform);
-    PublishPointCloud(obj_viz_, *object_cloud);
   }
 }
 
@@ -115,5 +119,54 @@ PointCloudP::Ptr ContactDetection::LoadModel(const std::string& mesh_name_obj) {
              object_model->size());
   }
   return model_cache_[mesh_name_obj];
+}
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetection::HandPointCloud(
+    const sensor_msgs::Image& hands, const sensor_msgs::Image& depth,
+    const sensor_msgs::CameraInfo& camera_info) {
+  PointCloudP::Ptr hand_cloud(new PointCloudP);
+  if (hands.encoding != "mono8") {
+    ROS_ERROR("Unsupported hand prediction format: %s", hands.encoding.c_str());
+    return hand_cloud;
+  }
+
+  const uint16_t* depth_16;
+  const float* depth_float;
+  bool is_float = depth.encoding == "32FC1";
+  if (is_float) {
+    depth_float = reinterpret_cast<const float*>(depth.data.data());
+  } else if (depth.encoding == "16UC1") {
+    depth_16 = reinterpret_cast<const uint16_t*>(depth.data.data());
+  } else {
+    ROS_ERROR("Unsupported depth image type: %s", depth.encoding.c_str());
+    return hand_cloud;
+  }
+
+  image_geometry::PinholeCameraModel camera_model;
+  camera_model.fromCameraInfo(camera_info);
+  for (unsigned int row = 0; row < hands.height; ++row) {
+    for (unsigned int col = 0; col < hands.width; ++col) {
+      int index = row * hands.step + col;
+
+      float depth_meters = 0;
+      if (is_float) {
+        depth_meters = depth_float[index];
+      } else {
+        depth_meters = depth_16[index] / 1000.0;
+      }
+      if (hands.data[index] > 0 && depth_meters > 0) {
+        cv::Point3d ray =
+            camera_model.projectPixelTo3dRay(cv::Point2d(col, row));
+        ray *= depth_meters;
+        PointP pt;
+        pt.x = ray.x;
+        pt.y = ray.y;
+        pt.z = ray.z;
+        hand_cloud->push_back(pt);
+      }
+    }
+  }
+  hand_cloud->header.frame_id = camera_info.header.frame_id;
+  return hand_cloud;
 }
 }  // namespace pbi

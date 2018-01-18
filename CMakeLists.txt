@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   dbot_ros
   eigen_conversions
   geometry_msgs
+  image_geometry
   message_filters
   mongodb_store
   pcl_conversions
@@ -141,6 +142,7 @@ catkin_package(
     dbot_ros
     eigen_conversions
     geometry_msgs
+    image_geometry
     message_filters
     mongodb_store
     pcl_conversions

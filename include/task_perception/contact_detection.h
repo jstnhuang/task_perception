@@ -31,6 +31,10 @@ class ContactDetection {
                          const std::string& frame_id);
   pcl::PointCloud<pcl::PointXYZ>::Ptr LoadModel(
       const std::string& mesh_name_obj);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr HandPointCloud(
+      const sensor_msgs::Image& hands, const sensor_msgs::Image& depth,
+      const sensor_msgs::CameraInfo& camera_info);
+
   pbi::SkeletonServices skel_services_;
   ros::ServiceClient predict_hands_;
 
