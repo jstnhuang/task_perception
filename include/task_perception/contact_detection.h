@@ -29,9 +29,13 @@ class ContactDetection {
   pbi::SkeletonServices skel_services_;
   ros::ServiceClient predict_hands_;
 
+  bool debug_;
   ros::NodeHandle nh_;
+  // Internal visualizations for debugging purposes
   ros::Publisher viz_;
-  ros::Publisher hand_viz_;
+  ros::Publisher obj_viz_;
+
+  std::string package_dir_;
 };
 }  // namespace pbi
 

@@ -2,14 +2,20 @@
 
 #include <string>
 
+#include "pcl/common/transforms.h"
+#include "pcl/io/obj_io.h"
+#include "ros/package.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/PointCloud2.h"
 #include "skin_segmentation_msgs/GetSkeletonState.h"
 #include "skin_segmentation_msgs/PredictHands.h"
 #include "task_perception_msgs/DemoState.h"
 #include "visualization_msgs/Marker.h"
 
+#include "task_perception/pcl_typedefs.h"
+#include "task_perception/pcl_utils.h"
 #include "task_perception/skeleton_services.h"
 
 namespace msgs = task_perception_msgs;
@@ -20,10 +26,16 @@ ContactDetection::ContactDetection(const SkeletonServices& skel_services,
                                    const ros::ServiceClient& predict_hands)
     : skel_services_(skel_services),
       predict_hands_(predict_hands),
+      debug_(false),
       nh_(),
       viz_(nh_.advertise<visualization_msgs::Marker>(
           "contact_detection/markers", 10)),
-      hand_viz_(nh_.advertise<sensor_msgs::Image>("segmented_hand", 1)) {}
+      obj_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
+          "contact_detection/object_clouds", 1, true)),
+      package_dir_("") {
+  package_dir_ = ros::package::getPath("object_meshes") + "/object_models/";
+  ROS_INFO("Mesh package dir: %s", package_dir_.c_str());
+}
 
 void ContactDetection::Predict(
     const task_perception_msgs::DemoState& current_state,
@@ -31,6 +43,8 @@ void ContactDetection::Predict(
     const sensor_msgs::Image& color_image,
     const sensor_msgs::Image& depth_image,
     const sensor_msgs::CameraInfo& camera_info) {
+  ros::param::param("contact_detection/debug", debug_, false);
+
   // Find wrist poses
   ss_msgs::GetSkeletonStateRequest state_req;
   ss_msgs::GetSkeletonStateResponse state_res;
@@ -38,7 +52,9 @@ void ContactDetection::Predict(
   const geometry_msgs::Pose& left_wrist = state_res.left_wrist;
   const geometry_msgs::Pose& right_wrist = state_res.right_wrist;
 
-  PublishWristPoses(left_wrist, right_wrist, camera_info.header.frame_id);
+  if (debug_) {
+    PublishWristPoses(left_wrist, right_wrist, camera_info.header.frame_id);
+  }
 
   // Find hand pixels
   ss_msgs::PredictHandsRequest req;
@@ -47,7 +63,19 @@ void ContactDetection::Predict(
   ss_msgs::PredictHandsResponse res;
   predict_hands_.call(req, res);
   const sensor_msgs::Image& hands = res.prediction;
-  hand_viz_.publish(hands);
+
+  // Check if hand is close to an object
+  for (const auto& object : current_state.object_states) {
+    std::string mesh_path = package_dir_ + object.mesh_name;
+    PointCloudP::Ptr object_model(new PointCloudP);
+    PointCloudP::Ptr object_cloud(new PointCloudP);
+    pcl::io::loadOBJFile(mesh_path, *object_model);
+    object_model->header.frame_id = camera_info.header.frame_id;
+    ROS_INFO("Loaded object model %s with %ld points", object.mesh_name.c_str(),
+             object_model->size());
+    PublishPointCloud(obj_viz_, *object_model);
+    // pcl::transformPointCloud(object_model, object_cloud, transform);
+  }
 }
 
 void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
