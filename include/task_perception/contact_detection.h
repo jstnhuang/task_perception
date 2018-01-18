@@ -1,8 +1,11 @@
 #ifndef _PBI_CONTACT_DETECTION_H_
 #define _PBI_CONTACT_DETECTION_H_
 
+#include <map>
 #include <string>
 
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -26,6 +29,8 @@ class ContactDetection {
   void PublishWristPoses(const geometry_msgs::Pose& left,
                          const geometry_msgs::Pose& right,
                          const std::string& frame_id);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr LoadModel(
+      const std::string& mesh_name_obj);
   pbi::SkeletonServices skel_services_;
   ros::ServiceClient predict_hands_;
 
@@ -36,6 +41,7 @@ class ContactDetection {
   ros::Publisher obj_viz_;
 
   const std::string package_dir_;
+  std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> model_cache_;
 };
 }  // namespace pbi
 

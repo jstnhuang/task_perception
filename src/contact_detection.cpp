@@ -1,5 +1,6 @@
 #include "task_perception/contact_detection.h"
 
+#include <map>
 #include <string>
 
 #include "absl/strings/str_cat.h"
@@ -34,8 +35,8 @@ ContactDetection::ContactDetection(const SkeletonServices& skel_services,
           "contact_detection/markers", 10)),
       obj_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
           "contact_detection/object_clouds", 1, true)),
-      package_dir_(ros::package::getPath("object_meshes") + "/object_models/") {
-}
+      package_dir_(ros::package::getPath("object_meshes") + "/object_models/"),
+      model_cache_() {}
 
 void ContactDetection::Predict(
     const task_perception_msgs::DemoState& current_state,
@@ -66,16 +67,8 @@ void ContactDetection::Predict(
 
   // Check if hand is close to an object
   for (const auto& object : current_state.object_states) {
-    absl::string_view pcd_file(object.mesh_name);
-    absl::ConsumeSuffix(&pcd_file, ".obj");
-    std::string mesh_path = absl::StrCat(package_dir_, pcd_file, ".pcd");
-    PointCloudP::Ptr object_model(new PointCloudP);
-    PointCloudP::Ptr object_cloud(new PointCloudP);
-    pcl::io::loadPCDFile(mesh_path, *object_model);
+    PointCloudP::Ptr object_model = LoadModel(object.mesh_name);
     object_model->header.frame_id = camera_info.header.frame_id;
-    ROS_INFO("Loaded object model %s with %ld points", object.mesh_name.c_str(),
-             object_model->size());
-
     PublishPointCloud(obj_viz_, *object_model);
     // pcl::transformPointCloud(object_model, object_cloud, transform);
   }
@@ -101,5 +94,18 @@ void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
   right_marker.ns = "right_wrist";
   right_marker.pose = right;
   viz_.publish(right_marker);
+}
+
+PointCloudP::Ptr ContactDetection::LoadModel(const std::string& mesh_name_obj) {
+  if (model_cache_.find(mesh_name_obj) == model_cache_.end()) {
+    absl::string_view pcd_file(mesh_name_obj);
+    absl::ConsumeSuffix(&pcd_file, ".obj");
+    std::string mesh_path = absl::StrCat(package_dir_, pcd_file, ".pcd");
+    PointCloudP::Ptr object_model(new PointCloudP);
+    PointCloudP::Ptr object_cloud(new PointCloudP);
+    pcl::io::loadPCDFile(mesh_path, *object_model);
+    model_cache_[mesh_name_obj] = object_model;
+  }
+  return model_cache_[mesh_name_obj];
 }
 }  // namespace pbi
