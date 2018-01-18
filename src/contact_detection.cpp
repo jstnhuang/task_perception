@@ -2,8 +2,10 @@
 
 #include <string>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/strip.h"
 #include "pcl/common/transforms.h"
-#include "pcl/io/obj_io.h"
+#include "pcl/io/pcd_io.h"
 #include "ros/package.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -64,13 +66,16 @@ void ContactDetection::Predict(
 
   // Check if hand is close to an object
   for (const auto& object : current_state.object_states) {
-    std::string mesh_path = package_dir_ + object.mesh_name;
+    absl::string_view pcd_file(object.mesh_name);
+    absl::ConsumeSuffix(&pcd_file, ".obj");
+    std::string mesh_path = absl::StrCat(package_dir_, pcd_file, ".pcd");
     PointCloudP::Ptr object_model(new PointCloudP);
     PointCloudP::Ptr object_cloud(new PointCloudP);
-    pcl::io::loadOBJFile(mesh_path, *object_model);
+    pcl::io::loadPCDFile(mesh_path, *object_model);
     object_model->header.frame_id = camera_info.header.frame_id;
     ROS_INFO("Loaded object model %s with %ld points", object.mesh_name.c_str(),
              object_model->size());
+
     PublishPointCloud(obj_viz_, *object_model);
     // pcl::transformPointCloud(object_model, object_cloud, transform);
   }
