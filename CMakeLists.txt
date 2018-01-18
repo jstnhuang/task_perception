@@ -130,6 +130,7 @@ catkin_package(
     pbi_demo_visualizer
     pbi_object_tracker
     pbi_particle_tracker_builder
+    pbi_pcl_utils
     pbi_record_video_action_server
     pbi_video_scrubber
   CATKIN_DEPENDS
@@ -191,6 +192,7 @@ target_link_libraries(pbi_camera_info_camera_provider
 add_library(pbi_contact_detection src/contact_detection.cpp)
 add_dependencies(pbi_contact_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_contact_detection
+  pbi_pcl_utils
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
@@ -242,6 +244,12 @@ add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
 add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_particle_tracker_builder
   pbi_camera_info_camera_provider
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_pcl_utils src/pcl_utils.cpp)
+add_dependencies(pbi_pcl_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_pcl_utils
   ${catkin_LIBRARIES}
 )
 
