@@ -133,7 +133,9 @@ catkin_package(
     pbi_object_tracker
     pbi_particle_tracker_builder
     pbi_pcl_utils
+    pbi_pose_utils
     pbi_record_video_action_server
+    pbi_ros_utils
     pbi_video_scrubber
   CATKIN_DEPENDS
     abseil_cpp
@@ -199,6 +201,8 @@ add_library(pbi_contact_detection src/contact_detection.cpp)
 add_dependencies(pbi_contact_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_contact_detection
   pbi_pcl_utils
+  pbi_pose_utils
+  pbi_ros_utils
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
@@ -246,6 +250,12 @@ target_link_libraries(pbi_object_tracker
   ${catkin_LIBRARIES}
 )
 
+add_library(pbi_pose_utils src/pose_utils.cpp)
+add_dependencies(pbi_pose_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_pose_utils
+  ${catkin_LIBRARIES}
+)
+
 add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
 add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_particle_tracker_builder
@@ -263,6 +273,12 @@ target_link_libraries(pbi_pcl_utils
 add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
 add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_record_video_action_server
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_ros_utils src/ros_utils.cpp)
+add_dependencies(pbi_ros_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_ros_utils
   ${catkin_LIBRARIES}
 )
 
