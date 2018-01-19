@@ -41,8 +41,8 @@
 
   <!-- Annotator -->
   <param name="contact_detection/debug" value="true" />
-  <param name="contact_detection/max_wrist_distance" value="0.25" />
-  <param name="contact_detection/linear_distance_threshold" value="0.0075" />
+  <param name="contact_detection/close_to_wrist_distance" value="0.25" />
+  <param name="contact_detection/moving_object_distance" value="0.0075" />
   <node if="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" launch-prefix="xterm -e gdb --args" />
   <node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
 </launch>
