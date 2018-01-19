@@ -336,7 +336,6 @@ void AnnotatorServer::RunCurrentStep() {
     return;
   }
   state_.current_frame += 1;
-  PublishState();
   demo_runtime_.Step();
   PublishState();
 }
