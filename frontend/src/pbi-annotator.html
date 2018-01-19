@@ -80,7 +80,7 @@
       <span hidden$="[[_hasEvents(state.objects)]]">None</span>
       <ul hidden$="[[!_hasEvents(state.objects)]]">
       <template is="dom-repeat" items="[[state.objects]]">
-        <li>[[item.object_name]] ([[item.mesh_name]])</li>
+        <li>[[item.name]] ([[item.mesh_name]])</li>
       </template>
       </ul>
       <h3>Events for this frame:</h3>
