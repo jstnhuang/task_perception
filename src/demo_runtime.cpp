@@ -37,7 +37,8 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       current_color_image_(),
       current_depth_image_(),
       camera_info_(),
-      contact_detection_(skel_services, predict_hands),
+      object_models_(),
+      contact_detection_(skel_services, predict_hands, &object_models_),
       last_executed_frame_(-1),
       num_frames_(0),
       states_() {}
@@ -89,7 +90,10 @@ void DemoRuntime::Step() {
   StepSkeleton(frame_number, prev_state, &current_state.nerf_joint_states);
   StepSpawnUnspawn(frame_number, prev_state);
   StepObjectPose(frame_number, prev_state, &current_state.object_states);
-  DetectContact(frame_number, current_state, prev_state);
+
+  contact_detection_.Predict(
+      current_state, prev_state, current_color_image_, current_depth_image_,
+      camera_info_, &current_state.left_hand, &current_state.right_hand);
 
   states_[frame_number] = current_state;
   ++last_executed_frame_;
@@ -270,13 +274,6 @@ void DemoRuntime::StepObjectPose(
     }
     object_states->push_back(object_state);
   }
-}
-
-void DemoRuntime::DetectContact(const int frame_number,
-                                const msgs::DemoState& current_state,
-                                const msgs::DemoState& prev_state) {
-  contact_detection_.Predict(current_state, prev_state, current_color_image_,
-                             current_depth_image_, camera_info_);
 }
 
 void DemoRuntime::ResetState() {

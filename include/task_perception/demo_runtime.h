@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/DemoState.h"
@@ -88,9 +90,6 @@ class DemoRuntime {
   void StepObjectPose(
       const int frame_number, const task_perception_msgs::DemoState& prev_state,
       std::vector<task_perception_msgs::ObjectState>* object_states);
-  void DetectContact(const int frame_number,
-                     const task_perception_msgs::DemoState& current_state,
-                     const task_perception_msgs::DemoState& prev_state);
 
   void ResetState();
   void PublishViz();
@@ -109,6 +108,8 @@ class DemoRuntime {
   sensor_msgs::Image current_depth_image_;
   sensor_msgs::CameraInfo camera_info_;
 
+  // Object model cache
+  std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_models_;
   ContactDetection contact_detection_;
 
   // Object state
