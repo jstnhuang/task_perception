@@ -40,6 +40,8 @@ class ContactDetectionContext {
   pcl::KdTree<pcl::PointXYZ>::Ptr GetObjectTree(const std::string& name);
   bool GetPreviousObject(const std::string& name,
                          task_perception_msgs::ObjectState* prev_obj);
+  ros::Time GetPreviousTime();
+  ros::Time GetCurrentTime();
 
   // Params
   bool kDebug;

@@ -87,6 +87,9 @@ void DemoRuntime::Step() {
   color_scrubber_.View(frame_number, &current_color_image_);
   depth_scrubber_.View(frame_number, &current_depth_image_);
 
+  // Update timestamp
+  current_state.stamp = current_depth_image_.header.stamp;
+
   StepSkeleton(frame_number, prev_state, &current_state.nerf_joint_states);
   StepSpawnUnspawn(frame_number, prev_state);
   StepObjectPose(frame_number, prev_state, &current_state.object_states);

@@ -183,12 +183,16 @@ bool ContactDetection::IsObjectMoving(const msgs::ObjectState& object,
     return false;
   }
 
+  ros::Duration dt = context->GetCurrentTime() - context->GetPreviousTime();
+
   // TODO: we are not recording timestamps. Instead, we just assume that the
   // data is coming in at a constant rate.
   // TODO: we only take linear movement into account, but not angular motion
   // Angular motion may be hard to track.
   double linear_distance = LinearDistance(prev_obj.pose, object.pose);
-  ROS_INFO("%s: moved %f", object.name.c_str(), linear_distance);
+  double linear_speed = linear_distance / dt.toSec();
+  ROS_INFO("%s: moved %f in %f seconds (%f m/s)", object.name.c_str(),
+           linear_distance, dt.toSec(), linear_speed);
   return linear_distance >= context->kMovingObjectDistance;
 }
 void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
@@ -401,6 +405,14 @@ PointCloudP::Ptr ContactDetectionContext::LoadModel(const string& mesh_path) {
   ROS_INFO("Loaded mesh %s with %ld points", mesh_path.c_str(),
            object_model->size());
   return object_model;
+}
+
+ros::Time ContactDetectionContext::GetPreviousTime() {
+  return prev_state_.stamp;
+}
+
+ros::Time ContactDetectionContext::GetCurrentTime() {
+  return current_state_.stamp;
 }
 
 std::string ReplaceObjWithPcd(const std::string& path) {
