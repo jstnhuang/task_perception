@@ -303,18 +303,17 @@ bool AnnotatorServer::SetObjectPose(const std::string& object_name,
   demo_runtime_.GetObjectState(state_.current_frame, object_name,
                                &object_state);
 
-  if (object_state.object_pose.position.x == 0 &&
-      object_state.object_pose.position.y == 0 &&
-      object_state.object_pose.position.z == 0 &&
-      object_state.object_pose.orientation.w == 0 &&
-      object_state.object_pose.orientation.x == 0 &&
-      object_state.object_pose.orientation.y == 0 &&
-      object_state.object_pose.orientation.z == 0) {
-    object_state.object_pose.position.z = 1;
-    object_state.object_pose.orientation.w = 1;
+  if (object_state.pose.position.x == 0 && object_state.pose.position.y == 0 &&
+      object_state.pose.position.z == 0 &&
+      object_state.pose.orientation.w == 0 &&
+      object_state.pose.orientation.x == 0 &&
+      object_state.pose.orientation.y == 0 &&
+      object_state.pose.orientation.z == 0) {
+    object_state.pose.position.z = 1;
+    object_state.pose.orientation.w = 1;
   }
   object_init_->set_object("object_meshes", "object_models", object_mesh,
-                           object_state.object_pose, false);
+                           object_state.pose, false);
   object_init_->wait_for_object_poses();
   if (object_init_->poses().size() == 0) {
     ROS_ERROR("Interactive marker not initialized properly!");

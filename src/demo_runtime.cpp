@@ -129,7 +129,7 @@ bool DemoRuntime::GetObjectState(const int frame_number,
   }
 
   for (const auto& os : states_[frame_number].object_states) {
-    if (os.object_name == object_name) {
+    if (os.name == object_name) {
       *object_state = os;
       return true;
     }
@@ -153,12 +153,12 @@ void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
     prev_state = states_[last_executed_frame_ - 1];
   }
   for (const auto& os : prev_state.object_states) {
-    if (os.object_name == object_name) {
+    if (os.name == object_name) {
       if (object_trackers_.find(object_name) == object_trackers_.end()) {
         object_trackers_[object_name].Instantiate(object_name, object_mesh,
                                                   camera_info_);
       }
-      object_trackers_[object_name].SetPose(os.object_pose);
+      object_trackers_[object_name].SetPose(os.pose);
       return;
     }
   }
@@ -240,14 +240,14 @@ void DemoRuntime::StepObjectPose(
     ObjectTracker& tracker = kv.second;
 
     msgs::ObjectState object_state;
-    object_state.object_name = object_name;
+    object_state.name = object_name;
     object_state.mesh_name = tracker.mesh_name();
 
     bool done = false;
     // Case 1
     for (const msgs::Event& pose_evt : object_pose_events) {
       if (pose_evt.object_name == object_name) {
-        object_state.object_pose = pose_evt.object_pose;
+        object_state.pose = pose_evt.object_pose;
         tracker.SetPose(pose_evt.object_pose);
         done = true;
         break;
@@ -260,9 +260,9 @@ void DemoRuntime::StepObjectPose(
 
     // Case 2
     for (const auto& prev_obj : prev_state.object_states) {
-      if (prev_obj.object_name == object_name) {
+      if (prev_obj.name == object_name) {
         tracker.Step(current_depth_image_);
-        tracker.GetPose(&object_state.object_pose);
+        tracker.GetPose(&object_state.pose);
         done = true;
         break;
       }

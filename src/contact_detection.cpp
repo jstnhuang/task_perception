@@ -124,19 +124,18 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
 
   vector<msgs::ObjectState> current_objects = context->GetCurrentObjects();
   for (const msgs::ObjectState& object : current_objects) {
-    PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.object_name);
+    PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
     PublishPointCloud(obj_viz_, *object_cloud);
 
-    if (!IsObjectCurrentlyCloseToWrist(wrist_pose, object.object_name,
-                                       context)) {
+    if (!IsObjectCurrentlyCloseToWrist(wrist_pose, object.name, context)) {
       continue;
     }
 
     if (IsObjectMoving(object, context)) {
       ROS_INFO("Changed %s hand state to GRASPING %s", left_or_right.c_str(),
-               object.object_name.c_str());
+               object.name.c_str());
       hand_state->current_action = msgs::HandState::GRASPING;
-      hand_state->object_name = object.object_name;
+      hand_state->object_name = object.name;
       // TODO: fill in contact transform
       return;
     }
@@ -180,7 +179,7 @@ bool ContactDetection::IsObjectCurrentlyCloseToWrist(
 bool ContactDetection::IsObjectMoving(const msgs::ObjectState& object,
                                       ContactDetectionContext* context) const {
   msgs::ObjectState prev_obj;
-  if (!context->GetPreviousObject(object.object_name, &prev_obj)) {
+  if (!context->GetPreviousObject(object.name, &prev_obj)) {
     return false;
   }
 
@@ -188,9 +187,8 @@ bool ContactDetection::IsObjectMoving(const msgs::ObjectState& object,
   // data is coming in at a constant rate.
   // TODO: we only take linear movement into account, but not angular motion
   // Angular motion may be hard to track.
-  double linear_distance =
-      LinearDistance(prev_obj.object_pose, object.object_pose);
-  ROS_INFO("%s: moved %f", object.object_name.c_str(), linear_distance);
+  double linear_distance = LinearDistance(prev_obj.pose, object.pose);
+  ROS_INFO("%s: moved %f", object.name.c_str(), linear_distance);
   return linear_distance >= context->kMovingObjectDistance;
 }
 void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
@@ -342,7 +340,7 @@ PointCloudP::Ptr ContactDetectionContext::GetObjectModel(const string& name) {
 PointCloudP::Ptr ContactDetectionContext::GetObjectCloud(const string& name) {
   if (object_clouds_.find(name) == object_clouds_.end()) {
     IndexObjects();
-    const geometry_msgs::Pose& object_pose = current_objects_[name].object_pose;
+    const geometry_msgs::Pose& object_pose = current_objects_[name].pose;
     PointCloudP::Ptr object_model = GetObjectModel(name);
     Eigen::Affine3d object_transform;
     tf::poseMsgToEigen(object_pose, object_transform);
@@ -389,10 +387,10 @@ void ContactDetectionContext::IndexObjects() {
     return;
   }
   for (const auto& obj : current_state_.object_states) {
-    current_objects_[obj.object_name] = obj;
+    current_objects_[obj.name] = obj;
   }
   for (const auto& obj : prev_state_.object_states) {
-    prev_objects_[obj.object_name] = obj;
+    prev_objects_[obj.name] = obj;
   }
   are_objects_indexed_ = true;
 }
