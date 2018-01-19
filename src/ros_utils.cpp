@@ -7,13 +7,17 @@
 namespace pbi {
 bool GetParam(const std::string& name, float* val) {
   bool success = ros::param::get(name, *val);
-  LogGetParamFail(name);
+  if (!success) {
+    LogGetParamFail(name);
+  }
   return success;
 }
 
 bool GetParam(const std::string& name, bool* val) {
   bool success = ros::param::get(name, *val);
-  LogGetParamFail(name);
+  if (!success) {
+    LogGetParamFail(name);
+  }
   return success;
 }
 
