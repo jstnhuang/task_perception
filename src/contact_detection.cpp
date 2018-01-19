@@ -150,6 +150,14 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
                                     const std::string& left_or_right,
                                     ContactDetectionContext* context,
                                     msgs::HandState* hand_state) {
+  msgs::ObjectState object;
+  if (!context->GetCurrentObject(prev_state.object_name, &object)) {
+    ROS_WARN("Object \"%s\" disappeared while being contacted by %s hand.",
+             prev_state.object_name.c_str(), left_or_right.c_str());
+    return;
+  }
+  IsObjectMoving(object, context);
+
   // TODO: implement
   // If object does not exist anymore, set state to NONE
   // If not enough object points are close to hand points, set state to NONE
@@ -363,6 +371,16 @@ KdTreeP::Ptr ContactDetectionContext::GetObjectTree(const string& name) {
     object_trees_[name] = tree;
   }
   return object_trees_[name];
+}
+
+bool ContactDetectionContext::GetCurrentObject(
+    const std::string& name, task_perception_msgs::ObjectState* object) {
+  IndexObjects();
+  if (current_objects_.find(name) == current_objects_.end()) {
+    return false;
+  }
+  *object = current_objects_[name];
+  return true;
 }
 
 bool ContactDetectionContext::GetPreviousObject(

@@ -38,6 +38,8 @@ class ContactDetectionContext {
       const std::string& mesh_name);
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetObjectCloud(const std::string& name);
   pcl::KdTree<pcl::PointXYZ>::Ptr GetObjectTree(const std::string& name);
+  bool GetCurrentObject(const std::string& name,
+                        task_perception_msgs::ObjectState* object);
   bool GetPreviousObject(const std::string& name,
                          task_perception_msgs::ObjectState* prev_obj);
   ros::Time GetPreviousTime();
