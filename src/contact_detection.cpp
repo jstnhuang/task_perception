@@ -99,7 +99,6 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
                                   const std::string& left_or_right,
                                   ContactDetectionContext* context,
                                   msgs::HandState* hand_state) {
-  ROS_INFO("%s hand: checking for grasp", left_or_right.c_str());
   // For all nearby objects:
   // - If the object is moving, set state to GRASPING
   // - If enough object points are close to hand points, set state to GRASPING
@@ -154,7 +153,6 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
                                     const std::string& left_or_right,
                                     ContactDetectionContext* context,
                                     msgs::HandState* hand_state) {
-  ROS_INFO("%s hand: checking for release", left_or_right.c_str());
   msgs::ObjectState object;
   if (!context->GetCurrentObject(prev_state.object_name, &object)) {
     ROS_WARN("Object \"%s\" disappeared while being contacted by %s hand.",

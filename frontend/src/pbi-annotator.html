@@ -6,6 +6,7 @@
 <link rel="import" href="../bower_components/ros-topic/ros-topic.html">
 <link rel="import" href="../bower_components/ros-rviz/ros-rviz.html">
 <link rel="import" href="pbi-event.html">
+<link rel="import" href="pbi-hand-state.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-annotator">
@@ -37,8 +38,15 @@
       h3 {
         border-bottom: 1px solid #ccc;
       }
+      h4 {
+        margin-top: 0;
+        margin-bottom: 0;
+      }
       paper-input + paper-input {
         margin-left: 5px;
+      }
+      pbi-hand-state {
+        margin-right: 10px;
       }
     </style>
     <ros-topic auto
@@ -76,13 +84,24 @@
         <paper-button on-tap="_handleUnspawnObject"
           disabled="[[!_canUnspawnObject(objectName)]]">Unspawn object</paper-button>
       </div>
-      <h3>Current objects</h3>
-      <span hidden$="[[_hasEvents(state.objects)]]">None</span>
-      <ul hidden$="[[!_hasEvents(state.objects)]]">
-      <template is="dom-repeat" items="[[state.objects]]">
-        <li>[[item.name]] ([[item.mesh_name]])</li>
-      </template>
+      <h3>State:</h3>
+      <h4>Objects</h4>
+      <span hidden$="[[_hasEvents(state.demo_state.object_states)]]">None</span>
+      <ul hidden$="[[!_hasEvents(state.demo_state.object_states)]]">
+        <template is="dom-repeat" items="[[state.demo_state.object_states]]" as="object">
+          <li>[[object.name]] ([[object.mesh_name]])</li>
+        </template>
       </ul>
+        <div class="horizontal layout center">
+          <div>
+            <h4>Left hand</h4>
+            <pbi-hand-state hand-state="[[state.demo_state.left_hand]]" />
+          </div>
+          <div>
+            <h4>Right hand</h4>
+            <pbi-hand-state hand-state="[[state.demo_state.right_hand]]" />
+          </div>
+        </div>
       <h3>Events for this frame:</h3>
       <span hidden$="[[_hasEvents(state.events)]]">None</span>
       <template is="dom-repeat" items="[[state.events]]">

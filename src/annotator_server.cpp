@@ -365,7 +365,9 @@ void AnnotatorServer::AdvanceSkeleton(const sensor_msgs::Image& color,
 void AnnotatorServer::PublishState() {
   msgs::DemoState demo_state;
   demo_runtime_.GetState(state_.current_frame, &demo_state);
-  state_.objects = demo_state.object_states;
+  ss_msgs::NerfJointStates blank_joints;
+  state_.demo_state = demo_state;
+  state_.demo_state.nerf_joint_states = blank_joints;
   state_.events = demo_model_->EventsAt(state_.current_frame);
   // TODO: include objects here
   demo_viz_.state_pub.publish(state_);

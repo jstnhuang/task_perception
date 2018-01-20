@@ -1,0 +1,34 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-hand-state">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    Current action: [[handState.current_action]]<br />
+    <template is="dom-if" if="[[_isContact(handState.current_action)]]">
+      Object: [[handState.object_name]]
+    </template>
+    <template is="dom-if" if="[[!_isContact(handState.current_action)]]">
+      <br />
+    </template>
+  </template>
+  <script>
+    class PbiHandState extends Polymer.Element {
+      static get is() { return 'pbi-hand-state'; }
+      static get properties() {
+        return {
+          handState: Object,
+        };
+      }
+      _isContact(action) {
+        return action === 'grasping' || action === 'pushing';
+      }
+    };
+    window.customElements.define(PbiHandState.is, PbiHandState);
+  </script>
+</dom-module>
