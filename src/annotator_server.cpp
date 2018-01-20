@@ -369,7 +369,6 @@ void AnnotatorServer::PublishState() {
   state_.demo_state = demo_state;
   state_.demo_state.nerf_joint_states = blank_joints;
   state_.events = demo_model_->EventsAt(state_.current_frame);
-  // TODO: include objects here
   demo_viz_.state_pub.publish(state_);
 
   // TODO: skeleton tracker manages its own state and visualization for now,
