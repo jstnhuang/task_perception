@@ -49,6 +49,8 @@
   <param name="contact_detection/touching_object_distance" value="0.005" />
   <!-- Number of hand points that must touch an object for it to be a contact. -->
   <param name="contact_detection/touching_object_points" value="10" />
+  <!-- How far a hand point can be from the left/right wrist to be associated with that wrist. -->
+  <param name="contact_detection/part_of_hand_distance" value="0.25" />
   <node if="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" launch-prefix="xterm -e gdb --args" />
   <node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
 </launch>
