@@ -11,7 +11,7 @@ contact_detection:
   touching_object_distance: 0.005
 
   # Distance for a hand point to be considered "not touching" an object.
-  touching_released_object_distance: 0.01
+  touching_released_object_distance: 0.0125
 
   # Number of hand points that must touch an object for it to be a contact.
   touching_object_points: 10
