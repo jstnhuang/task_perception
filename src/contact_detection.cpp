@@ -126,12 +126,11 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
     bool is_moving = IsObjectMoving(object, context);
 
     bool is_touching = false;
-
     if (context->BothHandsCloud()->size() == 0) {
       continue;
     }
-    int num_touching_points =
-        NumHandPointsOnObject(object, left_or_right, context);
+    int num_touching_points = NumHandPointsOnObject(
+        object, left_or_right, context, context->kTouchingObjectDistance);
     is_touching = num_touching_points >= context->kTouchingObjectPoints;
 
     if (is_moving || is_touching) {
@@ -157,20 +156,40 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
                                     const std::string& left_or_right,
                                     ContactDetectionContext* context,
                                     msgs::HandState* hand_state) {
+  // If object does not exist anymore, set state to NONE
   msgs::ObjectState object;
   if (!context->GetCurrentObject(prev_state.object_name, &object)) {
     ROS_WARN("Object \"%s\" disappeared while being contacted by %s hand.",
              prev_state.object_name.c_str(), left_or_right.c_str());
+    hand_state->current_action = msgs::HandState::NONE;
+    hand_state->object_name = "";
+    // TODO: clear contact transform
     return;
   }
-  IsObjectMoving(object, context);
 
-  // TODO: implement
-  // If object does not exist anymore, set state to NONE
   // If not enough object points are close to hand points, set state to NONE
+  if (context->BothHandsCloud()->size() == 0) {
+    ROS_WARN(
+        "Hands not found! Maintaining status quo, but this should not happen.");
+    *hand_state = prev_state;
+    return;
+  }
+  int num_touching_points = NumHandPointsOnObject(
+      object, left_or_right, context, context->kTouchingReleasedObjectDistance);
+  if (num_touching_points <= context->kTouchingReleasedObjectPoints) {
+    ROS_INFO("Changed %s hand state to NONE (%d out of %d points)",
+             left_or_right.c_str(), num_touching_points,
+             context->kTouchingReleasedObjectPoints);
+    hand_state->current_action = msgs::HandState::NONE;
+    hand_state->object_name = "";
+    // TODO: clear contact transform
+    return;
+  }
+
   // Otherwise, keep as GRASPING
   hand_state->current_action = msgs::HandState::GRASPING;
   hand_state->object_name = prev_state.object_name;
+  // TODO: fill in contact transform
   return;
 }
 
@@ -193,7 +212,8 @@ bool ContactDetection::IsObjectCurrentlyCloseToWrist(
 
 int ContactDetection::NumHandPointsOnObject(
     const task_perception_msgs::ObjectState& object,
-    const std::string& left_or_right, ContactDetectionContext* context) const {
+    const std::string& left_or_right, ContactDetectionContext* context,
+    const float distance_threshold) const {
   KdTreeP::Ptr object_tree = context->GetObjectTree(object.name);
 
   PointCloudP::Ptr both_hands_cloud = context->BothHandsCloud();
@@ -208,7 +228,17 @@ int ContactDetection::NumHandPointsOnObject(
   vector<int> indices(1);
   vector<float> sq_distances(1);
   const float kSquaredTouchingDistance =
-      context->kTouchingObjectDistance * context->kTouchingObjectDistance;
+      distance_threshold * distance_threshold;
+
+  const bool kDebugDistances = context->kDebug && false;
+  float histogram[5];
+  if (kDebugDistances) {
+    histogram[0] = 0;
+    histogram[1] = 0;
+    histogram[2] = 0;
+    histogram[3] = 0;
+    histogram[4] = 0;
+  }
   for (size_t index_i = 0; index_i < hand_indices->size(); ++index_i) {
     int index = (*hand_indices)[index_i];
     object_tree->nearestKSearch(both_hands_cloud->points[index], 1, indices,
@@ -217,6 +247,29 @@ int ContactDetection::NumHandPointsOnObject(
     if (sq_distance < kSquaredTouchingDistance) {
       num_touching += 1;
     }
+
+    float distance = sqrt(sq_distance);
+    if (kDebugDistances) {
+      if (distance < 0.002) {
+        histogram[0] += 1;
+      }
+      if (distance < 0.004) {
+        histogram[1] += 1;
+      }
+      if (distance < 0.006) {
+        histogram[2] += 1;
+      }
+      if (distance < 0.008) {
+        histogram[3] += 1;
+      }
+      if (distance < 0.01) {
+        histogram[4] += 1;
+      }
+    }
+  }
+  if (kDebugDistances) {
+    ROS_INFO("%d %d %d %d %d", histogram[0], histogram[1], histogram[2],
+             histogram[3], histogram[4]);
   }
   return num_touching;
 }
@@ -271,6 +324,11 @@ ContactDetectionContext::ContactDetectionContext(
     : kDebug(false),
       kCloseToWristDistance(0),
       kMovingObjectDistance(0),
+      kTouchingObjectDistance(0),
+      kTouchingReleasedObjectDistance(0),
+      kTouchingObjectPoints(0),
+      kTouchingReleasedObjectPoints(0),
+      kPartOfHandDistance(0),
       skel_services_(skel_services),
       predict_hands_(predict_hands),
       current_state_(current_state),
@@ -302,8 +360,12 @@ bool ContactDetectionContext::LoadParams() {
                 &kMovingObjectDistance) ||
       !GetParam("contact_detection/touching_object_distance",
                 &kTouchingObjectDistance) ||
+      !GetParam("contact_detection/touching_released_object_distance",
+                &kTouchingReleasedObjectDistance) ||
       !GetParam("contact_detection/touching_object_points",
                 &kTouchingObjectPoints) ||
+      !GetParam("contact_detection/touching_released_object_points",
+                &kTouchingReleasedObjectPoints) ||
       !GetParam("contact_detection/part_of_hand_distance",
                 &kPartOfHandDistance)) {
     return false;

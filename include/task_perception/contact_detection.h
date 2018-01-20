@@ -54,7 +54,9 @@ class ContactDetectionContext {
   float kCloseToWristDistance;
   float kMovingObjectDistance;
   float kTouchingObjectDistance;
+  float kTouchingReleasedObjectDistance;
   int kTouchingObjectPoints;
+  int kTouchingReleasedObjectPoints;
   float kPartOfHandDistance;
 
  private:
@@ -139,7 +141,8 @@ class ContactDetection {
 
   int NumHandPointsOnObject(const task_perception_msgs::ObjectState& object,
                             const std::string& left_or_right,
-                            ContactDetectionContext* context) const;
+                            ContactDetectionContext* context,
+                            const float distance_threshold) const;
 
   void PublishWristPoses(const geometry_msgs::Pose& left,
                          const geometry_msgs::Pose& right,
