@@ -11,6 +11,7 @@ namespace pbi {
 // Returns true if params is found, false otherwise.
 bool GetParam(const std::string& name, float* val);
 bool GetParam(const std::string& name, bool* val);
+bool GetParam(const std::string& name, int* val);
 
 void LogGetParamFail(const std::string& name);
 }  // namespace pbi
