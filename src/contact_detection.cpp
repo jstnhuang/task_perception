@@ -168,6 +168,9 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   }
 
   // If not enough object points are close to hand points, set state to NONE
+  // When we check for a release, we use more conservative parameters, since
+  // sometimes the hand segmentation can flicker or the hand can be occluded
+  // while grasping.
   if (context->BothHandsCloud()->size() == 0) {
     ROS_WARN(
         "Hands not found! Maintaining status quo, but this should not happen.");
