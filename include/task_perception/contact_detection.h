@@ -43,8 +43,11 @@ class ContactDetectionContext {
                          task_perception_msgs::ObjectState* prev_obj);
   ros::Time GetPreviousTime();
   ros::Time GetCurrentTime();
-  pcl::PointCloud<pcl::PointXYZ>::Ptr HandCloud();
-  pcl::KdTree<pcl::PointXYZ>::Ptr HandTree();
+  pcl::PointCloud<pcl::PointXYZ>::Ptr BothHandsCloud();
+  pcl::IndicesPtr LeftHandIndices();
+  pcl::IndicesPtr RightHandIndices();
+  pcl::KdTree<pcl::PointXYZ>::Ptr LeftHandTree();
+  pcl::KdTree<pcl::PointXYZ>::Ptr RightHandTree();
 
   // Params
   bool kDebug;
@@ -52,12 +55,15 @@ class ContactDetectionContext {
   float kMovingObjectDistance;
   float kTouchingObjectDistance;
   int kTouchingObjectPoints;
+  float kPartOfHandDistance;
 
  private:
   void GetWristPoses();
   // Must be called before using [current,prev]_objects_
   void IndexObjects();
   pcl::PointCloud<pcl::PointXYZ>::Ptr LoadModel(const std::string& mesh_path);
+  void ComputeHandClouds();
+  void ComputeLeftRightHands();
 
   pbi::SkeletonServices& skel_services_;
   ros::ServiceClient& predict_hands_;
@@ -73,6 +79,7 @@ class ContactDetectionContext {
   geometry_msgs::Pose left_wrist_pose_;
   geometry_msgs::Pose right_wrist_pose_;
 
+  // Object models
   const std::string kPackagePath_;
   bool are_objects_indexed_;
   std::map<std::string, task_perception_msgs::ObjectState> current_objects_;
@@ -81,8 +88,12 @@ class ContactDetectionContext {
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_clouds_;
   std::map<std::string, pcl::KdTree<pcl::PointXYZ>::Ptr> object_trees_;
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr hand_cloud_;
-  pcl::KdTree<pcl::PointXYZ>::Ptr hand_tree_;
+  // Hand segmentation
+  pcl::PointCloud<pcl::PointXYZ>::Ptr both_hands_cloud_;
+  pcl::IndicesPtr left_hand_indices_;
+  pcl::IndicesPtr right_hand_indices_;
+  pcl::KdTree<pcl::PointXYZ>::Ptr left_hand_tree_;
+  pcl::KdTree<pcl::PointXYZ>::Ptr right_hand_tree_;
 };
 
 class ContactDetection {
@@ -127,6 +138,7 @@ class ContactDetection {
                       ContactDetectionContext* context) const;
 
   int NumHandPointsOnObject(const task_perception_msgs::ObjectState& object,
+                            const std::string& left_or_right,
                             ContactDetectionContext* context) const;
 
   void PublishWristPoses(const geometry_msgs::Pose& left,
@@ -141,7 +153,8 @@ class ContactDetection {
   // Internal visualizations for debugging purposes
   ros::Publisher viz_;
   ros::Publisher obj_viz_;
-  ros::Publisher hand_viz_;
+  ros::Publisher left_hand_viz_;
+  ros::Publisher right_hand_viz_;
 };
 
 // Replace path/to/file.obj to path/to/file.pcd.

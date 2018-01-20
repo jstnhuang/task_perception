@@ -50,8 +50,10 @@ ContactDetection::ContactDetection(
           "contact_detection/markers", 10)),
       obj_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
           "contact_detection/object_clouds", 1, true)),
-      hand_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
-          "contact_detection/hands", 1, true)) {}
+      left_hand_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
+          "contact_detection/left_hand", 1, true)),
+      right_hand_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
+          "contact_detection/right_hand", 1, true)) {}
 
 void ContactDetection::Predict(const msgs::DemoState& current_state,
                                const msgs::DemoState& prev_state,
@@ -78,8 +80,9 @@ void ContactDetection::Predict(const msgs::DemoState& current_state,
 
   // Create point cloud for hands
   if (context.kDebug) {
-    PointCloudP::Ptr hand_cloud = context.HandCloud();
-    PublishPointCloud(hand_viz_, *hand_cloud);
+    PointCloudP::Ptr hand_cloud = context.BothHandsCloud();
+    PublishPointCloud(left_hand_viz_, hand_cloud, context.LeftHandIndices());
+    PublishPointCloud(right_hand_viz_, hand_cloud, context.RightHandIndices());
   }
 }
 
@@ -124,10 +127,11 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
 
     bool is_touching = false;
 
-    if (context->HandCloud()->size() == 0) {
+    if (context->BothHandsCloud()->size() == 0) {
       continue;
     }
-    int num_touching_points = NumHandPointsOnObject(object, context);
+    int num_touching_points =
+        NumHandPointsOnObject(object, left_or_right, context);
     is_touching = num_touching_points >= context->kTouchingObjectPoints;
 
     if (is_moving || is_touching) {
@@ -189,17 +193,25 @@ bool ContactDetection::IsObjectCurrentlyCloseToWrist(
 
 int ContactDetection::NumHandPointsOnObject(
     const task_perception_msgs::ObjectState& object,
-    ContactDetectionContext* context) const {
+    const std::string& left_or_right, ContactDetectionContext* context) const {
   KdTreeP::Ptr object_tree = context->GetObjectTree(object.name);
-  PointCloudP::Ptr hand_cloud = context->HandCloud();
+
+  PointCloudP::Ptr both_hands_cloud = context->BothHandsCloud();
+  pcl::IndicesPtr hand_indices;
+  if (left_or_right == "left") {
+    hand_indices = context->LeftHandIndices();
+  } else {
+    hand_indices = context->RightHandIndices();
+  }
 
   int num_touching = 0;
   vector<int> indices(1);
   vector<float> sq_distances(1);
   const float kSquaredTouchingDistance =
       context->kTouchingObjectDistance * context->kTouchingObjectDistance;
-  for (size_t i = 0; i < hand_cloud->size(); ++i) {
-    object_tree->nearestKSearch(hand_cloud->points[i], 1, indices,
+  for (size_t index_i = 0; index_i < hand_indices->size(); ++index_i) {
+    int index = (*hand_indices)[index_i];
+    object_tree->nearestKSearch(both_hands_cloud->points[index], 1, indices,
                                 sq_distances);
     float sq_distance = sq_distances[0];
     if (sq_distance < kSquaredTouchingDistance) {
@@ -221,7 +233,7 @@ bool ContactDetection::IsObjectMoving(const msgs::ObjectState& object,
   // TODO: we only take linear movement into account, but not angular motion
   // Angular motion may be hard to track.
   double linear_distance = LinearDistance(prev_obj.pose, object.pose);
-  double linear_speed = linear_distance / dt.toSec();
+  // double linear_speed = linear_distance / dt.toSec();
   // ROS_INFO("%s: moved %f in %f seconds (%f m/s)", object.name.c_str(),
   //         linear_distance, dt.toSec(), linear_speed);
   return linear_distance >= context->kMovingObjectDistance;
@@ -276,7 +288,11 @@ ContactDetectionContext::ContactDetectionContext(
       object_models_(object_models),
       object_clouds_(),
       object_trees_(),
-      hand_cloud_() {}
+      both_hands_cloud_(),
+      left_hand_indices_(),
+      right_hand_indices_(),
+      left_hand_tree_(),
+      right_hand_tree_() {}
 
 bool ContactDetectionContext::LoadParams() {
   if (!GetParam("contact_detection/debug", &kDebug) ||
@@ -287,7 +303,9 @@ bool ContactDetectionContext::LoadParams() {
       !GetParam("contact_detection/touching_object_distance",
                 &kTouchingObjectDistance) ||
       !GetParam("contact_detection/touching_object_points",
-                &kTouchingObjectPoints)) {
+                &kTouchingObjectPoints) ||
+      !GetParam("contact_detection/part_of_hand_distance",
+                &kPartOfHandDistance)) {
     return false;
   }
   return true;
@@ -412,9 +430,52 @@ ros::Time ContactDetectionContext::GetCurrentTime() {
   return current_state_.stamp;
 }
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetectionContext::HandCloud() {
-  if (hand_cloud_) {
-    return hand_cloud_;
+pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetectionContext::BothHandsCloud() {
+  if (!both_hands_cloud_) {
+    ComputeHandClouds();
+  }
+  return both_hands_cloud_;
+}
+
+pcl::IndicesPtr ContactDetectionContext::LeftHandIndices() {
+  if (!left_hand_indices_) {
+    ComputeHandClouds();
+  }
+  return left_hand_indices_;
+}
+
+pcl::IndicesPtr ContactDetectionContext::RightHandIndices() {
+  if (!right_hand_indices_) {
+    ComputeHandClouds();
+  }
+  return right_hand_indices_;
+}
+
+pcl::KdTree<pcl::PointXYZ>::Ptr ContactDetectionContext::LeftHandTree() {
+  if (!left_hand_tree_) {
+    left_hand_tree_.reset(new pcl::KdTreeFLANN<PointP>);
+    if (left_hand_indices_->size() > 0) {
+      left_hand_tree_->setInputCloud(both_hands_cloud_, left_hand_indices_);
+    }
+  }
+  return left_hand_tree_;
+}
+
+pcl::KdTree<pcl::PointXYZ>::Ptr ContactDetectionContext::RightHandTree() {
+  if (!right_hand_tree_) {
+    right_hand_tree_.reset(new pcl::KdTreeFLANN<PointP>);
+    if (right_hand_indices_->size() > 0) {
+      right_hand_tree_->setInputCloud(both_hands_cloud_, right_hand_indices_);
+    }
+  }
+  return right_hand_tree_;
+}
+
+// EXPECTED POST-CONDITION: both_hands_cloud_, left_hand_indices_, and
+// right_hand_indices_ must not be null.
+void ContactDetectionContext::ComputeHandClouds() {
+  if (both_hands_cloud_) {
+    return;
   }
 
   // Find hand pixels
@@ -425,10 +486,12 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetectionContext::HandCloud() {
   predict_hands_.call(req, res);
   const sensor_msgs::Image& hands = res.prediction;
 
-  hand_cloud_.reset(new PointCloudP);
+  both_hands_cloud_.reset(new PointCloudP);
+  left_hand_indices_.reset(new std::vector<int>());
+  right_hand_indices_.reset(new std::vector<int>());
   if (hands.encoding != "mono8") {
     ROS_ERROR("Unsupported hand prediction format: %s", hands.encoding.c_str());
-    return hand_cloud_;
+    return;
   }
 
   const uint16_t* depth_16;
@@ -441,7 +504,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetectionContext::HandCloud() {
   } else {
     ROS_ERROR("Unsupported depth image type: %s",
               depth_image_.encoding.c_str());
-    return hand_cloud_;
+    return;
   }
 
   image_geometry::PinholeCameraModel camera_model;
@@ -464,26 +527,56 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetectionContext::HandCloud() {
         pt.x = ray.x;
         pt.y = ray.y;
         pt.z = ray.z;
-        hand_cloud_->push_back(pt);
+        both_hands_cloud_->push_back(pt);
       }
     }
   }
-  hand_cloud_->header.frame_id = camera_info_.header.frame_id;
+  both_hands_cloud_->header.frame_id = camera_info_.header.frame_id;
 
-  if (hand_cloud_->size() == 0) {
+  if (both_hands_cloud_->size() == 0) {
     ROS_WARN("Hands not found in the scene");
   }
 
-  return hand_cloud_;
+  ComputeLeftRightHands();
 }
 
-pcl::KdTree<pcl::PointXYZ>::Ptr ContactDetectionContext::HandTree() {
-  if (!hand_tree_) {
-    hand_tree_.reset(new pcl::KdTreeFLANN<pcl::PointXYZ>);
-    PointCloudP::Ptr cloud = HandCloud();
-    hand_tree_->setInputCloud(cloud);
+// Precondition: both_hands_clouds_ must have been initialized.
+// left_hand_indices_ and right_hand_indices_ must not be null.
+void ContactDetectionContext::ComputeLeftRightHands() {
+  const geometry_msgs::Pose& left = GetLeftWristPose();
+  const geometry_msgs::Pose& right = GetRightWristPose();
+  const float kSqMaxDistance = kPartOfHandDistance * kPartOfHandDistance;
+  for (size_t i = 0; i < both_hands_cloud_->size(); ++i) {
+    const PointP& pt = both_hands_cloud_->points[i];
+    float dx = pt.x - left.position.x;
+    float dy = pt.y - left.position.y;
+    float dz = pt.z - left.position.z;
+    float left_sq_dist = dx * dx + dy * dy + dz * dz;
+    dx = pt.x - right.position.x;
+    dy = pt.y - right.position.y;
+    dz = pt.z - right.position.z;
+    float right_sq_dist = dx * dx + dy * dy + dz * dz;
+
+    if (left_sq_dist >= kSqMaxDistance && right_sq_dist >= kSqMaxDistance) {
+      // If point is far from both, skip.
+      continue;
+    } else if (left_sq_dist < kSqMaxDistance &&
+               right_sq_dist < kSqMaxDistance) {
+      // If point is close enough to both left and right, then associate with
+      // the closer hand.
+      if (left_sq_dist < right_sq_dist) {
+        left_hand_indices_->push_back(i);
+      } else {
+        right_hand_indices_->push_back(i);
+      }
+      continue;
+    } else if (left_sq_dist < kSqMaxDistance &&
+               right_sq_dist >= kSqMaxDistance) {
+      left_hand_indices_->push_back(i);
+    } else {
+      right_hand_indices_->push_back(i);
+    }
   }
-  return hand_tree_;
 }
 
 std::string ReplaceObjWithPcd(const std::string& path) {
