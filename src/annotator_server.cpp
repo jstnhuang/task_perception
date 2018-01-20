@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "absl/strings/str_split.h"
+#include "boost/algorithm/string.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
@@ -104,9 +104,11 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   }
 
   // Insert/Retrieve demonstration data from DB.
-  std::vector<std::string> bag_path_parts = absl::StrSplit(bag_path, "/");
+
+  std::vector<std::string> bag_path_parts;
+  boost::split(bag_path_parts, bag_path, "/");
   std::string last_bag_part(bag_path_parts[bag_path_parts.size() - 1]);
-  std::string bag_name(absl::StripSuffix(last_bag_part, ".bag"));
+  std::string bag_name(last_bag_part.substr(0, last_bag_part.size() - 4));
 
   demo_id_ = demo_db_.GetIdByName(bag_name);
   if (demo_id_ == "") {

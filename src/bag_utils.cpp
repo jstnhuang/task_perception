@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/strings/match.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -16,12 +15,12 @@ bool GetImageTopics(const rosbag::Bag& bag, std::string* rgb_topic,
   bool found_depth = false;
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
     const std::string& topic = it->getTopic();
-    if (absl::StrContains(topic, "rgb")) {
+    if (topic.find("rgb") != std::string::npos) {
       *rgb_topic = topic;
       found_rgb = true;
       continue;
     }
-    if (absl::StrContains(topic, "depth")) {
+    if (topic.find("depth") != std::string::npos) {
       *depth_topic = topic;
       found_depth = true;
     }

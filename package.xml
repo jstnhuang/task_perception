@@ -40,7 +40,6 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>abseil_cpp</build_depend>
   <build_depend>actionlib</build_depend>
   <build_depend>dbot</build_depend>
   <build_depend>dbot_ros</build_depend>
@@ -58,7 +57,6 @@
   <build_depend>task_perception_msgs</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>visualization_msgs</build_depend>
-  <run_depend>abseil_cpp</run_depend>
   <run_depend>actionlib</run_depend>
   <run_depend>dbot</run_depend>
   <run_depend>dbot_ros</run_depend>

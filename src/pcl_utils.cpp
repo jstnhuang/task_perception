@@ -1,5 +1,6 @@
 #include "task_perception/pcl_utils.h"
 
+#include "pcl/filters/extract_indices.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
@@ -18,6 +19,8 @@ void PublishPointCloud(const ros::Publisher& pub, const PointCloudP& cloud) {
 
 void PublishPointCloud(const ros::Publisher& pub, const PointCloudP::Ptr& cloud,
                        const pcl::IndicesPtr& indices) {
+  pcl::ExtractIndices<PointP> extract;
+
   // We do not use ExtractIndices because the build is very fragile.
   // We currently build against dbot, which requires C++ 11. PCL does not build
   // with C++ 11, and random errors occur on startup.

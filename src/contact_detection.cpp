@@ -8,8 +8,6 @@
 
 #include "Eigen/Dense"
 
-#include "absl/strings/str_cat.h"
-#include "absl/strings/strip.h"
 #include "eigen_conversions/eigen_msg.h"
 #include "image_geometry/pinhole_camera_model.h"
 #include "pcl/common/transforms.h"
@@ -336,7 +334,7 @@ PointCloudP::Ptr ContactDetectionContext::GetObjectModel(const string& name) {
   const std::string& mesh_name = current_objects_[name].mesh_name;
 
   if (object_models_->find(mesh_name) == object_models_->end()) {
-    std::string path = absl::StrCat(kPackagePath_, mesh_name);
+    std::string path = kPackagePath_ + mesh_name;
     path = ReplaceObjWithPcd(path);
     PointCloudP::Ptr model = LoadModel(path);
     model->header.frame_id = camera_info_.header.frame_id;
@@ -405,10 +403,10 @@ void ContactDetectionContext::IndexObjects() {
   if (are_objects_indexed_) {
     return;
   }
-  for (const auto& obj : current_state_.object_states) {
+  for (const msgs::ObjectState& obj : current_state_.object_states) {
     current_objects_[obj.name] = obj;
   }
-  for (const auto& obj : prev_state_.object_states) {
+  for (const msgs::ObjectState& obj : prev_state_.object_states) {
     prev_objects_[obj.name] = obj;
   }
   are_objects_indexed_ = true;
@@ -580,8 +578,6 @@ void ContactDetectionContext::ComputeLeftRightHands() {
 }
 
 std::string ReplaceObjWithPcd(const std::string& path) {
-  absl::string_view updated_path(path);
-  absl::ConsumeSuffix(&updated_path, ".obj");
-  return absl::StrCat(updated_path, ".pcd");
+  return path.substr(0, path.size() - 4) + ".pcd";
 }
 }  // namespace pbi

@@ -131,7 +131,7 @@ bool DemoRuntime::GetObjectState(const int frame_number,
     return false;
   }
 
-  for (const auto& os : states_[frame_number].object_states) {
+  for (const msgs::ObjectState& os : states_[frame_number].object_states) {
     if (os.name == object_name) {
       *object_state = os;
       return true;
@@ -155,7 +155,7 @@ void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
   if (last_executed_frame_ > 0) {
     prev_state = states_[last_executed_frame_ - 1];
   }
-  for (const auto& os : prev_state.object_states) {
+  for (const msgs::ObjectState& os : prev_state.object_states) {
     if (os.name == object_name) {
       if (object_trackers_.find(object_name) == object_trackers_.end()) {
         object_trackers_[object_name].Instantiate(object_name, object_mesh,
@@ -238,7 +238,7 @@ void DemoRuntime::StepObjectPose(
   // 2. Otherwise, step through the tracker once
   std::vector<msgs::Event> object_pose_events =
       demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number);
-  for (auto& kv : object_trackers_) {
+  for (const std::pair<std::string, ObjectTracker>& kv : object_trackers_) {
     const std::string& object_name = kv.first;
     ObjectTracker& tracker = kv.second;
 
@@ -262,7 +262,7 @@ void DemoRuntime::StepObjectPose(
     }
 
     // Case 2
-    for (const auto& prev_obj : prev_state.object_states) {
+    for (const msgs::ObjectState& prev_obj : prev_state.object_states) {
       if (prev_obj.name == object_name) {
         tracker.Step(current_depth_image_);
         tracker.GetPose(&object_state.pose);

@@ -17,7 +17,8 @@ DemoVisualizer::DemoVisualizer()
 
 void DemoVisualizer::ClearObjects(
     const std::vector<msgs::ObjectState>& prev_states) const {
-  for (const auto& state : prev_states) {
+  for (size_t i = 0; i < prev_states.size(); ++i) {
+    const msgs::ObjectState& state = prev_states[i];
     Marker marker;
     MakeDeleteMarker(state.name, &marker);
     objects_pub.publish(marker);
@@ -27,7 +28,8 @@ void DemoVisualizer::ClearObjects(
 void DemoVisualizer::PublishObjects(
     const std::vector<msgs::ObjectState>& object_states,
     const std::string& frame_id) const {
-  for (const msgs::ObjectState& state : object_states) {
+  for (size_t i = 0; i < object_states.size(); ++i) {
+    const msgs::ObjectState& state = object_states[i];
     Marker marker;
     MakeMeshMarker(state.pose, frame_id, state.name, state.mesh_name, &marker);
     objects_pub.publish(marker);
