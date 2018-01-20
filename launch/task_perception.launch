@@ -41,8 +41,14 @@
 
   <!-- Annotator -->
   <param name="contact_detection/debug" value="true" />
+  <!-- How far an object can be from the person's wrist to be considered a grasp candidate. -->
   <param name="contact_detection/close_to_wrist_distance" value="0.25" />
+  <!-- How far an object can move for it to be considered moving. -->
   <param name="contact_detection/moving_object_distance" value="0.0075" />
+  <!-- Distance between a hand point and an object for the hand to be "touching" the object. -->
+  <param name="contact_detection/touching_object_distance" value="0.005" />
+  <!-- Number of hand points that must touch an object for it to be a contact. -->
+  <param name="contact_detection/touching_object_points" value="10" />
   <node if="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" launch-prefix="xterm -e gdb --args" />
   <node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
 </launch>
