@@ -280,7 +280,10 @@ void DemoRuntime::StepObjectPose(
 }
 
 void DemoRuntime::ResetState() {
+  object_models_.clear();
+  object_trackers_.clear();
   last_executed_frame_ = -1;
+  num_frames_ = 0;
   states_.clear();
 }
 
