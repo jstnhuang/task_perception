@@ -1,0 +1,23 @@
+contact_detection:
+  debug: true
+
+  # How far an object can be from the person's wrist to be considered a grasp candidate.
+  close_to_wrist_distance: 0.25
+
+  # How far an object can move for it to be considered moving.
+  moving_object_distance: 0.0075
+
+  # Distance between a hand point and an object for the hand to be "touching" the object.
+  touching_object_distance: 0.005
+
+  # Distance for a hand point to be considered "not touching" an object.
+  touching_released_object_distance: 0.01
+
+  # Number of hand points that must touch an object for it to be a contact.
+  touching_object_points: 10
+
+  # Number of hand points touching an object for to to be considered a release of contact.
+  touching_released_object_points: 0
+
+  # How far a hand point can be from the left/right wrist to be associated with that wrist.
+  part_of_hand_distance: 0.25
