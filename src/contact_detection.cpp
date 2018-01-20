@@ -76,21 +76,9 @@ void ContactDetection::Predict(const msgs::DemoState& current_state,
     PublishWristPoses(left_wrist, right_wrist, camera_info.header.frame_id);
   }
 
-  // Find hand pixels
-  ss_msgs::PredictHandsRequest req;
-  req.rgb = color_image;
-  req.depth_registered = depth_image;
-  ss_msgs::PredictHandsResponse res;
-  predict_hands_.call(req, res);
-  const sensor_msgs::Image& hands = res.prediction;
-
   // Create point cloud for hands
-  PointCloudP::Ptr hand_cloud = HandPointCloud(hands, depth_image, camera_info);
-  if (hand_cloud->size() == 0) {
-    ROS_WARN("Hands not found in the scene");
-    return;
-  }
   if (context.kDebug) {
+    PointCloudP::Ptr hand_cloud = context.HandCloud();
     PublishPointCloud(hand_viz_, *hand_cloud);
   }
 }
@@ -111,6 +99,7 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
                                   const std::string& left_or_right,
                                   ContactDetectionContext* context,
                                   msgs::HandState* hand_state) {
+  ROS_INFO("%s hand: checking for grasp", left_or_right.c_str());
   // For all nearby objects:
   // - If the object is moving, set state to GRASPING
   // - If enough object points are close to hand points, set state to GRASPING
@@ -123,6 +112,7 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
   }
 
   vector<msgs::ObjectState> current_objects = context->GetCurrentObjects();
+  int num_touched_points = 0;
   for (const msgs::ObjectState& object : current_objects) {
     PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
     PublishPointCloud(obj_viz_, *object_cloud);
@@ -131,25 +121,40 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
       continue;
     }
 
-    if (IsObjectMoving(object, context)) {
+    bool is_moving = IsObjectMoving(object, context);
+
+    bool is_touching = false;
+
+    if (context->HandCloud()->size() == 0) {
+      continue;
+    }
+    int num_touching_points = NumHandPointsOnObject(object, context);
+    is_touching = num_touching_points >= context->kTouchingObjectPoints;
+
+    if (is_moving || is_touching) {
+      if (num_touching_points <= num_touched_points) {
+        continue;
+      }
+      num_touched_points = num_touching_points;
+
       ROS_INFO("Changed %s hand state to GRASPING %s", left_or_right.c_str(),
                object.name.c_str());
       hand_state->current_action = msgs::HandState::GRASPING;
       hand_state->object_name = object.name;
+      num_touched_points = num_touching_points;
       // TODO: fill in contact transform
-      return;
     }
-
-    // Check if enough object points are close to hand points
-    // TODO: implement
   }
-  hand_state->current_action = msgs::HandState::NONE;
+  if (hand_state->current_action == "") {
+    hand_state->current_action = msgs::HandState::NONE;
+  }
 }
 
 void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
                                     const std::string& left_or_right,
                                     ContactDetectionContext* context,
                                     msgs::HandState* hand_state) {
+  ROS_INFO("%s hand: checking for release", left_or_right.c_str());
   msgs::ObjectState object;
   if (!context->GetCurrentObject(prev_state.object_name, &object)) {
     ROS_WARN("Object \"%s\" disappeared while being contacted by %s hand.",
@@ -184,6 +189,28 @@ bool ContactDetection::IsObjectCurrentlyCloseToWrist(
   return sq_distances[0] <= wrist_threshold;
 }
 
+int ContactDetection::NumHandPointsOnObject(
+    const task_perception_msgs::ObjectState& object,
+    ContactDetectionContext* context) const {
+  KdTreeP::Ptr object_tree = context->GetObjectTree(object.name);
+  PointCloudP::Ptr hand_cloud = context->HandCloud();
+
+  int num_touching = 0;
+  vector<int> indices(1);
+  vector<float> sq_distances(1);
+  const float kSquaredTouchingDistance =
+      context->kTouchingObjectDistance * context->kTouchingObjectDistance;
+  for (size_t i = 0; i < hand_cloud->size(); ++i) {
+    object_tree->nearestKSearch(hand_cloud->points[i], 1, indices,
+                                sq_distances);
+    float sq_distance = sq_distances[0];
+    if (sq_distance < kSquaredTouchingDistance) {
+      num_touching += 1;
+    }
+  }
+  return num_touching;
+}
+
 bool ContactDetection::IsObjectMoving(const msgs::ObjectState& object,
                                       ContactDetectionContext* context) const {
   msgs::ObjectState prev_obj;
@@ -193,16 +220,15 @@ bool ContactDetection::IsObjectMoving(const msgs::ObjectState& object,
 
   ros::Duration dt = context->GetCurrentTime() - context->GetPreviousTime();
 
-  // TODO: we are not recording timestamps. Instead, we just assume that the
-  // data is coming in at a constant rate.
   // TODO: we only take linear movement into account, but not angular motion
   // Angular motion may be hard to track.
   double linear_distance = LinearDistance(prev_obj.pose, object.pose);
   double linear_speed = linear_distance / dt.toSec();
-  ROS_INFO("%s: moved %f in %f seconds (%f m/s)", object.name.c_str(),
-           linear_distance, dt.toSec(), linear_speed);
+  // ROS_INFO("%s: moved %f in %f seconds (%f m/s)", object.name.c_str(),
+  //         linear_distance, dt.toSec(), linear_speed);
   return linear_distance >= context->kMovingObjectDistance;
 }
+
 void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
                                          const geometry_msgs::Pose& right,
                                          const string& frame_id) {
@@ -225,58 +251,8 @@ void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
   viz_.publish(right_marker);
 }
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetection::HandPointCloud(
-    const sensor_msgs::Image& hands, const sensor_msgs::Image& depth,
-    const sensor_msgs::CameraInfo& camera_info) {
-  PointCloudP::Ptr hand_cloud(new PointCloudP);
-  if (hands.encoding != "mono8") {
-    ROS_ERROR("Unsupported hand prediction format: %s", hands.encoding.c_str());
-    return hand_cloud;
-  }
-
-  const uint16_t* depth_16;
-  const float* depth_float;
-  bool is_float = depth.encoding == "32FC1";
-  if (is_float) {
-    depth_float = reinterpret_cast<const float*>(depth.data.data());
-  } else if (depth.encoding == "16UC1") {
-    depth_16 = reinterpret_cast<const uint16_t*>(depth.data.data());
-  } else {
-    ROS_ERROR("Unsupported depth image type: %s", depth.encoding.c_str());
-    return hand_cloud;
-  }
-
-  image_geometry::PinholeCameraModel camera_model;
-  camera_model.fromCameraInfo(camera_info);
-  for (unsigned int row = 0; row < hands.height; ++row) {
-    for (unsigned int col = 0; col < hands.width; ++col) {
-      int index = row * hands.step + col;
-
-      float depth_meters = 0;
-      if (is_float) {
-        depth_meters = depth_float[index];
-      } else {
-        depth_meters = depth_16[index] / 1000.0;
-      }
-      if (hands.data[index] > 0 && depth_meters > 0) {
-        cv::Point3d ray =
-            camera_model.projectPixelTo3dRay(cv::Point2d(col, row));
-        ray *= depth_meters;
-        PointP pt;
-        pt.x = ray.x;
-        pt.y = ray.y;
-        pt.z = ray.z;
-        hand_cloud->push_back(pt);
-      }
-    }
-  }
-  hand_cloud->header.frame_id = camera_info.header.frame_id;
-  return hand_cloud;
-}
-
 ContactDetectionContext::ContactDetectionContext(
-    pbi::SkeletonServices& skel_services,
-    const ros::ServiceClient& predict_hands,
+    pbi::SkeletonServices& skel_services, ros::ServiceClient& predict_hands,
     const msgs::DemoState& current_state, const msgs::DemoState& prev_state,
     const sensor_msgs::Image& color_image,
     const sensor_msgs::Image& depth_image,
@@ -301,14 +277,19 @@ ContactDetectionContext::ContactDetectionContext(
       prev_objects_(),
       object_models_(object_models),
       object_clouds_(),
-      object_trees_() {}
+      object_trees_(),
+      hand_cloud_() {}
 
 bool ContactDetectionContext::LoadParams() {
   if (!GetParam("contact_detection/debug", &kDebug) ||
       !GetParam("contact_detection/close_to_wrist_distance",
                 &kCloseToWristDistance) ||
       !GetParam("contact_detection/moving_object_distance",
-                &kMovingObjectDistance)) {
+                &kMovingObjectDistance) ||
+      !GetParam("contact_detection/touching_object_distance",
+                &kTouchingObjectDistance) ||
+      !GetParam("contact_detection/touching_object_points",
+                &kTouchingObjectPoints)) {
     return false;
   }
   return true;
@@ -431,6 +412,80 @@ ros::Time ContactDetectionContext::GetPreviousTime() {
 
 ros::Time ContactDetectionContext::GetCurrentTime() {
   return current_state_.stamp;
+}
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr ContactDetectionContext::HandCloud() {
+  if (hand_cloud_) {
+    return hand_cloud_;
+  }
+
+  // Find hand pixels
+  ss_msgs::PredictHandsRequest req;
+  req.rgb = color_image_;
+  req.depth_registered = depth_image_;
+  ss_msgs::PredictHandsResponse res;
+  predict_hands_.call(req, res);
+  const sensor_msgs::Image& hands = res.prediction;
+
+  hand_cloud_.reset(new PointCloudP);
+  if (hands.encoding != "mono8") {
+    ROS_ERROR("Unsupported hand prediction format: %s", hands.encoding.c_str());
+    return hand_cloud_;
+  }
+
+  const uint16_t* depth_16;
+  const float* depth_float;
+  bool is_float = depth_image_.encoding == "32FC1";
+  if (is_float) {
+    depth_float = reinterpret_cast<const float*>(depth_image_.data.data());
+  } else if (depth_image_.encoding == "16UC1") {
+    depth_16 = reinterpret_cast<const uint16_t*>(depth_image_.data.data());
+  } else {
+    ROS_ERROR("Unsupported depth image type: %s",
+              depth_image_.encoding.c_str());
+    return hand_cloud_;
+  }
+
+  image_geometry::PinholeCameraModel camera_model;
+  camera_model.fromCameraInfo(camera_info_);
+  for (unsigned int row = 0; row < hands.height; ++row) {
+    for (unsigned int col = 0; col < hands.width; ++col) {
+      int index = row * hands.step + col;
+
+      float depth_meters = 0;
+      if (is_float) {
+        depth_meters = depth_float[index];
+      } else {
+        depth_meters = depth_16[index] / 1000.0;
+      }
+      if (hands.data[index] > 0 && depth_meters > 0) {
+        cv::Point3d ray =
+            camera_model.projectPixelTo3dRay(cv::Point2d(col, row));
+        ray *= depth_meters;
+        PointP pt;
+        pt.x = ray.x;
+        pt.y = ray.y;
+        pt.z = ray.z;
+        hand_cloud_->push_back(pt);
+      }
+    }
+  }
+  hand_cloud_->header.frame_id = camera_info_.header.frame_id;
+
+  if (hand_cloud_->size() == 0) {
+    ROS_WARN("Hands not found in the scene");
+  }
+
+  return hand_cloud_;
+}
+
+pcl::KdTree<pcl::PointXYZ>::Ptr ContactDetectionContext::HandTree() {
+  if (!hand_tree_) {
+    hand_tree_.reset(new pcl::KdTreeFLANN<pcl::PointXYZ>);
+    PointCloudP::Ptr cloud = HandCloud();
+    hand_tree_->setInputCloud(cloud);
+  }
+  return hand_tree_;
 }
 
 std::string ReplaceObjWithPcd(const std::string& path) {

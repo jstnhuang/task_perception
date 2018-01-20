@@ -19,8 +19,7 @@ namespace pbi {
 class ContactDetectionContext {
  public:
   ContactDetectionContext(
-      pbi::SkeletonServices& skel_services,
-      const ros::ServiceClient& predict_hands,
+      pbi::SkeletonServices& skel_services, ros::ServiceClient& predict_hands,
       const task_perception_msgs::DemoState& current_state,
       const task_perception_msgs::DemoState& prev_state,
       const sensor_msgs::Image& color_image,
@@ -44,11 +43,15 @@ class ContactDetectionContext {
                          task_perception_msgs::ObjectState* prev_obj);
   ros::Time GetPreviousTime();
   ros::Time GetCurrentTime();
+  pcl::PointCloud<pcl::PointXYZ>::Ptr HandCloud();
+  pcl::KdTree<pcl::PointXYZ>::Ptr HandTree();
 
   // Params
   bool kDebug;
   float kCloseToWristDistance;
   float kMovingObjectDistance;
+  float kTouchingObjectDistance;
+  int kTouchingObjectPoints;
 
  private:
   void GetWristPoses();
@@ -57,7 +60,7 @@ class ContactDetectionContext {
   pcl::PointCloud<pcl::PointXYZ>::Ptr LoadModel(const std::string& mesh_path);
 
   pbi::SkeletonServices& skel_services_;
-  const ros::ServiceClient& predict_hands_;
+  ros::ServiceClient& predict_hands_;
   const task_perception_msgs::DemoState& current_state_;
   const task_perception_msgs::DemoState& prev_state_;
   const sensor_msgs::Image& color_image_;
@@ -77,6 +80,9 @@ class ContactDetectionContext {
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>* object_models_;
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_clouds_;
   std::map<std::string, pcl::KdTree<pcl::PointXYZ>::Ptr> object_trees_;
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr hand_cloud_;
+  pcl::KdTree<pcl::PointXYZ>::Ptr hand_tree_;
 };
 
 class ContactDetection {
@@ -120,13 +126,12 @@ class ContactDetection {
   bool IsObjectMoving(const task_perception_msgs::ObjectState& object,
                       ContactDetectionContext* context) const;
 
+  int NumHandPointsOnObject(const task_perception_msgs::ObjectState& object,
+                            ContactDetectionContext* context) const;
+
   void PublishWristPoses(const geometry_msgs::Pose& left,
                          const geometry_msgs::Pose& right,
                          const std::string& frame_id);
-
-  pcl::PointCloud<pcl::PointXYZ>::Ptr HandPointCloud(
-      const sensor_msgs::Image& hands, const sensor_msgs::Image& depth,
-      const sensor_msgs::CameraInfo& camera_info);
 
   pbi::SkeletonServices skel_services_;
   ros::ServiceClient predict_hands_;
