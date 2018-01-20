@@ -234,7 +234,7 @@ int ContactDetection::NumHandPointsOnObject(
       distance_threshold * distance_threshold;
 
   const bool kDebugDistances = context->kDebug && false;
-  float histogram[5];
+  int histogram[5];
   if (kDebugDistances) {
     histogram[0] = 0;
     histogram[1] = 0;
@@ -251,21 +251,21 @@ int ContactDetection::NumHandPointsOnObject(
       num_touching += 1;
     }
 
-    float distance = sqrt(sq_distance);
     if (kDebugDistances) {
+      float distance = sqrt(sq_distance);
       if (distance < 0.002) {
         histogram[0] += 1;
       }
-      if (distance < 0.004) {
+      if (distance < 0.005) {
         histogram[1] += 1;
       }
-      if (distance < 0.006) {
+      if (distance < 0.008) {
         histogram[2] += 1;
       }
-      if (distance < 0.008) {
+      if (distance < 0.01) {
         histogram[3] += 1;
       }
-      if (distance < 0.01) {
+      if (distance < 0.012) {
         histogram[4] += 1;
       }
     }
