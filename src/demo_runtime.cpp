@@ -18,6 +18,7 @@
 #include "task_perception/demo_visualizer.h"
 #include "task_perception/object_tracker.h"
 #include "task_perception/skeleton_services.h"
+#include "task_perception/task_perception_context.h"
 #include "task_perception/video_scrubber.h"
 
 namespace ss_msgs = skin_segmentation_msgs;
@@ -38,7 +39,7 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       current_depth_image_(),
       camera_info_(),
       object_models_(),
-      contact_detection_(skel_services, predict_hands, &object_models_),
+      contact_detection_(),
       last_executed_frame_(-1),
       num_frames_(0),
       states_() {}
@@ -94,9 +95,12 @@ void DemoRuntime::Step() {
   StepSpawnUnspawn(frame_number, prev_state);
   StepObjectPose(frame_number, prev_state, &current_state.object_states);
 
-  contact_detection_.Predict(
-      current_state, prev_state, current_color_image_, current_depth_image_,
-      camera_info_, &current_state.left_hand, &current_state.right_hand);
+  TaskPerceptionContext context(skel_services_, predict_hands_, current_state,
+                                prev_state, current_color_image_,
+                                current_depth_image_, camera_info_,
+                                &object_models_);
+  contact_detection_.Predict(&context, &current_state.left_hand,
+                             &current_state.right_hand);
 
   states_[frame_number] = current_state;
   ++last_executed_frame_;

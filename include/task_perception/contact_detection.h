@@ -1,7 +1,6 @@
 #ifndef _PBI_CONTACT_DETECTION_H_
 #define _PBI_CONTACT_DETECTION_H_
 
-#include <map>
 #include <string>
 
 #include "pcl/kdtree/kdtree.h"
@@ -12,23 +11,15 @@
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/DemoState.h"
 
-#include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
 
 namespace pbi {
 
 class ContactDetection {
  public:
-  ContactDetection(const pbi::SkeletonServices& skel_services,
-                   const ros::ServiceClient& predict_hands,
-                   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>*
-                       object_models);
+  ContactDetection();
 
-  void Predict(const task_perception_msgs::DemoState& current_state,
-               const task_perception_msgs::DemoState& prev_state,
-               const sensor_msgs::Image& color_image,
-               const sensor_msgs::Image& depth_image,
-               const sensor_msgs::CameraInfo& camera_info,
+  void Predict(TaskPerceptionContext* context,
                task_perception_msgs::HandState* left_hand,
                task_perception_msgs::HandState* right_hand);
 
@@ -66,10 +57,6 @@ class ContactDetection {
   void PublishWristPoses(const geometry_msgs::Pose& left,
                          const geometry_msgs::Pose& right,
                          const std::string& frame_id);
-
-  pbi::SkeletonServices skel_services_;
-  ros::ServiceClient predict_hands_;
-  std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>* object_models_;
 
   ros::NodeHandle nh_;
   // Internal visualizations for debugging purposes

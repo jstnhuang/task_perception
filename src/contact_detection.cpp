@@ -1,7 +1,6 @@
 #include "task_perception/contact_detection.h"
 
 #include <math.h>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -16,23 +15,15 @@
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/pcl_utils.h"
 #include "task_perception/pose_utils.h"
-#include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
 
 using std::vector;
 using std::string;
 namespace msgs = task_perception_msgs;
-namespace ss_msgs = skin_segmentation_msgs;
 
 namespace pbi {
-ContactDetection::ContactDetection(
-    const SkeletonServices& skel_services,
-    const ros::ServiceClient& predict_hands,
-    std::map<string, PointCloudP::Ptr>* object_models)
-    : skel_services_(skel_services),
-      predict_hands_(predict_hands),
-      object_models_(object_models),
-      nh_(),
+ContactDetection::ContactDetection()
+    : nh_(),
       viz_(nh_.advertise<visualization_msgs::Marker>(
           "contact_detection/markers", 10)),
       obj_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
@@ -42,34 +33,29 @@ ContactDetection::ContactDetection(
       right_hand_viz_(nh_.advertise<sensor_msgs::PointCloud2>(
           "contact_detection/right_hand", 1, true)) {}
 
-void ContactDetection::Predict(const msgs::DemoState& current_state,
-                               const msgs::DemoState& prev_state,
-                               const sensor_msgs::Image& color_image,
-                               const sensor_msgs::Image& depth_image,
-                               const sensor_msgs::CameraInfo& camera_info,
+void ContactDetection::Predict(TaskPerceptionContext* context,
                                msgs::HandState* left_hand,
                                msgs::HandState* right_hand) {
-  TaskPerceptionContext context(skel_services_, predict_hands_, current_state,
-                                prev_state, color_image, depth_image,
-                                camera_info, object_models_);
-  if (!context.LoadParams()) {
+  if (!context->LoadParams()) {
     return;
   }
 
-  PredictHandState(prev_state.left_hand, "left", &context, left_hand);
-  PredictHandState(prev_state.right_hand, "right", &context, right_hand);
+  const msgs::DemoState& prev_state = context->prev_state();
+  PredictHandState(prev_state.left_hand, "left", context, left_hand);
+  PredictHandState(prev_state.right_hand, "right", context, right_hand);
 
-  if (context.kDebug) {
-    geometry_msgs::Pose left_wrist = context.GetLeftWristPose();
-    geometry_msgs::Pose right_wrist = context.GetRightWristPose();
-    PublishWristPoses(left_wrist, right_wrist, camera_info.header.frame_id);
+  if (context->kDebug) {
+    geometry_msgs::Pose left_wrist = context->GetLeftWristPose();
+    geometry_msgs::Pose right_wrist = context->GetRightWristPose();
+    PublishWristPoses(left_wrist, right_wrist,
+                      context->camera_info().header.frame_id);
   }
 
   // Create point cloud for hands
-  if (context.kDebug) {
-    PointCloudP::Ptr hand_cloud = context.BothHandsCloud();
-    PublishPointCloud(left_hand_viz_, hand_cloud, context.LeftHandIndices());
-    PublishPointCloud(right_hand_viz_, hand_cloud, context.RightHandIndices());
+  if (context->kDebug) {
+    PointCloudP::Ptr hand_cloud = context->BothHandsCloud();
+    PublishPointCloud(left_hand_viz_, hand_cloud, context->LeftHandIndices());
+    PublishPointCloud(right_hand_viz_, hand_cloud, context->RightHandIndices());
   }
 }
 
