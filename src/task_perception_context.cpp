@@ -249,6 +249,14 @@ pcl::KdTree<pcl::PointXYZ>::Ptr TaskPerceptionContext::RightHandTree() {
   return right_hand_tree_;
 }
 
+const task_perception_msgs::DemoState& TaskPerceptionContext::prev_state() {
+  return prev_state_;
+}
+
+const sensor_msgs::CameraInfo& TaskPerceptionContext::camera_info() {
+  return camera_info_;
+}
+
 // EXPECTED POST-CONDITION: both_hands_cloud_, left_hand_indices_, and
 // right_hand_indices_ must not be null.
 void TaskPerceptionContext::ComputeHandClouds() {
