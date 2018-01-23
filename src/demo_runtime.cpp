@@ -16,6 +16,7 @@
 #include "task_perception/default_skeleton.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
+#include "task_perception/imitation_generator.h"
 #include "task_perception/object_tracker.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
@@ -42,7 +43,8 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       contact_detection_(),
       last_executed_frame_(-1),
       num_frames_(0),
-      states_() {}
+      states_(),
+      imitation_generator_() {}
 
 void DemoRuntime::LoadDemo(const std::string& color_topic,
                            const std::string& depth_topic,
@@ -65,6 +67,7 @@ void DemoRuntime::LoadDemo(const std::string& color_topic,
 
   demo_model_ = demo_model;
   states_.resize(num_frames_);
+  imitation_generator_.reset(new ImitationGenerator);
 }
 
 void DemoRuntime::Step() {
@@ -101,6 +104,7 @@ void DemoRuntime::Step() {
                                 &object_models_);
   contact_detection_.Predict(&context, &current_state.left_hand,
                              &current_state.right_hand);
+  imitation_generator_->Step(&context);
 
   states_[frame_number] = current_state;
   ++last_executed_frame_;
@@ -289,6 +293,7 @@ void DemoRuntime::ResetState() {
   last_executed_frame_ = -1;
   num_frames_ = 0;
   states_.clear();
+  imitation_generator_.reset();
 }
 
 void DemoRuntime::PublishViz() {

@@ -16,6 +16,7 @@
 #include "task_perception/contact_detection.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
+#include "task_perception/imitation_generator.h"
 #include "task_perception/object_tracker.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/video_scrubber.h"
@@ -121,6 +122,8 @@ class DemoRuntime {
   int last_executed_frame_;
   int num_frames_;
   std::vector<task_perception_msgs::DemoState> states_;
+
+  boost::shared_ptr<ImitationGenerator> imitation_generator_;
 };
 }  // namespace pbi
 
