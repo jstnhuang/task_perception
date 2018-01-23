@@ -118,7 +118,7 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
       hand_state->object_name = object.name;
       num_touched_points = num_touching_points;
 
-      grasp_planner_.Plan(left_or_right, context, &hand_state->contact_pose);
+      // grasp_planner_.Plan(left_or_right, context, &hand_state->contact_pose);
     }
   }
   if (hand_state->current_action == "") {
