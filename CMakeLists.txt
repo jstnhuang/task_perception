@@ -18,12 +18,15 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
   mongodb_store
   pcl_conversions
+  robot_markers
   rosbag
   roscpp
   rospy
   sensor_msgs
   skin_segmentation_msgs
   tf
+  transform_graph
+  urdf
   visualization_msgs
 )
 
@@ -150,12 +153,15 @@ catkin_package(
     message_filters
     mongodb_store
     pcl_conversions
+    robot_markers
     rosbag
     roscpp
     rospy
     sensor_msgs
     skin_segmentation_msgs
     tf
+    transform_graph
+    urdf
     visualization_msgs
   DEPENDS
     Boost

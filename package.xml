@@ -50,6 +50,7 @@
   <build_depend>message_filters</build_depend>
   <build_depend>mongodb_store</build_depend>
   <build_depend>pcl_conversions</build_depend>
+  <build_depend>robot_markers</build_depend>
   <build_depend>rosbag</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
@@ -57,6 +58,8 @@
   <build_depend>skin_segmentation_msgs</build_depend>
   <build_depend>task_perception_msgs</build_depend>
   <build_depend>tf</build_depend>
+  <build_depend>transform_graph</build_depend>
+  <build_depend>urdf</build_depend>
   <build_depend>visualization_msgs</build_depend>
   <run_depend>abseil_cpp</run_depend>
   <run_depend>actionlib</run_depend>
@@ -70,6 +73,7 @@
   <run_depend>depth_image_proc</run_depend>
   <run_depend>depthcloud_encoder</run_depend>
   <run_depend>mongodb_store</run_depend>
+  <run_depend>robot_markers</run_depend>
   <run_depend>rosbag</run_depend>
   <run_depend>rosbridge_server</run_depend>
   <run_depend>ros_web_video</run_depend>
@@ -79,6 +83,8 @@
   <run_depend>skin_segmentation_msgs</run_depend>
   <run_depend>task_perception_msgs</run_depend>
   <run_depend>tf</run_depend>
+  <run_depend>transform_graph</run_depend>
+  <run_depend>urdf</run_depend>
   <run_depend>visualization_msgs</run_depend>
 
 
