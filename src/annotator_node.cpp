@@ -1,5 +1,6 @@
 #include <string>
 
+#include "dbot_ros_msgs/MultiTrack.h"
 #include "mongodb_store/message_store.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -15,6 +16,7 @@
 #include "task_perception/annotator_server.h"
 #include "task_perception/database.h"
 #include "task_perception/demo_visualizer.h"
+#include "task_perception/multi_object_tracker.h"
 #include "task_perception/skeleton_services.h"
 
 namespace msgs = task_perception_msgs;
@@ -65,7 +67,17 @@ int main(int argc, char** argv) {
       "pbi_annotator/demonstration", 1, true);
   pbi::DemonstrationDb demo_db(&message_store, demo_pub);
 
-  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db, predict_hands);
+  // Object trackers
+  ros::ServiceClient multi_object_tracker =
+      nh.serviceClient<dbot_ros_msgs::MultiTrack>("multi_object_track");
+  while (ros::ok() &&
+         !multi_object_tracker.waitForExistence(ros::Duration(2))) {
+    ROS_WARN("Waiting for object tracker service");
+  }
+  pbi::MultiObjectTracker object_trackers(multi_object_tracker);
+
+  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db, predict_hands,
+                              object_trackers);
   server.Start();
   ROS_INFO("Annotator server ready.");
 

@@ -1,11 +1,10 @@
 #ifndef _PBI_DEMO_RUNTIME_H_
 #define _PBI_DEMO_RUNTIME_H_
 
-#include <map>
-#include <memory>
 #include <string>
 #include <vector>
 
+#include "boost/shared_ptr.hpp"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -17,7 +16,7 @@
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
 #include "task_perception/imitation_generator.h"
-#include "task_perception/object_tracker.h"
+#include "task_perception/multi_object_tracker.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/video_scrubber.h"
 
@@ -43,13 +42,14 @@ namespace pbi {
 class DemoRuntime {
  public:
   DemoRuntime(const DemoVisualizer& viz, const SkeletonServices& skel_services,
-              const ros::ServiceClient& predict_hands);
+              const ros::ServiceClient& predict_hands,
+              const MultiObjectTracker& object_trackers);
 
   void LoadDemo(const std::string& color_topic, const std::string& depth_topic,
                 const sensor_msgs::CameraInfo& camera_info,
                 const std::vector<sensor_msgs::Image>& color_images,
                 const std::vector<sensor_msgs::Image>& depth_images,
-                const std::shared_ptr<DemoModel>& demo_model);
+                const boost::shared_ptr<DemoModel>& demo_model);
 
   // Evaluates the state at the current frame given the previous state and the
   // events for the current frame.
@@ -98,8 +98,9 @@ class DemoRuntime {
   DemoVisualizer viz_;
   SkeletonServices skel_services_;
   ros::ServiceClient predict_hands_;
+  MultiObjectTracker object_trackers_;
 
-  std::shared_ptr<DemoModel> demo_model_;
+  boost::shared_ptr<DemoModel> demo_model_;
   ros::NodeHandle nh_;
 
   // Image state
@@ -112,9 +113,6 @@ class DemoRuntime {
   // Object model cache
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_models_;
   ContactDetection contact_detection_;
-
-  // Object state
-  std::map<std::string, ObjectTracker> object_trackers_;
 
   // Execution state
   // 0-based index of the last video frame that was executed. -1 if nothing has

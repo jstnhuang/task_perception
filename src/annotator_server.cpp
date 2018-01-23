@@ -1,6 +1,5 @@
 #include "task_perception/annotator_server.h"
 
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -21,6 +20,7 @@
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_runtime.h"
 #include "task_perception/demo_visualizer.h"
+#include "task_perception/multi_object_tracker.h"
 #include "task_perception/names.h"
 #include "task_perception/skeleton_services.h"
 
@@ -33,7 +33,8 @@ namespace pbi {
 AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
                                  const SkeletonServices& skel_services,
                                  const DemonstrationDb& demo_db,
-                                 const ros::ServiceClient& predict_hands)
+                                 const ros::ServiceClient& predict_hands,
+                                 const MultiObjectTracker& object_trackers)
     : demo_viz_(demo_viz),
       skel_services_(skel_services),
       demo_db_(demo_db),
@@ -42,8 +43,12 @@ AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
       demo_id_(""),
       demo_model_(),
       state_(),
-      demo_runtime_(demo_viz_, skel_services_, predict_hands),
-      object_init_() {}
+      demo_runtime_(demo_viz_, skel_services_, predict_hands, object_trackers),
+      initialize_object_("initialize_object") {
+  while (ros::ok() && !initialize_object_.waitForServer(ros::Duration(2.0))) {
+    ROS_WARN("Waiting for object initializer action.");
+  }
+}
 
 void AnnotatorServer::Start() { demo_viz_.state_pub.publish(state_); }
 
@@ -104,9 +109,8 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   }
 
   // Insert/Retrieve demonstration data from DB.
-
   std::vector<std::string> bag_path_parts;
-  boost::split(bag_path_parts, bag_path, "/");
+  boost::split(bag_path_parts, bag_path, boost::is_any_of("/"));
   std::string last_bag_part(bag_path_parts[bag_path_parts.size() - 1]);
   std::string bag_name(last_bag_part.substr(0, last_bag_part.size() - 4));
 
@@ -126,9 +130,6 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   demo_model_.reset(new DemoModel(demo));
   demo_runtime_.LoadDemo(color_topic, depth_topic, camera_info_, color_images,
                          depth_images, demo_model_);
-
-  object_init_.reset(
-      new opi::InteractiveMarkerInitializer(camera_info_.header.frame_id));
 
   ROS_INFO("Opened bag: %s with %d frames", bag_path.c_str(), num_frames);
   state_.bag_path = bag_path;
@@ -314,14 +315,14 @@ bool AnnotatorServer::SetObjectPose(const std::string& object_name,
     object_state.pose.position.z = 1;
     object_state.pose.orientation.w = 1;
   }
-  object_init_->set_object("object_meshes", "object_models", object_mesh,
-                           object_state.pose, false);
-  object_init_->wait_for_object_poses();
-  if (object_init_->poses().size() == 0) {
-    ROS_ERROR("Interactive marker not initialized properly!");
-    return false;
-  }
-  *pose = object_init_->poses()[0];
+  dbot_ros_msgs::InitializeObjectGoal init_goal;
+  init_goal.frame_id = camera_info_.header.frame_id;
+  init_goal.mesh_name = object_mesh;
+  init_goal.initial_pose = object_state.pose;
+  initialize_object_.sendGoalAndWait(init_goal);
+  dbot_ros_msgs::InitializeObjectResultConstPtr init_result =
+      initialize_object_.getResult();
+  *pose = init_result->pose;
   return true;
 }
 

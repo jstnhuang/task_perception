@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "boost/shared_ptr.hpp"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -17,7 +18,7 @@
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
 #include "task_perception/imitation_generator.h"
-#include "task_perception/object_tracker.h"
+#include "task_perception/multi_object_tracker.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
 #include "task_perception/video_scrubber.h"
@@ -28,10 +29,12 @@ namespace msgs = task_perception_msgs;
 namespace pbi {
 DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
                          const SkeletonServices& skel_services,
-                         const ros::ServiceClient& predict_hands)
+                         const ros::ServiceClient& predict_hands,
+                         const MultiObjectTracker& object_trackers)
     : viz_(viz),
       skel_services_(skel_services),
       predict_hands_(predict_hands),
+      object_trackers_(object_trackers),
       demo_model_(),
       nh_(),
       color_scrubber_(),
@@ -51,7 +54,7 @@ void DemoRuntime::LoadDemo(const std::string& color_topic,
                            const sensor_msgs::CameraInfo& camera_info,
                            const std::vector<sensor_msgs::Image>& color_images,
                            const std::vector<sensor_msgs::Image>& depth_images,
-                           const std::shared_ptr<DemoModel>& demo_model) {
+                           const boost::shared_ptr<DemoModel>& demo_model) {
   ResetState();
   color_scrubber_.set_images(color_images);
   depth_scrubber_.set_images(depth_images);
@@ -139,7 +142,8 @@ bool DemoRuntime::GetObjectState(const int frame_number,
     return false;
   }
 
-  for (const msgs::ObjectState& os : states_[frame_number].object_states) {
+  for (size_t i = 0; i < states_[frame_number].object_states.size(); ++i) {
+    const msgs::ObjectState& os = states_[frame_number].object_states[i];
     if (os.name == object_name) {
       *object_state = os;
       return true;
@@ -155,7 +159,7 @@ void DemoRuntime::RerunLastFrame() {
 }
 
 void DemoRuntime::RemoveSpawnObjectEvent(const std::string& object_name) {
-  object_trackers_.erase(object_name);
+  object_trackers_.Destroy(object_name);
 }
 void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
                                            const std::string& object_mesh) {
@@ -163,18 +167,18 @@ void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
   if (last_executed_frame_ > 0) {
     prev_state = states_[last_executed_frame_ - 1];
   }
-  for (const msgs::ObjectState& os : prev_state.object_states) {
+  for (size_t i = 0; i < prev_state.object_states.size(); ++i) {
+    const msgs::ObjectState& os = prev_state.object_states[i];
     if (os.name == object_name) {
-      if (object_trackers_.find(object_name) == object_trackers_.end()) {
-        object_trackers_[object_name].Instantiate(object_name, object_mesh,
-                                                  camera_info_);
+      if (!object_trackers_.IsTracking(object_name)) {
+        object_trackers_.Create(object_name, object_mesh, camera_info_);
       }
-      object_trackers_[object_name].SetPose(os.pose);
+      object_trackers_.SetPose(object_name, os.pose);
       return;
     }
   }
   ROS_ERROR("Unable to find previous state of %s", object_name.c_str());
-  object_trackers_.erase(object_name);
+  object_trackers_.Destroy(object_name);
 }
 
 void DemoRuntime::StepSkeleton(const int frame_number,
@@ -210,26 +214,27 @@ void DemoRuntime::StepSpawnUnspawn(
     const int frame_number, const task_perception_msgs::DemoState& prev_state) {
   std::vector<msgs::Event> spawn_events =
       demo_model_->EventsAt(msgs::Event::SPAWN_OBJECT, frame_number);
-  for (const msgs::Event& spawn_event : spawn_events) {
+  for (size_t i = 0; i < spawn_events.size(); ++i) {
+    const msgs::Event& spawn_event = spawn_events[i];
     const std::string& name = spawn_event.object_name;
-    if (object_trackers_.find(name) != object_trackers_.end()) {
+    if (object_trackers_.IsTracking(name)) {
       ROS_INFO("Reusing tracker for object \"%s\"", name.c_str());
       continue;
     }
-    object_trackers_[name].Instantiate(name, spawn_event.object_mesh,
-                                       camera_info_);
+    object_trackers_.Create(name, spawn_event.object_mesh, camera_info_);
   }
 
   // Handle unspawn object events
   std::vector<msgs::Event> unspawn_events =
       demo_model_->EventsAt(msgs::Event::UNSPAWN_OBJECT, frame_number);
-  for (const msgs::Event& unspawn_event : unspawn_events) {
+  for (size_t i = 0; i < unspawn_events.size(); ++i) {
+    const msgs::Event& unspawn_event = unspawn_events[i];
     const std::string& name = unspawn_event.object_name;
-    if (object_trackers_.find(name) == object_trackers_.end()) {
+    if (!object_trackers_.IsTracking(name)) {
       ROS_ERROR("No SPAWN event found when UNSPAWNing \"%s\"", name.c_str());
       continue;
     }
-    object_trackers_.erase(name);
+    object_trackers_.Destroy(name);
   }
 }
 
@@ -246,20 +251,21 @@ void DemoRuntime::StepObjectPose(
   // 2. Otherwise, step through the tracker once
   std::vector<msgs::Event> object_pose_events =
       demo_model_->EventsAt(msgs::Event::SET_OBJECT_POSE, frame_number);
-  for (const std::pair<std::string, ObjectTracker>& kv : object_trackers_) {
-    const std::string& object_name = kv.first;
-    ObjectTracker& tracker = kv.second;
+  std::vector<std::string> tracked_objects = object_trackers_.TrackedObjects();
+  for (size_t i = 0; i < tracked_objects.size(); ++i) {
+    const std::string& object_name = tracked_objects[i];
 
     msgs::ObjectState object_state;
     object_state.name = object_name;
-    object_state.mesh_name = tracker.mesh_name();
+    object_state.mesh_name = object_trackers_.GetMeshName(object_name);
 
     bool done = false;
     // Case 1
-    for (const msgs::Event& pose_evt : object_pose_events) {
+    for (size_t j = 0; j < object_pose_events.size(); ++j) {
+      const msgs::Event& pose_evt = object_pose_events[j];
       if (pose_evt.object_name == object_name) {
         object_state.pose = pose_evt.object_pose;
-        tracker.SetPose(pose_evt.object_pose);
+        object_trackers_.SetPose(object_name, pose_evt.object_pose);
         done = true;
         break;
       }
@@ -270,10 +276,11 @@ void DemoRuntime::StepObjectPose(
     }
 
     // Case 2
-    for (const msgs::ObjectState& prev_obj : prev_state.object_states) {
+    for (size_t j = 0; j < prev_state.object_states.size(); ++j) {
+      const msgs::ObjectState& prev_obj = prev_state.object_states[j];
       if (prev_obj.name == object_name) {
-        tracker.Step(current_depth_image_);
-        tracker.GetPose(&object_state.pose);
+        object_trackers_.Step(object_name, current_depth_image_);
+        object_trackers_.GetPose(object_name, &object_state.pose);
         done = true;
         break;
       }
@@ -289,7 +296,7 @@ void DemoRuntime::StepObjectPose(
 
 void DemoRuntime::ResetState() {
   object_models_.clear();
-  object_trackers_.clear();
+  object_trackers_.DestroyAll();
   last_executed_frame_ = -1;
   num_frames_ = 0;
   states_.clear();
