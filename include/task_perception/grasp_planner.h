@@ -24,6 +24,9 @@ class GraspPlanner {
  private:
   // Initialize kGripperMarkers.
   void InitGripperMarkers();
+  void VisualizeGripper(const std::string& left_or_right,
+                        const geometry_msgs::Pose& pose,
+                        const std::string& frame_id);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;

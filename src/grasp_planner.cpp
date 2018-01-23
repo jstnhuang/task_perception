@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 
+#include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
@@ -36,6 +37,7 @@ void GraspPlanner::InitGripperMarkers() {
   std::map<std::string, double> joint_positions;
   joint_positions["r_gripper_joint"] = 0.087;
   builder.SetJointPositions(joint_positions);
+  builder.SetFrameId("head_mount_kinect_rgb_optical_frame");
 
   std::set<std::string> gripper_links;
   gripper_links.insert("r_gripper_palm_link");
@@ -45,5 +47,37 @@ void GraspPlanner::InitGripperMarkers() {
   gripper_links.insert("r_gripper_r_finger_tip_link");
 
   builder.Build(gripper_links, &kGripperMarkers);
+
+  // Shift palm to origin / identity orientation.
+  geometry_msgs::Pose root_pose;
+  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
+    if (kGripperMarkers.markers[i].mesh_resource.find("palm") !=
+        std::string::npos) {
+      root_pose = kGripperMarkers.markers[i].pose;
+      break;
+    }
+  }
+  Eigen::Affine3d gripper_pose;
+  tf::poseMsgToEigen(root_pose, gripper_pose);
+
+  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
+    visualization_msgs::Marker& marker = kGripperMarkers.markers[i];
+    Eigen::Affine3d marker_pose;
+    tf::poseMsgToEigen(marker.pose, marker_pose);
+    Eigen::Affine3d shifted_pose = marker_pose * gripper_pose.inverse();
+    tf::poseEigenToMsg(shifted_pose, marker.pose);
+  }
+
+  gripper_pub_.publish(kGripperMarkers);
+}
+
+void GraspPlanner::VisualizeGripper(const std::string& left_or_right,
+                                    const geometry_msgs::Pose& pose,
+                                    const std::string& frame_id) {
+  // visualization_msgs::MarkerArray marker_arr = kGripperMarkers;
+  // for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
+  //  visualization_msgs::Marker& marker = marker_arr.markers[i];
+  //  marker.header.frame_id = frame_id;
+  //}
 }
 }  // namespace pbi
