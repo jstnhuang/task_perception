@@ -88,7 +88,8 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
 
   vector<msgs::ObjectState> current_objects = context->GetCurrentObjects();
   int num_touched_points = 0;
-  for (const msgs::ObjectState& object : current_objects) {
+  for (size_t i = 0; i < current_objects.size(); ++i) {
+    const msgs::ObjectState& object = current_objects[i];
     PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
     PublishPointCloud(obj_viz_, *object_cloud);
 
