@@ -35,16 +35,20 @@ void GraspPlanner::InitGripperMarkers() {
   builder.SetNamespace("gripper");
 
   std::map<std::string, double> joint_positions;
-  joint_positions["r_gripper_joint"] = 0.087;
+  joint_positions["l_gripper_joint"] = 0.088;
+  joint_positions["l_gripper_l_finger_joint"] = 0.514;
+  joint_positions["l_gripper_l_finger_tip_joint"] = 0.514;
+  joint_positions["l_gripper_r_finger_joint"] = 0.514;
+  joint_positions["l_gripper_r_finger_tip_joint"] = 0.514;
   builder.SetJointPositions(joint_positions);
   builder.SetFrameId("head_mount_kinect_rgb_optical_frame");
 
   std::set<std::string> gripper_links;
-  gripper_links.insert("r_gripper_palm_link");
-  gripper_links.insert("r_gripper_l_finger_link");
-  gripper_links.insert("r_gripper_l_finger_tip_link");
-  gripper_links.insert("r_gripper_r_finger_link");
-  gripper_links.insert("r_gripper_r_finger_tip_link");
+  gripper_links.insert("l_gripper_palm_link");
+  gripper_links.insert("l_gripper_l_finger_link");
+  gripper_links.insert("l_gripper_l_finger_tip_link");
+  gripper_links.insert("l_gripper_r_finger_link");
+  gripper_links.insert("l_gripper_r_finger_tip_link");
 
   builder.Build(gripper_links, &kGripperMarkers);
 
@@ -64,7 +68,7 @@ void GraspPlanner::InitGripperMarkers() {
     visualization_msgs::Marker& marker = kGripperMarkers.markers[i];
     Eigen::Affine3d marker_pose;
     tf::poseMsgToEigen(marker.pose, marker_pose);
-    Eigen::Affine3d shifted_pose = marker_pose * gripper_pose.inverse();
+    Eigen::Affine3d shifted_pose = gripper_pose.inverse() * marker_pose;
     tf::poseEigenToMsg(shifted_pose, marker.pose);
   }
 
