@@ -9,8 +9,7 @@ project(task_perception)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   actionlib
-  dbot
-  dbot_ros
+  dbot_ros_msgs
   eigen_conversions
   geometry_msgs
   image_geometry
@@ -125,7 +124,6 @@ catkin_package(
   LIBRARIES
     pbi_annotator_server
     pbi_bag_utils
-    pbi_camera_info_camera_provider
     pbi_contact_detection
     pbi_database
     pbi_default_skeleton
@@ -135,7 +133,6 @@ catkin_package(
     #pbi_grasp_planner
     pbi_imitation_generator
     pbi_object_tracker
-    pbi_particle_tracker_builder
     pbi_pcl_utils
     pbi_pose_utils
     pbi_record_video_action_server
@@ -144,8 +141,7 @@ catkin_package(
     pbi_video_scrubber
   CATKIN_DEPENDS
     actionlib
-    dbot
-    dbot_ros
+    dbot_ros_msgs
     eigen_conversions
     geometry_msgs
     image_geometry
@@ -195,12 +191,6 @@ target_link_libraries(pbi_annotator_server
 add_library(pbi_bag_utils src/bag_utils.cpp)
 add_dependencies(pbi_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_bag_utils
-  ${catkin_LIBRARIES}
-)
-
-add_library(pbi_camera_info_camera_provider src/camera_info_camera_provider.cpp)
-add_dependencies(pbi_camera_info_camera_provider ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_camera_info_camera_provider
   ${catkin_LIBRARIES}
 )
 
@@ -268,20 +258,12 @@ target_link_libraries(pbi_imitation_generator
 add_library(pbi_object_tracker src/object_tracker.cpp)
 add_dependencies(pbi_object_tracker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_object_tracker
-  pbi_particle_tracker_builder
   ${catkin_LIBRARIES}
 )
 
 add_library(pbi_pose_utils src/pose_utils.cpp)
 add_dependencies(pbi_pose_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_pose_utils
-  ${catkin_LIBRARIES}
-)
-
-add_library(pbi_particle_tracker_builder src/particle_tracker_builder.cpp)
-add_dependencies(pbi_particle_tracker_builder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_particle_tracker_builder
-  pbi_camera_info_camera_provider
   ${catkin_LIBRARIES}
 )
 
