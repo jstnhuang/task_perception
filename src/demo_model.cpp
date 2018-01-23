@@ -92,7 +92,7 @@ void DemoModel::AddEvent(const task_perception_msgs::Event& event) {
     return;
   }
   for (size_t i = 0; i < timeline_[event.frame_number].size(); ++i) {
-    const Event& evt = timeline_[event.frame_number][i];
+    Event& evt = timeline_[event.frame_number][i];
     if (event.type != Event::SET_OBJECT_POSE && evt.type == event.type) {
       evt = event;
       return;
@@ -131,7 +131,8 @@ Demonstration DemoModel::ToMsg() const {
   // This copying is necessary because of the de-duping in AddEvent.
   Demonstration demo = demo_;
   demo.events.clear();
-  for (const std::vector<Event>& frame_events : timeline_) {
+  for (size_t i = 0; i < timeline_.size(); ++i) {
+    const std::vector<Event>& frame_events = timeline_[i];
     demo.events.insert(demo.events.end(), frame_events.begin(),
                        frame_events.end());
   }
