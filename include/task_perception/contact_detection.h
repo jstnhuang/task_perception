@@ -11,7 +11,7 @@
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/DemoState.h"
 
-//#include "task_perception/grasp_planner.h"
+#include "task_perception/grasp_planner.h"
 #include "task_perception/task_perception_context.h"
 
 namespace pbi {
@@ -66,7 +66,7 @@ class ContactDetection {
   ros::Publisher left_hand_viz_;
   ros::Publisher right_hand_viz_;
 
-  // GraspPlanner grasp_planner_;
+  GraspPlanner grasp_planner_;
 };
 }  // namespace pbi
 
