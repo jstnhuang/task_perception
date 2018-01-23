@@ -41,15 +41,16 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
     return nullptr;
   }
 
-  auto object_model_loader = std::shared_ptr<dbot::ObjectModelLoader>(
+  std::shared_ptr<dbot::ObjectModelLoader> object_model_loader(
       new dbot::SimpleWavefrontObjectModelLoader(ori_));
 
   // Load the model usign the simple wavefront load and center the frames
   // of all object part meshes
   bool center_object_frame;
   nh_.getParam(pre + "center_object_frame", center_object_frame);
-  auto object_model = std::make_shared<dbot::ObjectModel>(object_model_loader,
-                                                          center_object_frame);
+  std::shared_ptr<dbot::ObjectModel> object_model =
+      std::make_shared<dbot::ObjectModel>(object_model_loader,
+                                          center_object_frame);
 
   /* ------------------------------ */
   /* - Setup camera data          - */
@@ -57,7 +58,7 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
   int downsampling_factor;
   nh_.getParam("downsampling_factor", downsampling_factor);
 
-  auto camera_data_provider = std::shared_ptr<dbot::CameraDataProvider>(
+  std::shared_ptr<dbot::CameraDataProvider> camera_data_provider(
       new CameraInfoCameraProvider(camera_info_, downsampling_factor));
   camera_data_ = std::make_shared<dbot::CameraData>(camera_data_provider);
 
@@ -95,7 +96,7 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
                params_state.velocity_factor);
   params_state.part_count = ori_.count_meshes();
 
-  auto state_trans_builder = std::shared_ptr<TransitionBuilder>(
+  std::shared_ptr<TransitionBuilder> state_trans_builder(
       new dbot::ObjectTransitionBuilder<State>(params_state));
 
   /* ------------------------------ */
@@ -133,9 +134,9 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
   nh_.getParam(pre + "gpu/geometry_shader_file",
                params_obsrv.geometry_shader_file);
 
-  auto sensor_builder =
-      std::shared_ptr<SensorBuilder>(new dbot::RbSensorBuilder<State>(
-          object_model, camera_data_, params_obsrv));
+  std::shared_ptr<SensorBuilder> sensor_builder(
+      new dbot::RbSensorBuilder<State>(object_model, camera_data_,
+                                       params_obsrv));
 
   /* ------------------------------ */
   /* - Create Filter & Tracker    - */
@@ -147,13 +148,13 @@ std::shared_ptr<dbot::ParticleTracker> ParticleTrackerBuilder::Build() {
   nh_.getParam(pre + "max_kl_divergence", params_tracker.max_kl_divergence);
   nh_.getParam(pre + "center_object_frame", params_tracker.center_object_frame);
 
-  auto tracker_builder = dbot::ParticleTrackerBuilder<Tracker>(
+  dbot::ParticleTrackerBuilder<Tracker> tracker_builder(
       state_trans_builder, sensor_builder, object_model, params_tracker);
   return tracker_builder.build();
 }
 
 std::shared_ptr<ParticleTrackerRos> ParticleTrackerBuilder::BuildRos() {
-  auto tracker = Build();
+  std::shared_ptr<dbot::ParticleTracker> tracker = Build();
   std::shared_ptr<ParticleTrackerRos> ros_tracker(
       new ParticleTrackerRos(tracker, camera_data_, ori_.count_meshes()));
   return ros_tracker;
@@ -180,7 +181,7 @@ std::shared_ptr<dbot::CameraData> BuildCameraData(const ros::NodeHandle& nh) {
   nh.getParam("downsampling_factor", downsampling_factor);
   nh.getParam("resolution/width", resolution.width);
   nh.getParam("resolution/height", resolution.height);
-  auto camera_data_provider = std::shared_ptr<dbot::CameraDataProvider>(
+  std::shared_ptr<dbot::CameraDataProvider> camera_data_provider(
       new dbot::RosCameraDataProvider(nh, camera_info_topic, depth_image_topic,
                                       resolution, downsampling_factor, 60.0));
   // Create camera data from the RosCameraDataProvider which takes the data

@@ -39,7 +39,6 @@ flags = [
 '-Wextra',
 '-Wno-unused-parameter',
 '-fno-strict-aliasing',
-'-std=c++11',
 '-x',
 'c++',
 '-isystem',

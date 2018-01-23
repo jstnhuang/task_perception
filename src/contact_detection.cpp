@@ -290,5 +290,4 @@ void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
   right_marker.pose = right;
   viz_.publish(right_marker);
 }
-
 }  // namespace pbi

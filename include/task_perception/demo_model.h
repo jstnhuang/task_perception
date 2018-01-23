@@ -29,7 +29,7 @@ class DemoModel {
 
  private:
   task_perception_msgs::Demonstration demo_;
-  std::vector<std::vector<task_perception_msgs::Event>> timeline_;
+  std::vector<std::vector<task_perception_msgs::Event> > timeline_;
 };
 }  // namespace pbi
 
