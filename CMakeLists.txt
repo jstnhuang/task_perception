@@ -133,6 +133,7 @@ catkin_package(
     pbi_demo_model
     pbi_demo_runtime
     pbi_demo_visualizer
+    pbi_grasp_planner
     pbi_imitation_generator
     pbi_object_tracker
     pbi_particle_tracker_builder
@@ -208,6 +209,7 @@ target_link_libraries(pbi_camera_info_camera_provider
 add_library(pbi_contact_detection src/contact_detection.cpp)
 add_dependencies(pbi_contact_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_contact_detection
+  pbi_grasp_planner
   pbi_pcl_utils
   pbi_pose_utils
   pbi_task_perception_context
@@ -249,6 +251,12 @@ target_link_libraries(pbi_demo_visualizer
 add_library(pbi_default_skeleton src/default_skeleton.cpp)
 add_dependencies(pbi_default_skeleton ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_default_skeleton
+  ${catkin_LIBRARIES}
+)
+
+add_library(pbi_grasp_planner src/grasp_planner.cpp)
+add_dependencies(pbi_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_grasp_planner
   ${catkin_LIBRARIES}
 )
 
