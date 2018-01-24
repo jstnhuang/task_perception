@@ -16,6 +16,7 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 ## Launch procedure
 - [ ] `roscore`
 - [ ] Frontend: `cd frontend; polymer serve;`
+- [ ] Upload PR2 (only needed once): `roslaunch task_perception upload_pr2.launch`
 - [ ] Backend: `roslaunch task_perception task_perception.launch --screen`
 - [ ] RViz: `rosrun rviz rviz -d config/task_perception.rviz`
 - [ ] Skin segmentation: `setvenv tf; setws tracking; roslaunch skin_segmentation service_test.launch  --screen`
