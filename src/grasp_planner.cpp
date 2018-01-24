@@ -41,7 +41,6 @@ void GraspPlanner::InitGripperMarkers() {
   joint_positions["l_gripper_r_finger_joint"] = 0.514;
   joint_positions["l_gripper_r_finger_tip_joint"] = 0.514;
   builder.SetJointPositions(joint_positions);
-  builder.SetFrameId("head_mount_kinect_rgb_optical_frame");
 
   std::set<std::string> gripper_links;
   gripper_links.insert("l_gripper_palm_link");
@@ -71,17 +70,26 @@ void GraspPlanner::InitGripperMarkers() {
     Eigen::Affine3d shifted_pose = gripper_pose.inverse() * marker_pose;
     tf::poseEigenToMsg(shifted_pose, marker.pose);
   }
-
-  gripper_pub_.publish(kGripperMarkers);
 }
 
 void GraspPlanner::VisualizeGripper(const std::string& left_or_right,
                                     const geometry_msgs::Pose& pose,
                                     const std::string& frame_id) {
-  // visualization_msgs::MarkerArray marker_arr = kGripperMarkers;
-  // for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
-  //  visualization_msgs::Marker& marker = marker_arr.markers[i];
-  //  marker.header.frame_id = frame_id;
-  //}
+  Eigen::Affine3d pose_transform;
+  tf::poseMsgToEigen(pose, pose_transform);
+
+  visualization_msgs::MarkerArray marker_arr = kGripperMarkers;
+  for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
+    visualization_msgs::Marker& marker = marker_arr.markers[i];
+    marker.header.frame_id = frame_id;
+    marker.ns = left_or_right;
+
+    Eigen::Affine3d marker_pose;
+    tf::poseMsgToEigen(marker.pose, marker_pose);
+    Eigen::Affine3d shifted_pose = pose_transform * marker_pose;
+    tf::poseEigenToMsg(shifted_pose, marker.pose);
+  }
+
+  gripper_pub_.publish(marker_arr);
 }
 }  // namespace pbi
