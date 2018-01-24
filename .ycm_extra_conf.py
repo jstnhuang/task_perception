@@ -46,6 +46,8 @@ flags = [
 '-isystem',
 '/usr/local/include',
 '-I',
+'../robot_markers/include',
+'-I',
 '/opt/ros/indigo/include',
 '-I',
 '../../devel/include',
@@ -64,8 +66,7 @@ flags = [
 '-I',
 '../dbot_ros/source',
 '-I',
-'../fl/include',
-'-I',
+'../fl/include'
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
