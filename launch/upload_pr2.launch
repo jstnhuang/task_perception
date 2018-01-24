@@ -1,0 +1,4 @@
+<launch>
+  <!-- This is slow, but only needs to be run once. -->
+  <include file="$(find pr2_description)/robots/upload_pr2.launch" />
+</launch>
