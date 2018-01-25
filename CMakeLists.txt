@@ -136,6 +136,7 @@ catkin_package(
     pbi_multi_object_tracker
     pbi_pcl_utils
     pbi_pose_utils
+    pbi_pr2_gripper_model
     pbi_record_video_action_server
     pbi_ros_utils
     pbi_task_perception_context
@@ -248,6 +249,7 @@ target_link_libraries(pbi_default_skeleton
 add_library(pbi_grasp_planner src/grasp_planner.cpp)
 add_dependencies(pbi_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_grasp_planner
+  pbi_pr2_gripper_model
   ${catkin_LIBRARIES}
 )
 
@@ -273,6 +275,13 @@ target_link_libraries(pbi_pose_utils
 add_library(pbi_pcl_utils src/pcl_utils.cpp)
 add_dependencies(pbi_pcl_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_pcl_utils
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
+add_library(pbi_pr2_gripper_model src/pr2_gripper_model.cpp)
+add_dependencies(pbi_pr2_gripper_model ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_pr2_gripper_model
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
