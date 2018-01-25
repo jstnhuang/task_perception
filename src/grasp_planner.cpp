@@ -3,15 +3,19 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
+#include "pcl/kdtree/kdtree.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
 #include "visualization_msgs/MarkerArray.h"
 
+#include "task_perception/pcl_typedefs.h"
+#include "task_perception/pr2_gripper_model.h"
 #include "task_perception/task_perception_context.h"
 
 namespace pbi {
@@ -24,8 +28,34 @@ GraspPlanner::GraspPlanner()
 }
 
 void GraspPlanner::Plan(const std::string& left_or_right,
+                        const std::string& object_name,
                         TaskPerceptionContext* context,
-                        geometry_msgs::Pose* pose) {}
+                        geometry_msgs::Pose* pose) {
+  geometry_msgs::Pose wrist_pose;
+  if (left_or_right == "left") {
+    wrist_pose = context->GetLeftWristPose();
+  } else {
+    wrist_pose = context->GetRightWristPose();
+  }
+  const std::string& frame_id(context->camera_info().header.frame_id);
+
+  Pr2GripperModel gripper_model;
+  gripper_model.set_pose(wrist_pose);
+
+  visualization_msgs::MarkerArray marker_arr;
+  VisualizeGripper(left_or_right, wrist_pose, frame_id, &marker_arr);
+  gripper_model.ToMarkerArray(frame_id, &marker_arr);
+  gripper_pub_.publish(marker_arr);
+
+  KdTreeP::Ptr object_tree = context->GetObjectTree(object_name);
+  PointP wrist_point;
+  wrist_point.x = wrist_pose.position.x;
+  wrist_point.y = wrist_pose.position.y;
+  wrist_point.z = wrist_pose.position.z;
+  std::vector<int> indices;
+  std::vector<float> sq_distances;
+  object_tree->nearestKSearch(wrist_point, 1, indices, sq_distances);
+}
 
 void GraspPlanner::InitGripperMarkers() {
   urdf::Model model;
@@ -72,15 +102,14 @@ void GraspPlanner::InitGripperMarkers() {
   }
 }
 
-void GraspPlanner::VisualizeGripper(const std::string& left_or_right,
-                                    const geometry_msgs::Pose& pose,
-                                    const std::string& frame_id) {
+void GraspPlanner::VisualizeGripper(
+    const std::string& left_or_right, const geometry_msgs::Pose& pose,
+    const std::string& frame_id, visualization_msgs::MarkerArray* marker_arr) {
   Eigen::Affine3d pose_transform;
   tf::poseMsgToEigen(pose, pose_transform);
 
-  visualization_msgs::MarkerArray marker_arr = kGripperMarkers;
-  for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
-    visualization_msgs::Marker& marker = marker_arr.markers[i];
+  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
+    visualization_msgs::Marker marker = kGripperMarkers.markers[i];
     marker.header.frame_id = frame_id;
     marker.ns = left_or_right;
 
@@ -88,8 +117,7 @@ void GraspPlanner::VisualizeGripper(const std::string& left_or_right,
     tf::poseMsgToEigen(marker.pose, marker_pose);
     Eigen::Affine3d shifted_pose = pose_transform * marker_pose;
     tf::poseEigenToMsg(shifted_pose, marker.pose);
+    marker_arr->markers.push_back(marker);
   }
-
-  gripper_pub_.publish(marker_arr);
 }
 }  // namespace pbi

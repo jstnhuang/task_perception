@@ -18,15 +18,16 @@ class GraspPlanner {
 
   // Adapts the human grasping configuration to a robot grasping configuration.
   // Output pose is in the camera frame.
-  void Plan(const std::string& left_or_right, TaskPerceptionContext* context,
-            geometry_msgs::Pose* pose);
+  void Plan(const std::string& left_or_right, const std::string& object_name,
+            TaskPerceptionContext* context, geometry_msgs::Pose* pose);
 
  private:
   // Initialize kGripperMarkers.
   void InitGripperMarkers();
   void VisualizeGripper(const std::string& left_or_right,
                         const geometry_msgs::Pose& pose,
-                        const std::string& frame_id);
+                        const std::string& frame_id,
+                        visualization_msgs::MarkerArray* marker_arr);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;
