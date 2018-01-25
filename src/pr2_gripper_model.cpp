@@ -120,4 +120,13 @@ void Pr2GripperModel::ToMarkerArray(
   marker_arr->markers.push_back(l_finger);
   marker_arr->markers.push_back(r_finger);
 }
+
+Eigen::Vector3d Pr2GripperModel::gripper_center() {
+  Eigen::Vector3d center;  // In wrist frame.
+  center << kLFingerPos.x, 0, 0;
+  tg::Position position;
+  tf_graph_.DescribePosition(center, tg::Source("wrist"), tg::Target("base"),
+                             &position);
+  return position.vector();
+}
 }  // namespace pbi

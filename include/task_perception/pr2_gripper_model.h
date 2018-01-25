@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "Eigen/Dense"
 #include "geometry_msgs/Point.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
@@ -16,8 +17,12 @@ class Pr2GripperModel {
   Pr2GripperModel();
   void set_pose(const geometry_msgs::Pose& pose);
 
+  // Appends three box markers representing our collision model for the gripper.
   void ToMarkerArray(const std::string& frame_id,
                      visualization_msgs::MarkerArray* marker_arr);
+
+  // Returns the "center" of the gripper's grasp region.
+  Eigen::Vector3d gripper_center();
 
  private:
   geometry_msgs::Pose pose_;
