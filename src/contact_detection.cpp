@@ -10,7 +10,6 @@
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "task_perception_msgs/DemoState.h"
-#include "transform_graph/graph.h"
 #include "visualization_msgs/Marker.h"
 
 #include "task_perception/pcl_typedefs.h"
@@ -21,7 +20,6 @@
 using std::vector;
 using std::string;
 namespace msgs = task_perception_msgs;
-namespace tg = transform_graph;
 
 namespace pbi {
 ContactDetection::ContactDetection()
@@ -295,32 +293,32 @@ void ContactDetection::PublishWristPoses(const geometry_msgs::Pose& left,
   viz_.publish(right_marker);
 
   // Compute z-axis pose and publish.
-  geometry_msgs::Quaternion z_axis;
-  z_axis.w = 0.707;
-  z_axis.y = 0.707;
-  tg::Graph graph;
-  graph.Add("left", tg::RefFrame("camera"), left);
-  graph.Add("right", tg::RefFrame("camera"), right);
-  graph.Add("left rotated", tg::RefFrame("left"),
-            tg::Transform(tg::Position(), z_axis));
-  graph.Add("right rotated", tg::RefFrame("right"),
-            tg::Transform(tg::Position(), z_axis));
+  // geometry_msgs::Quaternion z_axis;
+  // z_axis.w = 0.707;
+  // z_axis.y = 0.707;
+  // tg::Graph graph;
+  // graph.Add("left", tg::RefFrame("camera"), left);
+  // graph.Add("right", tg::RefFrame("camera"), right);
+  // graph.Add("left rotated", tg::RefFrame("left"),
+  //          tg::Transform(tg::Position(), z_axis));
+  // graph.Add("right rotated", tg::RefFrame("right"),
+  //          tg::Transform(tg::Position(), z_axis));
 
-  left_marker.id = 2;
-  left_marker.color.r = 0;
-  left_marker.color.b = 1;
-  tg::Transform rotated;
-  graph.ComputeDescription(tg::LocalFrame("left rotated"),
-                           tg::RefFrame("camera"), &rotated);
-  rotated.ToPose(&left_marker.pose);
-  viz_.publish(left_marker);
+  // left_marker.id = 2;
+  // left_marker.color.r = 0;
+  // left_marker.color.b = 1;
+  // tg::Transform rotated;
+  // graph.ComputeDescription(tg::LocalFrame("left rotated"),
+  //                         tg::RefFrame("camera"), &rotated);
+  // rotated.ToPose(&left_marker.pose);
+  // viz_.publish(left_marker);
 
-  right_marker.id = 2;
-  right_marker.color.r = 0;
-  right_marker.color.b = 1;
-  graph.ComputeDescription(tg::LocalFrame("right rotated"),
-                           tg::RefFrame("camera"), &rotated);
-  rotated.ToPose(&right_marker.pose);
-  viz_.publish(right_marker);
+  // right_marker.id = 2;
+  // right_marker.color.r = 0;
+  // right_marker.color.b = 1;
+  // graph.ComputeDescription(tg::LocalFrame("right rotated"),
+  //                         tg::RefFrame("camera"), &rotated);
+  // rotated.ToPose(&right_marker.pose);
+  // viz_.publish(right_marker);
 }
 }  // namespace pbi
