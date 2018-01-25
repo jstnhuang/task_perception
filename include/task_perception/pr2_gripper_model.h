@@ -16,13 +16,23 @@ class Pr2GripperModel {
  public:
   Pr2GripperModel();
   void set_pose(const geometry_msgs::Pose& pose);
+  geometry_msgs::Pose pose() const;
 
   // Appends three box markers representing our collision model for the gripper.
   void ToMarkerArray(const std::string& frame_id,
-                     visualization_msgs::MarkerArray* marker_arr);
+                     visualization_msgs::MarkerArray* marker_arr) const;
 
   // Returns the "center" of the gripper's grasp region.
-  Eigen::Vector3d gripper_center();
+  Eigen::Vector3d grasp_center() const;
+
+  // Defines the following frames:
+  // gripper base: The fixed frame (e.g., camera frame)
+  // gripper: The gripper link
+  // palm: The palm link
+  // l_finger: The left finger link
+  // r_finger: The right finger link
+  // grasp center: The center of the grasp region (CoG)
+  const transform_graph::Graph& tf_graph() const;
 
  private:
   geometry_msgs::Pose pose_;

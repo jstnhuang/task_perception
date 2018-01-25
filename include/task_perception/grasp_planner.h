@@ -8,6 +8,7 @@
 #include "ros/ros.h"
 #include "visualization_msgs/MarkerArray.h"
 
+#include "task_perception/pr2_gripper_model.h"
 #include "task_perception/task_perception_context.h"
 
 namespace pbi {
@@ -26,14 +27,17 @@ class GraspPlanner {
   void InitGripperMarkers();
   // Visualize a gripper in the given namespace.
   void VisualizeGripper(const std::string& ns, const geometry_msgs::Pose& pose,
-                        const std::string& frame_id,
-                        visualization_msgs::MarkerArray* marker_arr);
+                        const std::string& frame_id);
 
   // Computes the initial grasp to optimize around.
-  void ComputeInitialGrasp(const geometry_msgs::Pose& wrist_pose,
+  void ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
                            const std::string& object_name,
                            TaskPerceptionContext* context,
                            geometry_msgs::Pose* initial_pose);
+  void OrientTowardsWrist(const Pr2GripperModel& gripper_model,
+                          const geometry_msgs::Pose& wrist_pose,
+                          TaskPerceptionContext* context,
+                          geometry_msgs::Pose* next_pose);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;

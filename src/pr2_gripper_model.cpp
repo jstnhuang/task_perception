@@ -53,21 +53,29 @@ const geometry_msgs::Vector3 Pr2GripperModel::kFingerDims = FingerDims();
 
 Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
   pose_.orientation.w = 1;
-  tf_graph_.Add("palm", tg::RefFrame("wrist"),
+  tf_graph_.Add("palm", tg::RefFrame("gripper"),
                 tg::Transform(kPalmPos, tg::Orientation()));
-  tf_graph_.Add("l_finger", tg::RefFrame("wrist"),
+  tf_graph_.Add("l_finger", tg::RefFrame("gripper"),
                 tg::Transform(kLFingerPos, tg::Orientation()));
-  tf_graph_.Add("r_finger", tg::RefFrame("wrist"),
+  tf_graph_.Add("r_finger", tg::RefFrame("gripper"),
                 tg::Transform(kRFingerPos, tg::Orientation()));
+
+  Eigen::Vector3d center;  // In gripper frame.
+  center << kLFingerPos.x, 0, 0;
+  tf_graph_.Add("grasp center", tg::RefFrame("gripper"),
+                tg::Transform(center, tg::Orientation()));
 }
 
 void Pr2GripperModel::set_pose(const geometry_msgs::Pose& pose) {
   pose_ = pose;
-  tf_graph_.Add("wrist", tg::RefFrame("base"), pose);
+  tf_graph_.Add("gripper", tg::RefFrame("gripper base"), pose);
 }
 
+geometry_msgs::Pose Pr2GripperModel::pose() const { return pose_; }
+
 void Pr2GripperModel::ToMarkerArray(
-    const std::string& frame_id, visualization_msgs::MarkerArray* marker_arr) {
+    const std::string& frame_id,
+    visualization_msgs::MarkerArray* marker_arr) const {
   visualization_msgs::Marker palm;
   palm.header.frame_id = frame_id;
   palm.ns = "gripper_model";
@@ -80,8 +88,8 @@ void Pr2GripperModel::ToMarkerArray(
   palm.color.a = 0.5;
 
   tg::Transform palm_transform;
-  tf_graph_.ComputeDescription(tg::LocalFrame("palm"), tg::RefFrame("base"),
-                               &palm_transform);
+  tf_graph_.ComputeDescription(tg::LocalFrame("palm"),
+                               tg::RefFrame("gripper base"), &palm_transform);
   palm_transform.ToPose(&palm.pose);
 
   visualization_msgs::Marker l_finger;
@@ -96,7 +104,8 @@ void Pr2GripperModel::ToMarkerArray(
   l_finger.color.a = 0.5;
 
   tg::Transform l_finger_transform;
-  tf_graph_.ComputeDescription(tg::LocalFrame("l_finger"), tg::RefFrame("base"),
+  tf_graph_.ComputeDescription(tg::LocalFrame("l_finger"),
+                               tg::RefFrame("gripper base"),
                                &l_finger_transform);
   l_finger_transform.ToPose(&l_finger.pose);
 
@@ -112,7 +121,8 @@ void Pr2GripperModel::ToMarkerArray(
   r_finger.color.a = 0.5;
 
   tg::Transform r_finger_transform;
-  tf_graph_.ComputeDescription(tg::LocalFrame("r_finger"), tg::RefFrame("base"),
+  tf_graph_.ComputeDescription(tg::LocalFrame("r_finger"),
+                               tg::RefFrame("gripper base"),
                                &r_finger_transform);
   r_finger_transform.ToPose(&r_finger.pose);
 
@@ -121,12 +131,12 @@ void Pr2GripperModel::ToMarkerArray(
   marker_arr->markers.push_back(r_finger);
 }
 
-Eigen::Vector3d Pr2GripperModel::gripper_center() {
-  Eigen::Vector3d center;  // In wrist frame.
-  center << kLFingerPos.x, 0, 0;
-  tg::Position position;
-  tf_graph_.DescribePosition(center, tg::Source("wrist"), tg::Target("base"),
-                             &position);
-  return position.vector();
+Eigen::Vector3d Pr2GripperModel::grasp_center() const {
+  tg::Transform grasp_center;
+  tf_graph_.ComputeDescription(tg::LocalFrame("grasp center"),
+                               tg::RefFrame("gripper base"), &grasp_center);
+  return grasp_center.matrix().topRightCorner(3, 1);
 }
+
+const tg::Graph& Pr2GripperModel::tf_graph() const { return tf_graph_; }
 }  // namespace pbi

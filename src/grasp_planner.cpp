@@ -39,8 +39,29 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   } else {
     wrist_pose = context->GetRightWristPose();
   }
+  Pr2GripperModel gripper_model;
+  gripper_model.set_pose(wrist_pose);
+
   Pose initial_pose;
-  ComputeInitialGrasp(wrist_pose, object_name, context, &initial_pose);
+  ComputeInitialGrasp(gripper_model, object_name, context, &initial_pose);
+  gripper_model.set_pose(initial_pose);
+
+  // Visualize initial grasp.
+  gripper_model.set_pose(initial_pose);
+  const std::string& frame_id(context->camera_info().header.frame_id);
+  VisualizeGripper("initial", initial_pose, frame_id);
+
+  // While termination criteria not reached:
+  // - Point towards wrist
+  // - Optimize roll
+  // - Optimize position
+  // Check for collisions
+  Pose next_pose;
+  OrientTowardsWrist(gripper_model, wrist_pose, context, &next_pose);
+
+  // Visualize next grasp.
+  gripper_model.set_pose(next_pose);
+  VisualizeGripper("wrist_oriented", next_pose, frame_id);
 }
 
 void GraspPlanner::InitGripperMarkers() {
@@ -88,12 +109,18 @@ void GraspPlanner::InitGripperMarkers() {
   }
 }
 
-void GraspPlanner::VisualizeGripper(
-    const std::string& ns, const Pose& pose, const std::string& frame_id,
-    visualization_msgs::MarkerArray* marker_arr) {
+void GraspPlanner::VisualizeGripper(const std::string& ns, const Pose& pose,
+                                    const std::string& frame_id) {
+  visualization_msgs::MarkerArray marker_arr;
+  Pr2GripperModel model;
+  model.set_pose(pose);
+  model.ToMarkerArray(frame_id, &marker_arr);
+  for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
+    marker_arr.markers[i].ns = ns + "_model";
+  }
+
   Eigen::Affine3d pose_transform;
   tf::poseMsgToEigen(pose, pose_transform);
-
   for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
     visualization_msgs::Marker marker = kGripperMarkers.markers[i];
     marker.header.frame_id = frame_id;
@@ -103,16 +130,17 @@ void GraspPlanner::VisualizeGripper(
     tf::poseMsgToEigen(marker.pose, marker_pose);
     Eigen::Affine3d shifted_pose = pose_transform * marker_pose;
     tf::poseEigenToMsg(shifted_pose, marker.pose);
-    marker_arr->markers.push_back(marker);
+    marker_arr.markers.push_back(marker);
   }
+
+  gripper_pub_.publish(marker_arr);
 }
 
-void GraspPlanner::ComputeInitialGrasp(const Pose& wrist_pose,
+void GraspPlanner::ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
                                        const std::string& object_name,
                                        TaskPerceptionContext* context,
                                        Pose* initial_pose) {
-  Pr2GripperModel gripper_model;
-  gripper_model.set_pose(wrist_pose);
+  Pose wrist_pose = gripper_model.pose();
 
   // Initial pose to optimize around: translate gripper such that the closest
   // object point is in the center.
@@ -128,21 +156,52 @@ void GraspPlanner::ComputeInitialGrasp(const Pose& wrist_pose,
 
   Eigen::Vector3d nearest_obj_vec;
   nearest_obj_vec << nearest_obj_pt.x, nearest_obj_pt.y, nearest_obj_pt.z;
-  Eigen::Vector3d translation =
-      nearest_obj_vec - gripper_model.gripper_center();
+  Eigen::Vector3d translation = nearest_obj_vec - gripper_model.grasp_center();
 
   *initial_pose = wrist_pose;
   initial_pose->position.x += translation.x();
   initial_pose->position.y += translation.y();
   initial_pose->position.z += translation.z();
-
-  // Visualize initial grasp.
-  gripper_model.set_pose(*initial_pose);
-  visualization_msgs::MarkerArray marker_arr;
-  const std::string& frame_id(context->camera_info().header.frame_id);
-  VisualizeGripper("initial", *initial_pose, frame_id, &marker_arr);
-  gripper_model.ToMarkerArray(frame_id, &marker_arr);
-  gripper_pub_.publish(marker_arr);
 }
 
+void GraspPlanner::OrientTowardsWrist(const Pr2GripperModel& gripper_model,
+                                      const geometry_msgs::Pose& wrist_pose,
+                                      TaskPerceptionContext* context,
+                                      geometry_msgs::Pose* next_pose) {
+  // Rotate the gripper about the center of the grasp region (CoG) such that the
+  // centerline of the gripper is coincident with the line between the wrist and
+  // the CoG.
+  tg::Graph tf_graph = gripper_model.tf_graph();
+
+  // Vector from CoG to wrist
+  Eigen::Vector3d wrist_vec;
+  wrist_vec << wrist_pose.position.x, wrist_pose.position.y,
+      wrist_pose.position.z;
+  tg::Position wrist_in_grasp_center;
+  tf_graph.DescribePosition(wrist_vec, tg::Source("gripper base"),
+                            tg::Target("grasp center"), &wrist_in_grasp_center);
+  Eigen::Vector3d desired_line = wrist_in_grasp_center.vector();
+
+  // Centerline
+  tg::Transform gripper_in_grasp_center;
+  tf_graph.ComputeDescription(tg::LocalFrame("gripper"),
+                              tg::RefFrame("grasp center"),
+                              &gripper_in_grasp_center);
+  Eigen::Vector3d centerline =
+      gripper_in_grasp_center.matrix().topRightCorner(3, 1);
+
+  // Rotation (about the grasp center)
+  // Add a rotated frame to where the grasp center is
+  // Then, map the transform from the CoG to the center
+  Eigen::Quaterniond rotation =
+      Eigen::Quaterniond::FromTwoVectors(centerline, desired_line);
+  tf_graph.Add("rotated grasp center", tg::RefFrame("grasp center"),
+               tg::Transform(tg::Position(), rotation));
+
+  tg::Transform out;
+  tf_graph.DescribePose(gripper_in_grasp_center,
+                        tg::Source("rotated grasp center"),
+                        tg::Target("gripper base"), &out);
+  out.ToPose(next_pose);
+}
 }  // namespace pbi
