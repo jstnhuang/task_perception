@@ -24,10 +24,16 @@ class GraspPlanner {
  private:
   // Initialize kGripperMarkers.
   void InitGripperMarkers();
-  void VisualizeGripper(const std::string& left_or_right,
-                        const geometry_msgs::Pose& pose,
+  // Visualize a gripper in the given namespace.
+  void VisualizeGripper(const std::string& ns, const geometry_msgs::Pose& pose,
                         const std::string& frame_id,
                         visualization_msgs::MarkerArray* marker_arr);
+
+  // Computes the initial grasp to optimize around.
+  void ComputeInitialGrasp(const geometry_msgs::Pose& wrist_pose,
+                           const std::string& object_name,
+                           TaskPerceptionContext* context,
+                           geometry_msgs::Pose* initial_pose);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;

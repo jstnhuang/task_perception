@@ -18,6 +18,9 @@
 #include "task_perception/pr2_gripper_model.h"
 #include "task_perception/task_perception_context.h"
 
+namespace tg = transform_graph;
+using geometry_msgs::Pose;
+
 namespace pbi {
 GraspPlanner::GraspPlanner()
     : nh_(),
@@ -29,32 +32,15 @@ GraspPlanner::GraspPlanner()
 
 void GraspPlanner::Plan(const std::string& left_or_right,
                         const std::string& object_name,
-                        TaskPerceptionContext* context,
-                        geometry_msgs::Pose* pose) {
-  geometry_msgs::Pose wrist_pose;
+                        TaskPerceptionContext* context, Pose* pose) {
+  Pose wrist_pose;
   if (left_or_right == "left") {
     wrist_pose = context->GetLeftWristPose();
   } else {
     wrist_pose = context->GetRightWristPose();
   }
-  const std::string& frame_id(context->camera_info().header.frame_id);
-
-  Pr2GripperModel gripper_model;
-  gripper_model.set_pose(wrist_pose);
-
-  visualization_msgs::MarkerArray marker_arr;
-  VisualizeGripper(left_or_right, wrist_pose, frame_id, &marker_arr);
-  gripper_model.ToMarkerArray(frame_id, &marker_arr);
-  gripper_pub_.publish(marker_arr);
-
-  KdTreeP::Ptr object_tree = context->GetObjectTree(object_name);
-  PointP wrist_point;
-  wrist_point.x = wrist_pose.position.x;
-  wrist_point.y = wrist_pose.position.y;
-  wrist_point.z = wrist_pose.position.z;
-  std::vector<int> indices;
-  std::vector<float> sq_distances;
-  object_tree->nearestKSearch(wrist_point, 1, indices, sq_distances);
+  Pose initial_pose;
+  ComputeInitialGrasp(wrist_pose, object_name, context, &initial_pose);
 }
 
 void GraspPlanner::InitGripperMarkers() {
@@ -82,7 +68,7 @@ void GraspPlanner::InitGripperMarkers() {
   builder.Build(gripper_links, &kGripperMarkers);
 
   // Shift palm to origin / identity orientation.
-  geometry_msgs::Pose root_pose;
+  Pose root_pose;
   for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
     if (kGripperMarkers.markers[i].mesh_resource.find("palm") !=
         std::string::npos) {
@@ -103,15 +89,15 @@ void GraspPlanner::InitGripperMarkers() {
 }
 
 void GraspPlanner::VisualizeGripper(
-    const std::string& left_or_right, const geometry_msgs::Pose& pose,
-    const std::string& frame_id, visualization_msgs::MarkerArray* marker_arr) {
+    const std::string& ns, const Pose& pose, const std::string& frame_id,
+    visualization_msgs::MarkerArray* marker_arr) {
   Eigen::Affine3d pose_transform;
   tf::poseMsgToEigen(pose, pose_transform);
 
   for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
     visualization_msgs::Marker marker = kGripperMarkers.markers[i];
     marker.header.frame_id = frame_id;
-    marker.ns = left_or_right;
+    marker.ns = ns;
 
     Eigen::Affine3d marker_pose;
     tf::poseMsgToEigen(marker.pose, marker_pose);
@@ -120,4 +106,43 @@ void GraspPlanner::VisualizeGripper(
     marker_arr->markers.push_back(marker);
   }
 }
+
+void GraspPlanner::ComputeInitialGrasp(const Pose& wrist_pose,
+                                       const std::string& object_name,
+                                       TaskPerceptionContext* context,
+                                       Pose* initial_pose) {
+  Pr2GripperModel gripper_model;
+  gripper_model.set_pose(wrist_pose);
+
+  // Initial pose to optimize around: translate gripper such that the closest
+  // object point is in the center.
+  KdTreeP::Ptr object_tree = context->GetObjectTree(object_name);
+  PointP wrist_point;
+  wrist_point.x = wrist_pose.position.x;
+  wrist_point.y = wrist_pose.position.y;
+  wrist_point.z = wrist_pose.position.z;
+  std::vector<int> indices;
+  std::vector<float> sq_distances;
+  object_tree->nearestKSearch(wrist_point, 1, indices, sq_distances);
+  PointP nearest_obj_pt = object_tree->getInputCloud()->at(indices[0]);
+
+  Eigen::Vector3d nearest_obj_vec;
+  nearest_obj_vec << nearest_obj_pt.x, nearest_obj_pt.y, nearest_obj_pt.z;
+  Eigen::Vector3d translation =
+      nearest_obj_vec - gripper_model.gripper_center();
+
+  *initial_pose = wrist_pose;
+  initial_pose->position.x += translation.x();
+  initial_pose->position.y += translation.y();
+  initial_pose->position.z += translation.z();
+
+  // Visualize initial grasp.
+  gripper_model.set_pose(*initial_pose);
+  visualization_msgs::MarkerArray marker_arr;
+  const std::string& frame_id(context->camera_info().header.frame_id);
+  VisualizeGripper("initial", *initial_pose, frame_id, &marker_arr);
+  gripper_model.ToMarkerArray(frame_id, &marker_arr);
+  gripper_pub_.publish(marker_arr);
+}
+
 }  // namespace pbi
