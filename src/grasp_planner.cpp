@@ -110,6 +110,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   }
   VisualizeGripper("optimization", next_pose,
                    context->camera_info().header.frame_id);
+  *pose = next_pose;
 }
 
 void GraspPlanner::InitGripperMarkers() {
