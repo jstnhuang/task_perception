@@ -30,7 +30,7 @@ GraspPlanner::GraspPlanner()
       gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "grasp_planner/grippers", 1, true)),
       kGripperMarkers(),
-      kDebug_(true) {
+      kDebug_(false) {
   InitGripperMarkers();
 }
 
@@ -85,8 +85,8 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     OptimizePlacement(gripper_model, object_name, context, &next_pose);
     gripper_model.set_pose(next_pose);
     if (kDebug_) {
-      std::string frame_id(context->camera_info().header.frame_id);
-      VisualizeGripper("optimization", next_pose, frame_id);
+      VisualizeGripper("optimization", next_pose,
+                       context->camera_info().header.frame_id);
     }
 
     Eigen::Affine3d prev_affine;
