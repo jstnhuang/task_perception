@@ -177,6 +177,18 @@ const tg::Graph& Pr2GripperModel::tf_graph() const { return tf_graph_; }
 
 bool Pr2GripperModel::IsGripperFramePtInGraspRegion(double x, double y,
                                                     double z) {
+  double max_grasp_region_x = kGraspRegionPos.x + kGraspRegionDims.x / 2;
+  double min_grasp_region_x = kGraspRegionPos.x - kGraspRegionDims.x / 2;
+  double max_grasp_region_y = kGraspRegionPos.y + kGraspRegionDims.y / 2;
+  double min_grasp_region_y = kGraspRegionPos.y - kGraspRegionDims.y / 2;
+  double max_grasp_region_z = kGraspRegionPos.z + kGraspRegionDims.z / 2;
+  double min_grasp_region_z = kGraspRegionPos.z - kGraspRegionDims.z / 2;
+  if (x < max_grasp_region_x && x > min_grasp_region_x &&
+      y < max_grasp_region_y && y > min_grasp_region_y &&
+      z < max_grasp_region_z && z > min_grasp_region_z) {
+    return true;
+  }
+
   return false;
 }
 
