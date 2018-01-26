@@ -246,7 +246,8 @@ Visualization Manager:
       Marker Topic: /grasp_planner/grippers
       Name: Grippers
       Namespaces:
-        {}
+        optimization: true
+        optimization_model: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -273,22 +274,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.41593
+      Distance: 1.20535
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.441716
-        Y: 0.0821462
-        Z: 0.902646
+        X: 1.22843
+        Y: 0.200843
+        Z: 0.918393
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.464798
+      Pitch: 0.249798
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.02873
+      Yaw: 3.11502
     Saved: ~
 Window Geometry:
   Displays:
