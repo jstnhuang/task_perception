@@ -23,8 +23,8 @@
 #include "task_perception/task_perception_context.h"
 #include "task_perception/video_scrubber.h"
 
-namespace ss_msgs = skin_segmentation_msgs;
 namespace msgs = task_perception_msgs;
+namespace ss_msgs = skin_segmentation_msgs;
 
 namespace pbi {
 DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
@@ -97,16 +97,23 @@ void DemoRuntime::Step() {
   // Update timestamp
   current_state.stamp = current_depth_image_.header.stamp;
 
+  // Step through events
   StepSkeleton(frame_number, prev_state, &current_state.nerf_joint_states);
   StepSpawnUnspawn(frame_number, prev_state);
   StepObjectPose(frame_number, prev_state, &current_state.object_states);
 
+  // Predict contact state (grasp, release, unchanged)
   TaskPerceptionContext context(skel_services_, predict_hands_, current_state,
                                 prev_state, current_color_image_,
                                 current_depth_image_, camera_info_,
                                 &object_models_);
   contact_detection_.Predict(&context, &current_state.left_hand,
                              &current_state.right_hand);
+
+  // Visualize contacts
+  viz_.ShowHandState(current_state.left_hand, "left", &context);
+  viz_.ShowHandState(current_state.right_hand, "right", &context);
+
   imitation_generator_->Step(&context);
 
   states_[frame_number] = current_state;

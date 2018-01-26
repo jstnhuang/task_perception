@@ -237,6 +237,8 @@ target_link_libraries(pbi_demo_runtime
 add_library(pbi_demo_visualizer src/demo_visualizer.cpp)
 add_dependencies(pbi_demo_visualizer ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_demo_visualizer
+  pbi_pr2_gripper_model
+  pbi_task_perception_context
   ${catkin_LIBRARIES}
 )
 

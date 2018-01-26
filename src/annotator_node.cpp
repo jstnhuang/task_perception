@@ -12,6 +12,8 @@
 #include "skin_segmentation_msgs/ResetSkeletonTracker.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
+#include "visualization_msgs/Marker.h"
+#include "visualization_msgs/MarkerArray.h"
 
 #include "task_perception/annotator_server.h"
 #include "task_perception/database.h"
@@ -37,6 +39,8 @@ int main(int argc, char** argv) {
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
   demo_viz.objects_pub = nh.advertise<visualization_msgs::Marker>(
       "pbi_annotator/objects", 10, true);
+  demo_viz.gripper_pub = nh.advertise<visualization_msgs::MarkerArray>(
+      "pbi_annotator/grippers", 10, true);
 
   // Skeleton tracker services
   pbi::SkeletonServices skel_services;
