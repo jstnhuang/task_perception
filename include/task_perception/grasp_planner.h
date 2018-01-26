@@ -54,6 +54,7 @@ class GraspPlanner {
   // PR2 gripper marker, with wrist_roll_link at the origin and identity
   // orientation.
   visualization_msgs::MarkerArray kGripperMarkers;
+  const bool kDebug_;
 };
 }  // namespace pbi
 
