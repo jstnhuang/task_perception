@@ -10,6 +10,7 @@
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "task_perception_msgs/DemoState.h"
+#include "transform_graph/graph.h"
 #include "visualization_msgs/Marker.h"
 
 #include "task_perception/pcl_typedefs.h"
@@ -20,6 +21,7 @@
 using std::vector;
 using std::string;
 namespace msgs = task_perception_msgs;
+namespace tg = transform_graph;
 
 namespace pbi {
 ContactDetection::ContactDetection()
@@ -121,6 +123,15 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
 
       grasp_planner_.Plan(left_or_right, object.name, context,
                           &hand_state->contact_pose);
+
+      tg::Graph graph;
+      graph.Add("object", tg::RefFrame("camera"), object.pose);
+      graph.Add("grasp", tg::RefFrame("camera"), hand_state->contact_pose);
+      tg::Transform grasp_in_obj;
+      graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
+                               &grasp_in_obj);
+      grasp_in_obj.ToPose(&hand_state->contact_pose);
+      break;
     }
   }
   if (hand_state->current_action == "") {
@@ -139,7 +150,8 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
              prev_state.object_name.c_str(), left_or_right.c_str());
     hand_state->current_action = msgs::HandState::NONE;
     hand_state->object_name = "";
-    // TODO: clear contact transform
+    const geometry_msgs::Pose kBlank;
+    hand_state->contact_pose = kBlank;
     return;
   }
 
@@ -161,14 +173,15 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
              context->kTouchingReleasedObjectPoints);
     hand_state->current_action = msgs::HandState::NONE;
     hand_state->object_name = "";
-    // TODO: clear contact transform
+    const geometry_msgs::Pose kBlank;
+    hand_state->contact_pose = kBlank;
     return;
   }
 
   // Otherwise, keep as GRASPING
   hand_state->current_action = msgs::HandState::GRASPING;
   hand_state->object_name = prev_state.object_name;
-  // TODO: fill in contact transform
+  hand_state->contact_pose = prev_state.contact_pose;
   return;
 }
 
