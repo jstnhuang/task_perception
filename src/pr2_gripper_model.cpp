@@ -29,6 +29,12 @@ geometry_msgs::Point RFingerPos() {
   return pos;
 }
 
+geometry_msgs::Point GraspRegionPos() {
+  geometry_msgs::Point pos;
+  pos.x = 0.1685;
+  return pos;
+}
+
 geometry_msgs::Vector3 PalmDims() {
   geometry_msgs::Vector3 vec;
   vec.x = 0.096;
@@ -44,12 +50,23 @@ geometry_msgs::Vector3 FingerDims() {
   vec.z = 0.03;
   return vec;
 }
+
+geometry_msgs::Vector3 GraspRegionDims() {
+  geometry_msgs::Vector3 vec;
+  vec.x = 0.085;
+  vec.y = 0.085;
+  vec.z = 0.03;
+  return vec;
+}
 }
 const geometry_msgs::Point Pr2GripperModel::kPalmPos = PalmPos();
 const geometry_msgs::Point Pr2GripperModel::kLFingerPos = LFingerPos();
 const geometry_msgs::Point Pr2GripperModel::kRFingerPos = RFingerPos();
+const geometry_msgs::Point Pr2GripperModel::kGraspRegionPos = GraspRegionPos();
 const geometry_msgs::Vector3 Pr2GripperModel::kPalmDims = PalmDims();
 const geometry_msgs::Vector3 Pr2GripperModel::kFingerDims = FingerDims();
+const geometry_msgs::Vector3 Pr2GripperModel::kGraspRegionDims =
+    GraspRegionDims();
 
 Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
   pose_.orientation.w = 1;
@@ -61,7 +78,7 @@ Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
                 tg::Transform(kRFingerPos, tg::Orientation()));
 
   Eigen::Vector3d center;  // In gripper frame.
-  center << kLFingerPos.x, 0, 0;
+  center << kGraspRegionPos.x, kGraspRegionPos.y, kGraspRegionPos.z;
   tf_graph_.Add("grasp center", tg::RefFrame("gripper"),
                 tg::Transform(center, tg::Orientation()));
 }
@@ -126,9 +143,27 @@ void Pr2GripperModel::ToMarkerArray(
                                &r_finger_transform);
   r_finger_transform.ToPose(&r_finger.pose);
 
+  visualization_msgs::Marker grasp_region;
+  grasp_region.header.frame_id = frame_id;
+  grasp_region.ns = "gripper_model";
+  grasp_region.id = 3;
+  grasp_region.type = visualization_msgs::Marker::CUBE;
+  grasp_region.scale = kGraspRegionDims;
+  grasp_region.color.r = 0.5;
+  grasp_region.color.g = 1;
+  grasp_region.color.b = 0.5;
+  grasp_region.color.a = 0.2;
+
+  tg::Transform grasp_region_transform;
+  tf_graph_.ComputeDescription(tg::LocalFrame("grasp center"),
+                               tg::RefFrame("gripper base"),
+                               &grasp_region_transform);
+  grasp_region_transform.ToPose(&grasp_region.pose);
+
   marker_arr->markers.push_back(palm);
   marker_arr->markers.push_back(l_finger);
   marker_arr->markers.push_back(r_finger);
+  marker_arr->markers.push_back(grasp_region);
 }
 
 Eigen::Vector3d Pr2GripperModel::grasp_center() const {
@@ -139,4 +174,47 @@ Eigen::Vector3d Pr2GripperModel::grasp_center() const {
 }
 
 const tg::Graph& Pr2GripperModel::tf_graph() const { return tf_graph_; }
+
+bool Pr2GripperModel::IsGripperFramePtInGraspRegion(double x, double y,
+                                                    double z) {
+  return false;
+}
+
+bool Pr2GripperModel::IsGripperFramePtInCollision(double x, double y,
+                                                  double z) {
+  double max_palm_x = kPalmPos.x + kPalmDims.x / 2;
+  double min_palm_x = kPalmPos.x - kPalmDims.x / 2;
+  double max_palm_y = kPalmPos.y + kPalmDims.y / 2;
+  double min_palm_y = kPalmPos.y - kPalmDims.y / 2;
+  double max_palm_z = kPalmPos.z + kPalmDims.z / 2;
+  double min_palm_z = kPalmPos.z - kPalmDims.z / 2;
+  if (x < max_palm_x && x > min_palm_x && y < max_palm_y && y > min_palm_y &&
+      z < max_palm_z && z > min_palm_z) {
+    return true;
+  }
+
+  double max_l_finger_x = kLFingerPos.x + kFingerDims.x / 2;
+  double min_l_finger_x = kLFingerPos.x - kFingerDims.x / 2;
+  double max_l_finger_y = kLFingerPos.y + kFingerDims.y / 2;
+  double min_l_finger_y = kLFingerPos.y - kFingerDims.y / 2;
+  double max_l_finger_z = kLFingerPos.z + kFingerDims.z / 2;
+  double min_l_finger_z = kLFingerPos.z - kFingerDims.z / 2;
+  if (x < max_l_finger_x && x > min_l_finger_x && y < max_l_finger_y &&
+      y > min_l_finger_y && z < max_l_finger_z && z > min_l_finger_z) {
+    return true;
+  }
+
+  double max_r_finger_x = kRFingerPos.x + kFingerDims.x / 2;
+  double min_r_finger_x = kRFingerPos.x - kFingerDims.x / 2;
+  double max_r_finger_y = kRFingerPos.y + kFingerDims.y / 2;
+  double min_r_finger_y = kRFingerPos.y - kFingerDims.y / 2;
+  double max_r_finger_z = kRFingerPos.z + kFingerDims.z / 2;
+  double min_r_finger_z = kRFingerPos.z - kFingerDims.z / 2;
+  if (x < max_r_finger_x && x > min_r_finger_x && y < max_r_finger_y &&
+      y > min_r_finger_y && z < max_r_finger_z && z > min_r_finger_z) {
+    return true;
+  }
+
+  return false;
+}
 }  // namespace pbi

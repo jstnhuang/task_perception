@@ -38,6 +38,14 @@ class GraspPlanner {
                           const geometry_msgs::Pose& wrist_pose,
                           TaskPerceptionContext* context,
                           geometry_msgs::Pose* next_pose);
+  void OptimizeRoll(const Pr2GripperModel& gripper_model,
+                    const std::string& object_name,
+                    TaskPerceptionContext* context,
+                    geometry_msgs::Pose* next_pose);
+  void OptimizePlacement(const Pr2GripperModel& gripper_model,
+                         const std::string& object_name,
+                         TaskPerceptionContext* context,
+                         geometry_msgs::Pose* next_pose);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;

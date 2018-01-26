@@ -1,5 +1,7 @@
 #include "task_perception/grasp_planner.h"
 
+#include <limits.h>
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -7,6 +9,7 @@
 
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
+#include "pcl/common/transforms.h"
 #include "pcl/kdtree/kdtree.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
@@ -46,11 +49,6 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   ComputeInitialGrasp(gripper_model, object_name, context, &initial_pose);
   gripper_model.set_pose(initial_pose);
 
-  // Visualize initial grasp.
-  gripper_model.set_pose(initial_pose);
-  const std::string& frame_id(context->camera_info().header.frame_id);
-  VisualizeGripper("initial", initial_pose, frame_id);
-
   // While termination criteria not reached:
   // - Point towards wrist
   // - Optimize roll
@@ -58,10 +56,14 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   // Check for collisions
   Pose next_pose;
   OrientTowardsWrist(gripper_model, wrist_pose, context, &next_pose);
-
-  // Visualize next grasp.
   gripper_model.set_pose(next_pose);
-  VisualizeGripper("wrist_oriented", next_pose, frame_id);
+
+  OptimizeRoll(gripper_model, object_name, context, &next_pose);
+  gripper_model.set_pose(next_pose);
+
+  OptimizePlacement(gripper_model, object_name, context, &next_pose);
+  std::string frame_id(context->camera_info().header.frame_id);
+  VisualizeGripper("placed", next_pose, frame_id);
 }
 
 void GraspPlanner::InitGripperMarkers() {
@@ -203,5 +205,65 @@ void GraspPlanner::OrientTowardsWrist(const Pr2GripperModel& gripper_model,
                         tg::Source("rotated grasp center"),
                         tg::Target("gripper base"), &out);
   out.ToPose(next_pose);
+}
+
+void GraspPlanner::OptimizeRoll(const Pr2GripperModel& gripper_model,
+                                const std::string& object_name,
+                                TaskPerceptionContext* context,
+                                geometry_msgs::Pose* next_pose) {
+  // Optimize roll orientations from 0 to 180 degrees.
+  const int kNumRotations = 20;
+  const double kCollisionWeight = -1;
+
+  geometry_msgs::Pose best_pose;
+  double best_score = -std::numeric_limits<double>::max();
+  std::vector<Pose> best_poses;
+  for (int i = 0; i < kNumRotations; ++i) {
+    double roll_angle = i * M_PI / kNumRotations - M_PI / 2;
+    // Get the pose of the gripper and then roll it
+    Eigen::Affine3d rotated_affine;
+    tf::poseMsgToEigen(gripper_model.pose(), rotated_affine);
+    Eigen::AngleAxisd roll(roll_angle, Eigen::Vector3d::UnitX());
+    rotated_affine.rotate(roll);
+    Pose rotated_pose;
+    tf::poseEigenToMsg(rotated_affine, rotated_pose);
+
+    Pr2GripperModel rotated_gripper;
+
+    // Transform object points into rotated gripper frame.
+    PointCloudP::Ptr object_cloud = context->GetObjectCloud(object_name);
+    PointCloudP::Ptr transformed_cloud(new PointCloudP);
+    pcl::transformPointCloud(*object_cloud, *transformed_cloud,
+                             rotated_affine.inverse());
+
+    // Number of points in collision
+    int num_collisions = 0;
+    for (size_t i = 0; i < transformed_cloud->size(); ++i) {
+      PointP pt = transformed_cloud->at(i);
+      if (Pr2GripperModel::IsGripperFramePtInCollision(pt.x, pt.y, pt.z)) {
+        ++num_collisions;
+      }
+    }
+
+    double score = kCollisionWeight * num_collisions;
+    if (score > best_score) {
+      best_score = score;
+      best_poses.clear();
+      best_poses.push_back(rotated_pose);
+    } else if (score == best_score) {
+      best_poses.push_back(rotated_pose);
+    }
+  }
+
+  // Best pose is the median of best_poses
+  int best_index = best_poses.size() / 2;
+  *next_pose = best_poses[best_index];
+}
+
+void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
+                                     const std::string& object_name,
+                                     TaskPerceptionContext* context,
+                                     geometry_msgs::Pose* next_pose) {
+  //
 }
 }  // namespace pbi

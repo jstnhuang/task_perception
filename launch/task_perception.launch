@@ -43,6 +43,5 @@
 
   <!-- Annotator -->
   <rosparam command="load" file="$(find task_perception)/config/contact_detection.yaml" />
-  <node if="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" launch-prefix="xterm -e gdb --args" />
-  <node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" />
+  <!--node unless="$(arg debug)" pkg="task_perception" type="annotator" name="pbi_annotator" required="true" /-->
 </launch>
