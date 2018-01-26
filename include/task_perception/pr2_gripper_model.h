@@ -41,11 +41,6 @@ class Pr2GripperModel {
   static bool IsGripperFramePtInGraspRegion(double x, double y, double z);
   static bool IsGripperFramePtInCollision(double x, double y, double z);
 
- private:
-  geometry_msgs::Pose pose_;
-
-  transform_graph::Graph tf_graph_;
-
   const static geometry_msgs::Point kPalmPos;
   const static geometry_msgs::Point kLFingerPos;
   const static geometry_msgs::Point kRFingerPos;
@@ -53,6 +48,11 @@ class Pr2GripperModel {
   const static geometry_msgs::Vector3 kPalmDims;
   const static geometry_msgs::Vector3 kFingerDims;
   const static geometry_msgs::Vector3 kGraspRegionDims;
+
+ private:
+  geometry_msgs::Pose pose_;
+
+  transform_graph::Graph tf_graph_;
 };
 }  // namespace pbi
 
