@@ -8,7 +8,7 @@ Panels:
         - /Status1
         - /DepthCloud1/Auto Size1
         - /Hand segmentation overlay1/Auto Size1
-        - /Grippers1/Namespaces1
+        - /Grasp optimization1/Namespaces1
       Splitter Ratio: 0.5
     Tree Height: 514
   - Class: rviz/Selection
@@ -273,10 +273,17 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /grasp_planner/grippers
-      Name: Grippers
+      Name: Grasp optimization
       Namespaces:
-        optimization: true
-        optimization_model: true
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /pbi_annotator/grippers
+      Name: Hand markers
+      Namespaces:
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -303,7 +310,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.44369
+      Distance: 2.54428
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -315,10 +322,10 @@ Visualization Manager:
         Z: 0.918393
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.554798
+      Pitch: 0.664798
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.12501
+      Yaw: 3.04001
     Saved: ~
 Window Geometry:
   Displays:
