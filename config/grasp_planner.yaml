@@ -1,0 +1,2 @@
+grasp_planner:
+  placement_collision_weight: 2.0
