@@ -172,6 +172,11 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   }
   int num_touching_points = NumHandPointsOnObject(
       object, left_or_right, context, context->kTouchingReleasedObjectDistance);
+  if (num_touching_points > 0 && context->kDebug) {
+    ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
+             num_touching_points);
+  }
+
   if (num_touching_points <= context->kTouchingReleasedObjectPoints) {
     ROS_INFO("Changed %s hand state to NONE (%d out of %d points)",
              left_or_right.c_str(), num_touching_points,
