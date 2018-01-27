@@ -52,7 +52,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   if (kDebug_) {
     VisualizeGripper("optimization", initial_pose,
                      context->camera_info().header.frame_id);
-    ros::Duration(0.5).sleep();
+    ros::Duration(0.3).sleep();
   }
 
   const double kTranslationThreshold = 0.001;
@@ -71,7 +71,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     if (kDebug_) {
       VisualizeGripper("optimization", next_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.5).sleep();
+      ros::Duration(0.3).sleep();
     }
 
     OptimizeRoll(gripper_model, object_name, context, &next_pose);
@@ -79,7 +79,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     if (kDebug_) {
       VisualizeGripper("optimization", next_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.5).sleep();
+      ros::Duration(0.3).sleep();
     }
 
     OptimizePlacement(gripper_model, object_name, context, &next_pose);
@@ -265,8 +265,8 @@ void GraspPlanner::OptimizeRoll(const Pr2GripperModel& gripper_model,
   geometry_msgs::Pose best_pose;
   double best_score = -std::numeric_limits<double>::max();
   std::vector<Pose> best_poses;
-  for (int i = 0; i < kNumRotations; ++i) {
-    double roll_angle = i * M_PI / kNumRotations - M_PI / 2;
+  for (int iter = 0; iter < kNumRotations; ++iter) {
+    double roll_angle = iter * M_PI / kNumRotations - M_PI / 2;
     // Get the pose of the gripper and then roll it
     Eigen::Affine3d rotated_affine;
     tf::poseMsgToEigen(gripper_model.pose(), rotated_affine);
@@ -298,16 +298,16 @@ void GraspPlanner::OptimizeRoll(const Pr2GripperModel& gripper_model,
       best_poses.clear();
       best_poses.push_back(rotated_pose);
       if (kDebug_) {
-        VisualizeGripper("optimization", rotated_pose,
-                         context->camera_info().header.frame_id);
-        ros::Duration(0.1).sleep();
+        // VisualizeGripper("optimization", rotated_pose,
+        //                 context->camera_info().header.frame_id);
+        // ros::Duration(0.05).sleep();
       }
     } else if (score == best_score) {
       best_poses.push_back(rotated_pose);
       if (kDebug_) {
-        VisualizeGripper("optimization", rotated_pose,
-                         context->camera_info().header.frame_id);
-        ros::Duration(0.1).sleep();
+        // VisualizeGripper("optimization", rotated_pose,
+        //                 context->camera_info().header.frame_id);
+        // ros::Duration(0.05).sleep();
       }
     }
   }
@@ -329,13 +329,16 @@ void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
   gripper_center << Pr2GripperModel::kGraspRegionPos.x,
       Pr2GripperModel::kGraspRegionPos.y, Pr2GripperModel::kGraspRegionPos.z;
 
-  Eigen::Vector3d total = Eigen::Vector3d::Zero();
-  int best_num_collisions = std::numeric_limits<int>::max();
-  for (int i = 0; i < 10; ++i) {
+  double kPlacementCollisionWeight;
+  ros::param::param("grasp_planner/placement_collision_weight",
+                    kPlacementCollisionWeight, 2.0);
+  for (int iter = 0; iter < 10; ++iter) {
     PointCloudP::Ptr object_cloud = context->GetObjectCloud(object_name);
     PointCloudP::Ptr transformed_cloud(new PointCloudP);
     pcl::transformPointCloud(*object_cloud, *transformed_cloud,
                              affine_pose.inverse());
+
+    Eigen::Vector3d total = Eigen::Vector3d::Zero();
 
     // Number of points in collision
     int num_collisions = 0;
@@ -343,14 +346,11 @@ void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
       PointP pt = transformed_cloud->at(i);
       if (Pr2GripperModel::IsGripperFramePtInCollision(pt.x, pt.y, pt.z)) {
         ++num_collisions;
+        Eigen::Vector3d pt_vec;
+        pt_vec << pt.x, pt.y, pt.z;
+        Eigen::Vector3d center_to_pt = pt_vec - gripper_center;
+        total += kPlacementCollisionWeight * center_to_pt;
       }
-    }
-    if (num_collisions < best_num_collisions) {
-      best_num_collisions = num_collisions;
-      tf::poseEigenToMsg(affine_pose, *next_pose);
-    } else if (num_collisions > best_num_collisions) {
-      // No point in trying something that will increase collisions
-      return;
     }
 
     int num_pts_in_grasp = 0;
@@ -379,7 +379,7 @@ void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
     if (kDebug_) {
       VisualizeGripper("optimization", current_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.2).sleep();
+      ros::Duration(0.05).sleep();
     }
   }
 }

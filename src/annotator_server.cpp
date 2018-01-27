@@ -139,11 +139,11 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
 
   RunCurrentStep();
   // While debugging, we may choose to skip ahead to a particular frame number
-  // if (state_.bag_path == "/home/jstn/processed_demonstration.bag") {
-  //  while (state_.current_frame < 40) {
-  //    RunCurrentStep();
-  //  }
-  //}
+  if (state_.bag_path == "/home/jstn/processed_demonstration.bag") {
+    while (state_.current_frame < 40) {
+      RunCurrentStep();
+    }
+  }
 }
 
 void AnnotatorServer::HandleStep() {

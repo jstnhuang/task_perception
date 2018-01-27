@@ -121,12 +121,13 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
       hand_state->object_name = object.name;
       num_touched_points = num_touching_points;
 
+      geometry_msgs::Pose grasp_in_camera;
       grasp_planner_.Plan(left_or_right, object.name, context,
-                          &hand_state->contact_pose);
+                          &grasp_in_camera);
 
       tg::Graph graph;
       graph.Add("object", tg::RefFrame("camera"), object.pose);
-      graph.Add("grasp", tg::RefFrame("camera"), hand_state->contact_pose);
+      graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
       tg::Transform grasp_in_obj;
       graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
                                &grasp_in_obj);
@@ -181,7 +182,20 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   // Otherwise, keep as GRASPING
   hand_state->current_action = msgs::HandState::GRASPING;
   hand_state->object_name = prev_state.object_name;
-  hand_state->contact_pose = prev_state.contact_pose;
+
+  // Re-evaluate the pose
+  geometry_msgs::Pose grasp_in_camera;
+  grasp_planner_.Plan(left_or_right, object.name, context, &grasp_in_camera);
+
+  tg::Graph graph;
+  graph.Add("object", tg::RefFrame("camera"), object.pose);
+  graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
+  tg::Transform grasp_in_obj;
+  graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
+                           &grasp_in_obj);
+  grasp_in_obj.ToPose(&hand_state->contact_pose);
+
+  // hand_state->contact_pose = prev_state.contact_pose;
   return;
 }
 
