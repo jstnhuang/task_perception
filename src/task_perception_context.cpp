@@ -62,6 +62,7 @@ TaskPerceptionContext::TaskPerceptionContext(
       prev_objects_(),
       object_models_(object_models),
       object_clouds_(),
+      object_clouds_with_normals_(),
       object_trees_(),
       both_hands_cloud_(),
       left_hand_indices_(),
@@ -139,20 +140,22 @@ PointCloudP::Ptr TaskPerceptionContext::GetObjectCloud(const string& name) {
   return object_clouds_[name];
 }
 
-PointCloudN::Ptr TaskPerceptionContext::GetObjectNormals(const string& name) {
-  if (object_normals_.find(name) == object_normals_.end()) {
-    IndexObjects();
+PointCloudN::Ptr TaskPerceptionContext::GetObjectCloudWithNormals(
+    const string& name) {
+  if (object_clouds_with_normals_.find(name) ==
+      object_clouds_with_normals_.end()) {
     PointCloudP::Ptr object_cloud = GetObjectCloud(name);
     KdTreeP::Ptr tree = GetObjectTree(name);
-    pcl::NormalEstimationOMP<PointP, pcl::Normal> ne;
+    pcl::NormalEstimationOMP<PointP, PointN> ne;
     ne.setInputCloud(object_cloud);
     ne.setSearchMethod(tree);
-    ne.setRadiusSearch(0.01);
+    // Assumes that PCD models have a voxel size of 0.01
+    ne.setRadiusSearch(0.011);
     PointCloudN::Ptr normals(new PointCloudN);
     ne.compute(*normals);
-    object_normals_[name] = normals;
+    object_clouds_with_normals_[name] = normals;
   }
-  return object_normals_[name];
+  return object_clouds_with_normals_[name];
 }
 
 KdTreeP::Ptr TaskPerceptionContext::GetObjectTree(const string& name) {

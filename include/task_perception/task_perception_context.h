@@ -36,7 +36,8 @@ class TaskPerceptionContext {
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetObjectModel(
       const std::string& mesh_name);
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetObjectCloud(const std::string& name);
-  pcl::PointCloud<pcl::Normal>::Ptr GetObjectNormals(const std::string& name);
+  pcl::PointCloud<pcl::PointNormal>::Ptr GetObjectCloudWithNormals(
+      const std::string& name);
   pcl::search::KdTree<pcl::PointXYZ>::Ptr GetObjectTree(
       const std::string& name);
   bool GetCurrentObject(const std::string& name,
@@ -92,7 +93,8 @@ class TaskPerceptionContext {
   std::map<std::string, task_perception_msgs::ObjectState> prev_objects_;
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>* object_models_;
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_clouds_;
-  std::map<std::string, pcl::PointCloud<pcl::Normal>::Ptr> object_normals_;
+  std::map<std::string, pcl::PointCloud<pcl::PointNormal>::Ptr>
+      object_clouds_with_normals_;
   std::map<std::string, pcl::search::KdTree<pcl::PointXYZ>::Ptr> object_trees_;
 
   // Hand segmentation
