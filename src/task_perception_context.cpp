@@ -8,11 +8,11 @@
 #include "eigen_conversions/eigen_msg.h"
 #include "image_geometry/pinhole_camera_model.h"
 #include "pcl/common/transforms.h"
+#include "pcl/features/normal_3d_omp.h"
 #include "pcl/io/pcd_io.h"
-#include "pcl/kdtree/kdtree.h"
-#include "pcl/kdtree/kdtree_flann.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
+#include "pcl/search/kdtree.h"
 #include "ros/package.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -139,9 +139,25 @@ PointCloudP::Ptr TaskPerceptionContext::GetObjectCloud(const string& name) {
   return object_clouds_[name];
 }
 
+PointCloudN::Ptr TaskPerceptionContext::GetObjectNormals(const string& name) {
+  if (object_normals_.find(name) == object_normals_.end()) {
+    IndexObjects();
+    PointCloudP::Ptr object_cloud = GetObjectCloud(name);
+    KdTreeP::Ptr tree = GetObjectTree(name);
+    pcl::NormalEstimationOMP<PointP, pcl::Normal> ne;
+    ne.setInputCloud(object_cloud);
+    ne.setSearchMethod(tree);
+    ne.setRadiusSearch(0.01);
+    PointCloudN::Ptr normals(new PointCloudN);
+    ne.compute(*normals);
+    object_normals_[name] = normals;
+  }
+  return object_normals_[name];
+}
+
 KdTreeP::Ptr TaskPerceptionContext::GetObjectTree(const string& name) {
   if (object_trees_.find(name) == object_trees_.end()) {
-    KdTreeP::Ptr tree(new pcl::KdTreeFLANN<PointP>);
+    KdTreeP::Ptr tree(new pcl::search::KdTree<PointP>);
     tree->setInputCloud(GetObjectCloud(name));
     object_trees_[name] = tree;
   }
@@ -229,9 +245,9 @@ pcl::IndicesPtr TaskPerceptionContext::RightHandIndices() {
   return right_hand_indices_;
 }
 
-pcl::KdTree<pcl::PointXYZ>::Ptr TaskPerceptionContext::LeftHandTree() {
+KdTreeP::Ptr TaskPerceptionContext::LeftHandTree() {
   if (!left_hand_tree_) {
-    left_hand_tree_.reset(new pcl::KdTreeFLANN<PointP>);
+    left_hand_tree_.reset(new pcl::search::KdTree<PointP>);
     if (left_hand_indices_->size() > 0) {
       left_hand_tree_->setInputCloud(both_hands_cloud_, left_hand_indices_);
     }
@@ -239,9 +255,9 @@ pcl::KdTree<pcl::PointXYZ>::Ptr TaskPerceptionContext::LeftHandTree() {
   return left_hand_tree_;
 }
 
-pcl::KdTree<pcl::PointXYZ>::Ptr TaskPerceptionContext::RightHandTree() {
+KdTreeP::Ptr TaskPerceptionContext::RightHandTree() {
   if (!right_hand_tree_) {
-    right_hand_tree_.reset(new pcl::KdTreeFLANN<PointP>);
+    right_hand_tree_.reset(new pcl::search::KdTree<PointP>);
     if (right_hand_indices_->size() > 0) {
       right_hand_tree_->setInputCloud(both_hands_cloud_, right_hand_indices_);
     }

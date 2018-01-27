@@ -4,9 +4,9 @@
 #include <map>
 #include <string>
 
-#include "pcl/kdtree/kdtree.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
+#include "pcl/search/kdtree.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -36,7 +36,9 @@ class TaskPerceptionContext {
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetObjectModel(
       const std::string& mesh_name);
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetObjectCloud(const std::string& name);
-  pcl::KdTree<pcl::PointXYZ>::Ptr GetObjectTree(const std::string& name);
+  pcl::PointCloud<pcl::Normal>::Ptr GetObjectNormals(const std::string& name);
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr GetObjectTree(
+      const std::string& name);
   bool GetCurrentObject(const std::string& name,
                         task_perception_msgs::ObjectState* object);
   bool GetPreviousObject(const std::string& name,
@@ -46,8 +48,8 @@ class TaskPerceptionContext {
   pcl::PointCloud<pcl::PointXYZ>::Ptr BothHandsCloud();
   pcl::IndicesPtr LeftHandIndices();
   pcl::IndicesPtr RightHandIndices();
-  pcl::KdTree<pcl::PointXYZ>::Ptr LeftHandTree();
-  pcl::KdTree<pcl::PointXYZ>::Ptr RightHandTree();
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr LeftHandTree();
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr RightHandTree();
   const task_perception_msgs::DemoState& prev_state();
   const sensor_msgs::CameraInfo& camera_info();
 
@@ -90,14 +92,15 @@ class TaskPerceptionContext {
   std::map<std::string, task_perception_msgs::ObjectState> prev_objects_;
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>* object_models_;
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_clouds_;
-  std::map<std::string, pcl::KdTree<pcl::PointXYZ>::Ptr> object_trees_;
+  std::map<std::string, pcl::PointCloud<pcl::Normal>::Ptr> object_normals_;
+  std::map<std::string, pcl::search::KdTree<pcl::PointXYZ>::Ptr> object_trees_;
 
   // Hand segmentation
   pcl::PointCloud<pcl::PointXYZ>::Ptr both_hands_cloud_;
   pcl::IndicesPtr left_hand_indices_;
   pcl::IndicesPtr right_hand_indices_;
-  pcl::KdTree<pcl::PointXYZ>::Ptr left_hand_tree_;
-  pcl::KdTree<pcl::PointXYZ>::Ptr right_hand_tree_;
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr left_hand_tree_;
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr right_hand_tree_;
 };
 
 // Replace path/to/file.obj to path/to/file.pcd.
