@@ -7,6 +7,13 @@
 - dbot (modified)
 - dbot_ros (modified)
 
+## Demonstration procedure
+- [ ] Start up robot
+- [ ] Verify workspace and person are visible (up to neck, 30 degree head tilt works well)
+- [ ] Record data: `roslaunch task_perception record_data.launch`
+- [ ] Check amount of time to trim from beginning and end: `rosed task_perception process_bag.launch`
+- [ ] Process bag: `roslaunch task_perception process_bag.launch input:=/path/to/INPUT.bag output:=/path/to/OUTPUT.bag`
+
 ## Object models
 This package requires object models.
 For compatibility with `dbot_ros`, all object models must be in `.obj` format.
