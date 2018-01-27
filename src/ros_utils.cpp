@@ -13,6 +13,14 @@ bool GetParam(const std::string& name, float* val) {
   return success;
 }
 
+bool GetParam(const std::string& name, double* val) {
+  bool success = ros::param::get(name, *val);
+  if (!success) {
+    LogGetParamFail(name);
+  }
+  return success;
+}
+
 bool GetParam(const std::string& name, bool* val) {
   bool success = ros::param::get(name, *val);
   if (!success) {
