@@ -89,7 +89,8 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
   }
 
   vector<msgs::ObjectState> current_objects = context->GetCurrentObjects();
-  int num_touched_points = 0;
+  // TODO: figure out which object is being touched, then do grasp planning
+  // outside the loop
   for (size_t i = 0; i < current_objects.size(); ++i) {
     const msgs::ObjectState& object = current_objects[i];
     PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
@@ -114,16 +115,10 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
     is_touching = num_touching_points >= context->kTouchingObjectPoints;
 
     if (is_moving || is_touching) {
-      if (num_touching_points <= num_touched_points) {
-        continue;
-      }
-      num_touched_points = num_touching_points;
-
       ROS_INFO("Changed %s hand state to GRASPING %s", left_or_right.c_str(),
                object.name.c_str());
       hand_state->current_action = msgs::HandState::GRASPING;
       hand_state->object_name = object.name;
-      num_touched_points = num_touching_points;
 
       geometry_msgs::Pose grasp_in_camera;
       grasp_planner_.Plan(left_or_right, object.name, context,
