@@ -107,6 +107,10 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
     }
     int num_touching_points = NumHandPointsOnObject(
         object, left_or_right, context, context->kTouchingObjectDistance);
+    if (num_touching_points > 0 && context->kDebug) {
+      ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
+               num_touching_points);
+    }
     is_touching = num_touching_points >= context->kTouchingObjectPoints;
 
     if (is_moving || is_touching) {
