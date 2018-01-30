@@ -188,19 +188,24 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   hand_state->object_name = prev_state.object_name;
 
   // Re-evaluate the pose
-  geometry_msgs::Pose grasp_in_camera;
-  grasp_planner_.Plan(left_or_right, object.name, context, &grasp_in_camera);
-
   tg::Graph graph;
   graph.Add("object", tg::RefFrame("camera"), object.pose);
+  graph.Add("prev grasp", tg::RefFrame("object"), prev_state.contact_pose);
+  tg::Transform prev_in_camera;
+  graph.ComputeDescription(tg::LocalFrame("prev grasp"), tg::RefFrame("camera"),
+                           &prev_in_camera);
+  geometry_msgs::Pose prev_grasp_in_camera;
+  prev_in_camera.ToPose(&prev_grasp_in_camera);
+
+  geometry_msgs::Pose grasp_in_camera;
+  grasp_planner_.Plan(left_or_right, object.name, prev_grasp_in_camera, context,
+                      &grasp_in_camera);
+
   graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
   tg::Transform grasp_in_obj;
   graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
                            &grasp_in_obj);
   grasp_in_obj.ToPose(&hand_state->contact_pose);
-
-  // hand_state->contact_pose = prev_state.contact_pose;
-  return;
 }
 
 bool ContactDetection::IsObjectCurrentlyCloseToWrist(

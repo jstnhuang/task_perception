@@ -33,7 +33,7 @@ GraspPlanner::GraspPlanner()
       cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>(
           "grasp_planner/debug_cloud", 1, true)),
       kGripperMarkers(),
-      kDebug_(true) {
+      kDebug_(false) {
   InitGripperMarkers();
 }
 
