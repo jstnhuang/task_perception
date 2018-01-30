@@ -8,7 +8,7 @@ particle_filter:
 
   gpu:
     # the number of particles if using gpu
-    sample_count: 2000
+    sample_count: 5000
 
     # set true to use custom shader definitions file defined below
     # if set to false, the default shader will be used
