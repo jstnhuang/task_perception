@@ -479,7 +479,7 @@ void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
       }
     }
 
-    total /= num_pts_in_grasp;
+    total /= (num_pts_in_grasp + num_collisions);
 
     if (total.norm() < 0.001) {
       tf::poseEigenToMsg(affine_pose, *next_pose);
