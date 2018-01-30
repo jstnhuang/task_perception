@@ -27,12 +27,19 @@ namespace tg = transform_graph;
 using geometry_msgs::Pose;
 
 namespace pbi {
+ScoreData::ScoreData()
+    : antipodal_grasp_pts(0),
+      non_antipodal_grasp_pts(0),
+      antipodal_collisions(0),
+      non_antipodal_collisions(0),
+      sq_wrist_distance(0) {}
+
 GraspPlanner::GraspPlanner()
     : nh_(),
       gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "grasp_planner/grippers", 1, true)),
       kGripperMarkers(),
-      kDebug_(false) {
+      kDebug_(true) {
   InitGripperMarkers();
 }
 
@@ -57,16 +64,16 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     ros::Duration(0.25).sleep();
   }
 
-  Pose next_pose;
-  OrientTowardsWrist(gripper_model, wrist_pose, context, &next_pose);
-  gripper_model.set_pose(next_pose);
+  Pose to_wrist_pose;
+  OrientTowardsWrist(gripper_model, wrist_pose, context, &to_wrist_pose);
+  gripper_model.set_pose(to_wrist_pose);
   if (kDebug_) {
-    VisualizeGripper("optimization", next_pose,
+    VisualizeGripper("optimization", to_wrist_pose,
                      context->camera_info().header.frame_id);
     ros::Duration(0.25).sleep();
   }
 
-  Plan(left_or_right, object_name, initial_pose, context, pose);
+  Plan(left_or_right, object_name, to_wrist_pose, context, pose);
 }
 
 void GraspPlanner::Plan(const std::string& left_or_right,
@@ -83,8 +90,8 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     wrist_pose = context->GetRightWristPose();
   }
 
-  const double kTranslationThreshold = 0.001;
-  const double kRotationThreshold = 0.01;
+  const double kTranslationThreshold = 0.005;
+  const double kRotationThreshold = 0.1;
 
   // While termination criteria not reached:
   // - Point towards wrist
@@ -94,7 +101,14 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   Pose prev_pose = initial_pose;
   Pose next_pose;
   for (int i = 0; i < 5; ++i) {
-    ROS_INFO("Iteration %d", i + 1);
+    Pose placed;
+    OptimizePlacement(prev_pose, object_name, context, 10, &placed);
+    gripper_model.set_pose(placed);
+    if (kDebug_) {
+      VisualizeGripper("optimization", next_pose,
+                       context->camera_info().header.frame_id);
+      ros::Duration(0.25).sleep();
+    }
 
     Pose rotated_pose;
     OptimizeOrientation(gripper_model, object_name, wrist_pose, context,
@@ -106,13 +120,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
       ros::Duration(0.25).sleep();
     }
 
-    OptimizePlacement(rotated_pose, object_name, context, 10, &next_pose);
-    gripper_model.set_pose(next_pose);
-    if (kDebug_) {
-      VisualizeGripper("optimization", next_pose,
-                       context->camera_info().header.frame_id);
-      ros::Duration(0.25).sleep();
-    }
+    next_pose = rotated_pose;
 
     Eigen::Affine3d prev_affine;
     tf::poseMsgToEigen(prev_pose, prev_affine);
@@ -288,9 +296,6 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                                        const Pose& wrist_pose,
                                        TaskPerceptionContext* context,
                                        Pose* next_pose) {
-  // Parameters
-  const int kNumSamplesPerDim = 10;
-
   // Sample roll and yaw angles (about the center of the grasp)
   // Get transform describing the gripper in the grasp center and cache it.
   tg::Graph tf_graph = gripper_model.tf_graph();
@@ -301,10 +306,17 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
 
   // Cache the transform from the camera to the grasp center, which will
   // eliminate a matrix multiplication in the inner loop.
-  tg::Transform gripper_in_camera;
+  // tg::Transform gripper_in_camera;
+  // tf_graph.ComputeDescription(tg::LocalFrame("grasp center"),
+  //                            tg::RefFrame("gripper base"),
+  //                            &gripper_in_camera);
+  // tf_graph.Add("grasp center", tg::RefFrame("gripper base"),
+  // gripper_in_camera);
+
+  tg::Transform grasp_center_in_camera;
   tf_graph.ComputeDescription(tg::LocalFrame("grasp center"),
-                              tg::RefFrame("gripper base"), &gripper_in_camera);
-  tf_graph.Add("grasp center", tg::RefFrame("gripper base"), gripper_in_camera);
+                              tg::RefFrame("gripper base"),
+                              &grasp_center_in_camera);
 
   Eigen::Affine3d grasp_pose;
   tf::poseMsgToEigen(gripper_model.pose(), grasp_pose);
@@ -316,21 +328,21 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
   Pose best_pose;
   double best_score = -std::numeric_limits<double>::max();
 
-  const double kRangeDegs = 120;
-  const double kRangeRads = M_PI * kRangeDegs / 180;
-  for (int yaw_i = 0; yaw_i < kNumSamplesPerDim; ++yaw_i) {
-    double yaw_angle = yaw_i * kRangeRads / kNumSamplesPerDim - kRangeRads / 2;
+  const double kYawRange = 120 * M_PI / 180;
+  const double kYawResolution = 12 * M_PI / 180;
+  int num_yaw_samples = round(kYawRange / kYawResolution) + 1;
+  for (int yaw_i = 0; yaw_i < num_yaw_samples; ++yaw_i) {
+    double yaw_angle = yaw_i * kYawResolution - kYawRange / 2;
     Eigen::AngleAxisd yaw_rot(yaw_angle, Eigen::Vector3d::UnitZ());
-    for (int roll_i = 0; roll_i < kNumSamplesPerDim; ++roll_i) {
-      double roll_angle = roll_i * (M_PI / 2) / kNumSamplesPerDim - (M_PI / 4);
+
+    const double kRollRange = 90 * M_PI / 180;
+    const double kRollResolution = 10 * M_PI / 180;
+    int num_roll_samples = round(kRollRange / kRollResolution) + 1;
+    for (int roll_i = 0; roll_i < num_roll_samples; ++roll_i) {
+      double roll_angle = roll_i * kRollResolution - kRollRange / 2;
       // Compute rotation about the grasp center.
       Eigen::AngleAxisd roll_rot(roll_angle, Eigen::Vector3d::UnitX());
-      Eigen::Quaterniond rotation = roll_rot * yaw_rot;
-
-      tg::Transform grasp_center_in_camera;
-      tf_graph.ComputeDescription(tg::LocalFrame("grasp center"),
-                                  tg::RefFrame("gripper base"),
-                                  &grasp_center_in_camera);
+      Eigen::Quaterniond rotation = yaw_rot * roll_rot;
 
       tf_graph.Add("rotated grasp center", tg::RefFrame("grasp center"),
                    tg::Transform(tg::Position(), rotation));
@@ -343,25 +355,26 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       rotated_tf.ToPose(&rotated_pose);
       Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
-      double score = ScoreGrasp(rotated_mat, object_name, wrist_pos, context);
+      ScoreData score_data;
+      double score =
+          ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &score_data);
 
       if (score > best_score) {
         best_score = score;
         best_pose = rotated_pose;
         if (kDebug_) {
-          // int num_pts_in_grasp =
-          //    num_antipodal_grasps + num_non_antipodal_grasps;
-          // int num_antipodal_pts =
-          //    num_antipodal_grasps + num_antipodal_collisions;
-          // int num_collisions =
-          //    num_antipodal_collisions + num_non_antipodal_collisions;
           /*ROS_INFO(
-              "Best pose so far: y: %f, r: %f (%d pts in grasp, %d antipodal, "
-              "%d collisions, dist: %f), score: %f",
-              yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, num_pts_in_grasp,
-              num_antipodal_pts, num_collisions, sqrt(sq_wrist_distance),
-              score);*/
-
+              "Best so far: y: %f, r: %f, score: %f = 5*%d + 1*%d + 0*%d "
+              "- 1*%d - 1000*%f = %d + %d + %d - %d - %f",
+              yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, score,
+              score_data.antipodal_grasp_pts,
+              score_data.non_antipodal_grasp_pts,
+              score_data.antipodal_collisions,
+              score_data.non_antipodal_collisions, score_data.sq_wrist_distance,
+              5 * score_data.antipodal_grasp_pts,
+              score_data.non_antipodal_grasp_pts, 0,
+              score_data.non_antipodal_collisions,
+              1000 * score_data.sq_wrist_distance);*/
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
           ros::Duration(0.01).sleep();
@@ -371,7 +384,7 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
         if (kDebug_) {
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
-          // ros::Duration(0.01).sleep();
+          ros::Duration(0.01).sleep();
         }
       }
     }
@@ -382,7 +395,8 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
 double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
                                 const std::string& object_name,
                                 const Eigen::Vector3d& wrist_pos,
-                                TaskPerceptionContext* context) {
+                                TaskPerceptionContext* context,
+                                ScoreData* data) {
   const double kAntipodalDegrees = 15;
   const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
 
@@ -396,10 +410,10 @@ double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
   // For all points in the grasp region, measure antipodality (i.e., how
   // collinear the normal is with the finger normals). Instead of
   // averaging, we count the number of normals that are antipodal "enough."
-  int num_antipodal_grasps = 0;
-  int num_non_antipodal_grasps = 0;
-  int num_antipodal_collisions = 0;
-  int num_non_antipodal_collisions = 0;
+  // int num_antipodal_grasps = 0;
+  // int num_non_antipodal_grasps = 0;
+  // int num_antipodal_collisions = 0;
+  // int num_non_antipodal_collisions = 0;
   double score = 0;
 
   for (size_t i = 0; i < transformed_cloud->size(); ++i) {
@@ -416,22 +430,22 @@ double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
     bool is_antipodal = fabs(pt.normal_y) > kAntipodalCos;
 
     if (is_grasp && is_antipodal) {
-      ++num_antipodal_grasps;
+      ++data->antipodal_grasp_pts;
     } else if (is_grasp && !is_antipodal) {
-      ++num_non_antipodal_grasps;
+      ++data->non_antipodal_grasp_pts;
     } else if (!is_grasp && is_antipodal) {
-      ++num_antipodal_collisions;
+      ++data->antipodal_collisions;
     } else {
-      ++num_non_antipodal_collisions;
+      ++data->non_antipodal_collisions;
     }
   }
 
-  double sq_wrist_distance =
+  data->sq_wrist_distance =
       (gripper_pose.translation() - wrist_pos).squaredNorm();
 
-  score = 5 * num_antipodal_grasps + num_non_antipodal_grasps +
-          0 * num_antipodal_collisions - 1 * num_non_antipodal_collisions -
-          1000 * sq_wrist_distance;
+  score = 5 * data->antipodal_grasp_pts + data->non_antipodal_grasp_pts +
+          0 * data->antipodal_collisions - 1 * data->non_antipodal_collisions -
+          1200 * data->sq_wrist_distance;
 
   return score;
 }
@@ -485,12 +499,11 @@ void GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
     total /= (num_pts_in_grasp + num_collisions);
 
     if (total.norm() < 0.001) {
-      tf::poseEigenToMsg(affine_pose, *next_pose);
+      *next_pose = current_pose;
       return;
     }
 
     affine_pose.translate(total);
-
     tf::poseEigenToMsg(affine_pose, current_pose);
 
     if (kDebug_) {
@@ -499,5 +512,6 @@ void GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
       ros::Duration(0.01).sleep();
     }
   }
+  *next_pose = current_pose;
 }
 }  // namespace pbi

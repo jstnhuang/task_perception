@@ -12,6 +12,16 @@
 #include "task_perception/task_perception_context.h"
 
 namespace pbi {
+struct ScoreData {
+ public:
+  ScoreData();
+  int antipodal_grasp_pts;
+  int non_antipodal_grasp_pts;
+  int antipodal_collisions;
+  int non_antipodal_collisions;
+  double sq_wrist_distance;
+};
+
 // PR2 grasp planner that adapts human grasping configurations to robot grasps.
 class GraspPlanner {
  public:
@@ -50,7 +60,7 @@ class GraspPlanner {
                            geometry_msgs::Pose* next_pose);
   double ScoreGrasp(const Eigen::Affine3d& pose, const std::string& object_name,
                     const Eigen::Vector3d& wrist_pos,
-                    TaskPerceptionContext* context);
+                    TaskPerceptionContext* context, ScoreData* score);
   void OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                          const std::string& object_name,
                          TaskPerceptionContext* context, int max_iters,
