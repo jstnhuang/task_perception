@@ -266,8 +266,8 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                                        geometry_msgs::Pose* next_pose) {
   // Parameters
   const int kNumSamplesPerDim = 10;
-  const double kAntipodalDegrees = 30;
-  const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
+  // const double kAntipodalDegrees = 30;
+  // const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
 
   // Sample roll and yaw angles (about the center of the grasp)
   // Get transform describing the gripper in the grasp center and cache it.
