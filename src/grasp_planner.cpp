@@ -56,6 +56,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     VisualizeGripper("initial", initial_pose,
                      context->camera_info().header.frame_id);
   }
+
   Pose next_pose;
   OrientTowardsWrist(gripper_model, wrist_pose, context, &next_pose);
   gripper_model.set_pose(next_pose);
@@ -64,6 +65,16 @@ void GraspPlanner::Plan(const std::string& left_or_right,
                      context->camera_info().header.frame_id);
     ros::Duration(0.3).sleep();
   }
+
+  Plan(left_or_right, object_name, initial_pose, context, pose);
+}
+
+void GraspPlanner::Plan(const std::string& left_or_right,
+                        const std::string& object_name,
+                        const Pose& initial_pose,
+                        TaskPerceptionContext* context, Pose* pose) {
+  Pr2GripperModel gripper_model;
+  gripper_model.set_pose(initial_pose);
 
   const double kTranslationThreshold = 0.001;
   const double kRotationThreshold = 0.01;
@@ -74,6 +85,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   // - Optimize position
   // Check for collisions
   Pose prev_pose = initial_pose;
+  Pose next_pose;
   for (int i = 0; i < 5; ++i) {
     ROS_INFO("Iteration %d", i + 1);
 
