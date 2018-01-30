@@ -9,6 +9,7 @@
 #include "image_geometry/pinhole_camera_model.h"
 #include "pcl/common/transforms.h"
 #include "pcl/features/normal_3d_omp.h"
+#include "pcl/io/io.h"
 #include "pcl/io/pcd_io.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -146,14 +147,16 @@ PointCloudN::Ptr TaskPerceptionContext::GetObjectCloudWithNormals(
       object_clouds_with_normals_.end()) {
     PointCloudP::Ptr object_cloud = GetObjectCloud(name);
     KdTreeP::Ptr tree = GetObjectTree(name);
-    pcl::NormalEstimationOMP<PointP, PointN> ne;
+    pcl::NormalEstimationOMP<PointP, pcl::Normal> ne;
     ne.setInputCloud(object_cloud);
     ne.setSearchMethod(tree);
     // Assumes that PCD models have a voxel size of 0.01
-    ne.setRadiusSearch(0.011);
-    PointCloudN::Ptr normals(new PointCloudN);
+    ne.setRadiusSearch(0.012);
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
     ne.compute(*normals);
-    object_clouds_with_normals_[name] = normals;
+    PointCloudN::Ptr output(new PointCloudN);
+    pcl::concatenateFields(*object_cloud, *normals, *output);
+    object_clouds_with_normals_[name] = output;
   }
   return object_clouds_with_normals_[name];
 }
