@@ -45,8 +45,12 @@ class GraspPlanner {
                           geometry_msgs::Pose* next_pose);
   void OptimizeOrientation(const Pr2GripperModel& gripper_model,
                            const std::string& object_name,
+                           const geometry_msgs::Pose& wrist_pose,
                            TaskPerceptionContext* context,
                            geometry_msgs::Pose* next_pose);
+  double ScoreGrasp(const Eigen::Affine3d& pose, const std::string& object_name,
+                    const Eigen::Vector3d& wrist_pos,
+                    TaskPerceptionContext* context);
   void OptimizePlacement(const Pr2GripperModel& gripper_model,
                          const std::string& object_name,
                          TaskPerceptionContext* context,
@@ -55,7 +59,6 @@ class GraspPlanner {
   // Internal visualization publishers
   ros::NodeHandle nh_;
   ros::Publisher gripper_pub_;
-  ros::Publisher cloud_pub_;
 
   // PR2 gripper marker, with wrist_roll_link at the origin and identity
   // orientation.

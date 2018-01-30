@@ -14,6 +14,7 @@
 #include "pcl_conversions/pcl_conversions.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
+#include "std_msgs/Bool.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
 #include "visualization_msgs/MarkerArray.h"
@@ -30,10 +31,8 @@ GraspPlanner::GraspPlanner()
     : nh_(),
       gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "grasp_planner/grippers", 1, true)),
-      cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>(
-          "grasp_planner/debug_cloud", 1, true)),
       kGripperMarkers(),
-      kDebug_(false) {
+      kDebug_(true) {
   InitGripperMarkers();
 }
 
@@ -53,8 +52,9 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   ComputeInitialGrasp(gripper_model, object_name, context, &initial_pose);
   gripper_model.set_pose(initial_pose);
   if (kDebug_) {
-    VisualizeGripper("initial", initial_pose,
+    VisualizeGripper("optimization", initial_pose,
                      context->camera_info().header.frame_id);
+    ros::Duration(0.25).sleep();
   }
 
   Pose next_pose;
@@ -63,7 +63,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   if (kDebug_) {
     VisualizeGripper("optimization", next_pose,
                      context->camera_info().header.frame_id);
-    ros::Duration(0.3).sleep();
+    ros::Duration(0.25).sleep();
   }
 
   Plan(left_or_right, object_name, initial_pose, context, pose);
@@ -76,12 +76,19 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(initial_pose);
 
+  Pose wrist_pose;
+  if (left_or_right == "left") {
+    wrist_pose = context->GetLeftWristPose();
+  } else {
+    wrist_pose = context->GetRightWristPose();
+  }
+
   const double kTranslationThreshold = 0.001;
   const double kRotationThreshold = 0.01;
 
   // While termination criteria not reached:
   // - Point towards wrist
-  // - Optimize roll
+  // - Optimize orientation
   // - Optimize position
   // Check for collisions
   Pose prev_pose = initial_pose;
@@ -89,12 +96,13 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   for (int i = 0; i < 5; ++i) {
     ROS_INFO("Iteration %d", i + 1);
 
-    OptimizeOrientation(gripper_model, object_name, context, &next_pose);
+    OptimizeOrientation(gripper_model, object_name, wrist_pose, context,
+                        &next_pose);
     gripper_model.set_pose(next_pose);
     if (kDebug_) {
       VisualizeGripper("optimization", next_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.1).sleep();
+      ros::Duration(0.25).sleep();
     }
 
     OptimizePlacement(gripper_model, object_name, context, &next_pose);
@@ -102,6 +110,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     if (kDebug_) {
       VisualizeGripper("optimization", next_pose,
                        context->camera_info().header.frame_id);
+      ros::Duration(0.25).sleep();
     }
 
     Eigen::Affine3d prev_affine;
@@ -274,12 +283,11 @@ void GraspPlanner::OrientTowardsWrist(const Pr2GripperModel& gripper_model,
 
 void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                                        const std::string& object_name,
+                                       const Pose& wrist_pose,
                                        TaskPerceptionContext* context,
-                                       geometry_msgs::Pose* next_pose) {
+                                       Pose* next_pose) {
   // Parameters
   const int kNumSamplesPerDim = 10;
-  // const double kAntipodalDegrees = 30;
-  // const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
 
   // Sample roll and yaw angles (about the center of the grasp)
   // Get transform describing the gripper in the grasp center and cache it.
@@ -299,16 +307,20 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
   Eigen::Affine3d grasp_pose;
   tf::poseMsgToEigen(gripper_model.pose(), grasp_pose);
 
-  Pose best_pose;
-  double best_antipodal_pts = -1;
+  Eigen::Vector3d wrist_pos;
+  wrist_pos << wrist_pose.position.x, wrist_pose.position.y,
+      wrist_pose.position.z;
 
-  const double kRangeDegs = 180;
+  Pose best_pose;
+  double best_score = -std::numeric_limits<double>::max();
+
+  const double kRangeDegs = 120;
   const double kRangeRads = M_PI * kRangeDegs / 180;
   for (int yaw_i = 0; yaw_i < kNumSamplesPerDim; ++yaw_i) {
     double yaw_angle = yaw_i * kRangeRads / kNumSamplesPerDim - kRangeRads / 2;
     Eigen::AngleAxisd yaw_rot(yaw_angle, Eigen::Vector3d::UnitZ());
     for (int roll_i = 0; roll_i < kNumSamplesPerDim; ++roll_i) {
-      double roll_angle = roll_i * (M_PI / 4) / kNumSamplesPerDim - M_PI / 8;
+      double roll_angle = roll_i * (M_PI / 2) / kNumSamplesPerDim - (M_PI / 4);
       // Compute rotation about the grasp center.
       Eigen::AngleAxisd roll_rot(roll_angle, Eigen::Vector3d::UnitX());
       Eigen::Quaterniond rotation = roll_rot * yaw_rot;
@@ -329,94 +341,97 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       rotated_tf.ToPose(&rotated_pose);
       Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
-      // Transform object points into rotated gripper frame.
-      PointCloudN::Ptr object_cloud =
-          context->GetObjectCloudWithNormals(object_name);
-      PointCloudN::Ptr transformed_cloud(new PointCloudN);
-      pcl::transformPointCloudWithNormals(*object_cloud, *transformed_cloud,
-                                          rotated_mat.inverse());
+      double score = ScoreGrasp(rotated_mat, object_name, wrist_pos, context);
 
-      // For all points in the grasp region, measure antipodality (i.e., how
-      // collinear the normal is with the finger normals). Instead of
-      // averaging,
-      // we count the number of normals that are antipodal "enough."
-      int num_antipodal_pts = 0;
-      int num_pts_in_grasp = 0;
-      int num_collisions = 0;
-      double score = 0;
-
-      // PointCloudN::Ptr debug(new PointCloudN);
-      // debug->header.frame_id = context->camera_info().header.frame_id;
-
-      for (size_t i = 0; i < transformed_cloud->size(); ++i) {
-        PointN pt = transformed_cloud->at(i);
-
-        if (Pr2GripperModel::IsGripperFramePtInCollision(pt.x, pt.y, pt.z)) {
-          ++num_collisions;
-        }
-        if (Pr2GripperModel::IsGripperFramePtInGraspRegion(pt.x, pt.y, pt.z)) {
-          ++num_pts_in_grasp;
-          // ROS_INFO("%f %f %f, nx: %f, ny: %f, nz: %f", pt.x, pt.y, pt.z,
-          //         pt.normal_x, pt.normal_y, pt.normal_z);
-          // if (pt.normal_y < 0) {
-          //  pt.normal_y *= -1;
-          //}
-          // if (pt.normal_y > kAntipodalCos) {
-          //  // ROS_INFO("%f %f %f, nx: %f, ny: %f, nz: %f", pt.x, pt.y,
-          //  pt.z,
-          //  //         pt.normal_x, pt.normal_y, pt.normal_z);
-          //  debug->push_back(object_cloud->at(i));
-          //  ++num_antipodal_pts;
-          //}
-        }
-      }
-
-      // sensor_msgs::PointCloud2 viz_cloud;
-      // if (debug->size() == 0) {
-      //  PointN blank;
-      //  debug->push_back(blank);
-      //}
-      // pcl::toROSMsg(*transformed_cloud, viz_cloud);
-      // cloud_pub_.publish(viz_cloud);
-
-      score = num_pts_in_grasp - 2 * num_collisions;
-
-      if (score > best_antipodal_pts) {
-        best_antipodal_pts = score;
+      if (score > best_score) {
+        best_score = score;
         best_pose = rotated_pose;
-        ROS_INFO(
-            "Best pose so far: y: %f, r: %f (%d pts in grasp, %d antipodal, "
-            "%d "
-            "collisions), score: %f",
-            yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, num_pts_in_grasp,
-            num_antipodal_pts, num_collisions, score);
+        if (kDebug_) {
+          // int num_pts_in_grasp =
+          //    num_antipodal_grasps + num_non_antipodal_grasps;
+          // int num_antipodal_pts =
+          //    num_antipodal_grasps + num_antipodal_collisions;
+          // int num_collisions =
+          //    num_antipodal_collisions + num_non_antipodal_collisions;
+          /*ROS_INFO(
+              "Best pose so far: y: %f, r: %f (%d pts in grasp, %d antipodal, "
+              "%d collisions, dist: %f), score: %f",
+              yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, num_pts_in_grasp,
+              num_antipodal_pts, num_collisions, sqrt(sq_wrist_distance),
+              score);*/
 
-        if (kDebug_) {
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
-          // ros::Duration(0.5).sleep();
-        }
-      } else if (num_antipodal_pts == best_antipodal_pts) {
-        ROS_INFO(
-            "Found equally good pose: y: %f, r: %f (%d pts in grasp, %d "
-            "antipodal, %d collisions)",
-            yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, num_pts_in_grasp,
-            num_antipodal_pts, num_collisions);
-        if (kDebug_) {
-          VisualizeGripper("optimization", rotated_pose,
-                           context->camera_info().header.frame_id);
-          // ros::Duration(0.5).sleep();
+          ros::Duration(0.01).sleep();
+          // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
         }
       } else {
         if (kDebug_) {
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
-          // ros::Duration(0.05).sleep();
+          // ros::Duration(0.01).sleep();
         }
       }
     }
   }
   *next_pose = best_pose;
+}
+
+double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
+                                const std::string& object_name,
+                                const Eigen::Vector3d& wrist_pos,
+                                TaskPerceptionContext* context) {
+  const double kAntipodalDegrees = 15;
+  const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
+
+  // Transform object points into rotated gripper frame.
+  PointCloudN::Ptr object_cloud =
+      context->GetObjectCloudWithNormals(object_name);
+  PointCloudN::Ptr transformed_cloud(new PointCloudN);
+  pcl::transformPointCloudWithNormals(*object_cloud, *transformed_cloud,
+                                      gripper_pose.inverse());
+
+  // For all points in the grasp region, measure antipodality (i.e., how
+  // collinear the normal is with the finger normals). Instead of
+  // averaging, we count the number of normals that are antipodal "enough."
+  int num_antipodal_grasps = 0;
+  int num_non_antipodal_grasps = 0;
+  int num_antipodal_collisions = 0;
+  int num_non_antipodal_collisions = 0;
+  double score = 0;
+
+  for (size_t i = 0; i < transformed_cloud->size(); ++i) {
+    PointN pt = transformed_cloud->at(i);
+
+    bool is_collision =
+        Pr2GripperModel::IsGripperFramePtInCollision(pt.x, pt.y, pt.z);
+    bool is_grasp =
+        Pr2GripperModel::IsGripperFramePtInGraspRegion(pt.x, pt.y, pt.z);
+    if (!is_grasp && !is_collision) {
+      continue;
+    }
+
+    bool is_antipodal = fabs(pt.normal_y) > kAntipodalCos;
+
+    if (is_grasp && is_antipodal) {
+      ++num_antipodal_grasps;
+    } else if (is_grasp && !is_antipodal) {
+      ++num_non_antipodal_grasps;
+    } else if (!is_grasp && is_antipodal) {
+      ++num_antipodal_collisions;
+    } else {
+      ++num_non_antipodal_collisions;
+    }
+  }
+
+  double sq_wrist_distance =
+      (gripper_pose.translation() - wrist_pos).squaredNorm();
+
+  score = 5 * num_antipodal_grasps + num_non_antipodal_grasps +
+          0 * num_antipodal_collisions - 1 * num_non_antipodal_collisions -
+          750 * sq_wrist_distance;
+
+  return score;
 }
 
 void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
