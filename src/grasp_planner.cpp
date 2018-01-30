@@ -32,7 +32,7 @@ GraspPlanner::GraspPlanner()
       gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "grasp_planner/grippers", 1, true)),
       kGripperMarkers(),
-      kDebug_(true) {
+      kDebug_(false) {
   InitGripperMarkers();
 }
 
@@ -101,7 +101,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
                         &rotated_pose);
     gripper_model.set_pose(rotated_pose);
     if (kDebug_) {
-      VisualizeGripper("optimization", next_pose,
+      VisualizeGripper("optimization", rotated_pose,
                        context->camera_info().header.frame_id);
       ros::Duration(0.25).sleep();
     }
