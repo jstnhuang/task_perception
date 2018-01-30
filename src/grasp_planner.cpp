@@ -404,8 +404,7 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       }
     }
   }
-}
-*next_pose = best_pose;
+  *next_pose = best_pose;
 }
 
 void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
