@@ -59,6 +59,11 @@
       msg-type="task_perception_msgs/AnnotatorEvent"
       topic="pbi_annotator/events"
       ros="[[ros]]"></ros-topic>
+    <ros-topic
+      id="triggerPub"
+      msg-type="std_msgs/Bool"
+      topic="trigger"
+      ros="[[ros]]"></ros-topic>
     <div class="main layout vertical">
       <div class="layout horizontal center">
         <paper-input class="flex" id="bagPathInput" label="Bag file to annotate" value="[[state.bag_path]]"></paper-input>
@@ -75,6 +80,7 @@
       <div class="layout horizontal center commands">
         <paper-button on-tap="_handleSaveSkeleton">Save skeleton</paper-button>
         <paper-button on-tap="_handleStepSkeleton">Step skeleton</paper-button>
+        <paper-button on-tap="_handleStep">Step</paper-button>
       </div>
       <div class="layout horizontal center commands">
         <paper-input id="objName" label="Object name" value="{{objectName}}"></paper-input>
@@ -206,6 +212,13 @@
           type: 'step skeleton',
         };
         this.$.eventPub.publish(msg);
+      }
+
+      _handleStep() {
+        var msg = {
+          data: true,
+        };
+        this.$.triggerPub.publish(msg);
       }
 
       _minusOne(num) {
