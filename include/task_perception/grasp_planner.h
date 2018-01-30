@@ -51,9 +51,9 @@ class GraspPlanner {
   double ScoreGrasp(const Eigen::Affine3d& pose, const std::string& object_name,
                     const Eigen::Vector3d& wrist_pos,
                     TaskPerceptionContext* context);
-  void OptimizePlacement(const Pr2GripperModel& gripper_model,
+  void OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                          const std::string& object_name,
-                         TaskPerceptionContext* context,
+                         TaskPerceptionContext* context, int max_iters,
                          geometry_msgs::Pose* next_pose);
 
   // Internal visualization publishers

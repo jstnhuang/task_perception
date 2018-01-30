@@ -96,16 +96,17 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   for (int i = 0; i < 5; ++i) {
     ROS_INFO("Iteration %d", i + 1);
 
+    Pose rotated_pose;
     OptimizeOrientation(gripper_model, object_name, wrist_pose, context,
-                        &next_pose);
-    gripper_model.set_pose(next_pose);
+                        &rotated_pose);
+    gripper_model.set_pose(rotated_pose);
     if (kDebug_) {
       VisualizeGripper("optimization", next_pose,
                        context->camera_info().header.frame_id);
       ros::Duration(0.25).sleep();
     }
 
-    OptimizePlacement(gripper_model, object_name, context, &next_pose);
+    OptimizePlacement(rotated_pose, object_name, context, 10, &next_pose);
     gripper_model.set_pose(next_pose);
     if (kDebug_) {
       VisualizeGripper("optimization", next_pose,
@@ -216,24 +217,25 @@ void GraspPlanner::ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
                                        const std::string& object_name,
                                        TaskPerceptionContext* context,
                                        Pose* initial_pose) {
-  Pose wrist_pose = gripper_model.pose();
+  Eigen::Vector3d grasp_center = gripper_model.grasp_center();
 
   // Initial pose to optimize around: translate gripper such that the closest
   // object point is in the center.
   KdTreeP::Ptr object_tree = context->GetObjectTree(object_name);
-  PointP wrist_point;
-  wrist_point.x = wrist_pose.position.x;
-  wrist_point.y = wrist_pose.position.y;
-  wrist_point.z = wrist_pose.position.z;
+  PointP grasp_center_pt;
+  grasp_center_pt.x = grasp_center.x();
+  grasp_center_pt.y = grasp_center.y();
+  grasp_center_pt.z = grasp_center.z();
   std::vector<int> indices;
   std::vector<float> sq_distances;
-  object_tree->nearestKSearch(wrist_point, 1, indices, sq_distances);
+  object_tree->nearestKSearch(grasp_center_pt, 1, indices, sq_distances);
   PointP nearest_obj_pt = object_tree->getInputCloud()->at(indices[0]);
 
   Eigen::Vector3d nearest_obj_vec;
   nearest_obj_vec << nearest_obj_pt.x, nearest_obj_pt.y, nearest_obj_pt.z;
   Eigen::Vector3d translation = nearest_obj_vec - gripper_model.grasp_center();
 
+  Pose wrist_pose = gripper_model.pose();
   *initial_pose = wrist_pose;
   initial_pose->position.x += translation.x();
   initial_pose->position.y += translation.y();
@@ -429,16 +431,17 @@ double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
 
   score = 5 * num_antipodal_grasps + num_non_antipodal_grasps +
           0 * num_antipodal_collisions - 1 * num_non_antipodal_collisions -
-          750 * sq_wrist_distance;
+          1000 * sq_wrist_distance;
 
   return score;
 }
 
-void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
+void GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
                                      const std::string& object_name,
                                      TaskPerceptionContext* context,
+                                     int max_iters,
                                      geometry_msgs::Pose* next_pose) {
-  Pose current_pose = gripper_model.pose();
+  Pose current_pose = gripper_pose;
 
   Eigen::Affine3d affine_pose;
   tf::poseMsgToEigen(current_pose, affine_pose);
@@ -446,7 +449,7 @@ void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
   gripper_center << Pr2GripperModel::kGraspRegionPos.x,
       Pr2GripperModel::kGraspRegionPos.y, Pr2GripperModel::kGraspRegionPos.z;
 
-  for (int iter = 0; iter < 10; ++iter) {
+  for (int iter = 0; iter < max_iters; ++iter) {
     PointCloudP::Ptr object_cloud = context->GetObjectCloud(object_name);
     PointCloudP::Ptr transformed_cloud(new PointCloudP);
     pcl::transformPointCloud(*object_cloud, *transformed_cloud,
@@ -493,7 +496,7 @@ void GraspPlanner::OptimizePlacement(const Pr2GripperModel& gripper_model,
     if (kDebug_) {
       VisualizeGripper("optimization", current_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.05).sleep();
+      ros::Duration(0.01).sleep();
     }
   }
 }
