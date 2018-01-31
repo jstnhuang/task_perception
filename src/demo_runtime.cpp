@@ -119,6 +119,10 @@ void DemoRuntime::Step() {
   states_[frame_number] = current_state;
   ++last_executed_frame_;
   PublishViz();
+
+  if (frame_number == num_frames_ - 1) {
+    ROS_INFO_STREAM("Generated program: " << imitation_generator_->program());
+  }
 }
 
 int DemoRuntime::last_executed_frame() const { return last_executed_frame_; }
