@@ -51,8 +51,9 @@ class TaskPerceptionContext {
   pcl::IndicesPtr RightHandIndices();
   pcl::search::KdTree<pcl::PointXYZ>::Ptr LeftHandTree();
   pcl::search::KdTree<pcl::PointXYZ>::Ptr RightHandTree();
-  const task_perception_msgs::DemoState& prev_state();
-  const sensor_msgs::CameraInfo& camera_info();
+  const task_perception_msgs::DemoState& current_state() const;
+  const task_perception_msgs::DemoState& prev_state() const;
+  const sensor_msgs::CameraInfo& camera_info() const;
 
   // Params
   bool kDebug;

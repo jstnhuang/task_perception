@@ -271,11 +271,15 @@ KdTreeP::Ptr TaskPerceptionContext::RightHandTree() {
   return right_hand_tree_;
 }
 
-const task_perception_msgs::DemoState& TaskPerceptionContext::prev_state() {
+const msgs::DemoState& TaskPerceptionContext::current_state() const {
+  return current_state_;
+}
+
+const msgs::DemoState& TaskPerceptionContext::prev_state() const {
   return prev_state_;
 }
 
-const sensor_msgs::CameraInfo& TaskPerceptionContext::camera_info() {
+const sensor_msgs::CameraInfo& TaskPerceptionContext::camera_info() const {
   return camera_info_;
 }
 
