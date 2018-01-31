@@ -52,7 +52,7 @@ flags = [
 '-I',
 '../../devel/include',
 '-I',
-'include',
+'task_perception/include',
 '-I',
 '/usr/include/pcl-1.7/',
 '-I',
