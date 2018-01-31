@@ -304,15 +304,6 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                               tg::RefFrame("grasp center"),
                               &gripper_in_grasp_center);
 
-  // Cache the transform from the camera to the grasp center, which will
-  // eliminate a matrix multiplication in the inner loop.
-  // tg::Transform gripper_in_camera;
-  // tf_graph.ComputeDescription(tg::LocalFrame("grasp center"),
-  //                            tg::RefFrame("gripper base"),
-  //                            &gripper_in_camera);
-  // tf_graph.Add("grasp center", tg::RefFrame("gripper base"),
-  // gripper_in_camera);
-
   tg::Transform grasp_center_in_camera;
   tf_graph.ComputeDescription(tg::LocalFrame("grasp center"),
                               tg::RefFrame("gripper base"),
@@ -364,17 +355,17 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
         best_pose = rotated_pose;
         if (kDebug_) {
           /*ROS_INFO(
-              "Best so far: y: %f, r: %f, score: %f = 5*%d + 1*%d + 0*%d "
-              "- 1*%d - 1000*%f = %d + %d + %d - %d - %f",
+              "Best so far: y: %f, r: %f, score: %f = 3*%d + 1*%d + 0*%d "
+              "- 1*%d - 1300*%f = %d + %d + %d - %d - %f",
               yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, score,
               score_data.antipodal_grasp_pts,
               score_data.non_antipodal_grasp_pts,
               score_data.antipodal_collisions,
               score_data.non_antipodal_collisions, score_data.sq_wrist_distance,
-              5 * score_data.antipodal_grasp_pts,
+              3 * score_data.antipodal_grasp_pts,
               score_data.non_antipodal_grasp_pts, 0,
               score_data.non_antipodal_collisions,
-              1000 * score_data.sq_wrist_distance);*/
+              1300 * score_data.sq_wrist_distance);*/
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
           ros::Duration(0.01).sleep();
@@ -386,6 +377,52 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                            context->camera_info().header.frame_id);
           ros::Duration(0.01).sleep();
         }
+      }
+    }
+  }
+
+  const double kPitchRange = 72 * M_PI / 180;
+  const double kPitchResolution = 9 * M_PI / 180;
+  int num_pitch_samples = round(kPitchRange / kPitchResolution) + 1;
+  for (int pitch_i = 0; pitch_i < num_pitch_samples; ++pitch_i) {
+    double pitch_angle = pitch_i * kPitchResolution - kPitchRange / 2;
+    Eigen::AngleAxisd pitch_rot(pitch_angle, Eigen::Vector3d::UnitY());
+    tf_graph.Add("rotated grasp center", tg::RefFrame("grasp center"),
+                 tg::Transform(tg::Position(), pitch_rot.matrix()));
+
+    // New gripper pose in camera frame, after rotation.
+    tg::Transform rotated_tf;
+    tf_graph.DescribePose(gripper_in_grasp_center,
+                          tg::Source("rotated grasp center"),
+                          tg::Target("gripper base"), &rotated_tf);
+    Pose rotated_pose;
+    rotated_tf.ToPose(&rotated_pose);
+    Eigen::Affine3d rotated_mat(rotated_tf.matrix());
+
+    ScoreData score_data;
+    double score =
+        ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &score_data);
+
+    ROS_INFO(
+        "p: %f, score: %f = 3*%d + 1*%d + 0*%d "
+        "- 1*%d - 1300*%f = %d + %d + %d - %d - %f",
+        pitch_angle * 180 / M_PI, score, score_data.antipodal_grasp_pts,
+        score_data.non_antipodal_grasp_pts, score_data.antipodal_collisions,
+        score_data.non_antipodal_collisions, score_data.sq_wrist_distance,
+        3 * score_data.antipodal_grasp_pts, score_data.non_antipodal_grasp_pts,
+        0, score_data.non_antipodal_collisions,
+        1300 * score_data.sq_wrist_distance);
+    VisualizeGripper("optimization", rotated_pose,
+                     context->camera_info().header.frame_id);
+    ros::Duration(0.01).sleep();
+    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+
+    if (score > best_score) {
+      ROS_INFO("Found better pitch: %f, score %f > %f",
+               pitch_angle * 180 / M_PI, score, best_score);
+      best_score = score;
+      best_pose = rotated_pose;
+      if (kDebug_) {
       }
     }
   }
@@ -443,9 +480,9 @@ double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
   data->sq_wrist_distance =
       (gripper_pose.translation() - wrist_pos).squaredNorm();
 
-  score = 5 * data->antipodal_grasp_pts + data->non_antipodal_grasp_pts +
+  score = 3 * data->antipodal_grasp_pts + data->non_antipodal_grasp_pts +
           0 * data->antipodal_collisions - 1 * data->non_antipodal_collisions -
-          1200 * data->sq_wrist_distance;
+          1300 * data->sq_wrist_distance;
 
   return score;
 }
