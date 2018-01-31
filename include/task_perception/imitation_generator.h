@@ -1,7 +1,6 @@
 #ifndef _PBI_IMITATION_GENERATOR_H_
 #define _PBI_IMITATION_GENERATOR_H_
 
-#include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/Program.h"
 
 #include "task_perception/task_perception_context.h"

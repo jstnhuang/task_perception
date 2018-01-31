@@ -4,7 +4,6 @@
 
 #include <string>
 
-#include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/Step.h"
 
