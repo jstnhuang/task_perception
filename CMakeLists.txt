@@ -252,6 +252,7 @@ add_library(pbi_grasp_planner src/grasp_planner.cpp)
 add_dependencies(pbi_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_grasp_planner
   pbi_pr2_gripper_model
+  pbi_ros_utils
   ${catkin_LIBRARIES}
 )
 
