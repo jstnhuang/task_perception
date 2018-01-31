@@ -1,3 +1,6 @@
 grasp_planner:
-  collision_weight: -2.0
-  in_grasp_weight: 1
+  antipodal_grasp_weight: 3
+  non_antipodal_grasp_weight: 1
+  antipodal_collision_weight: 0
+  non_antipodal_collision_weight: -1
+  sq_wrist_distance_weight: -1300

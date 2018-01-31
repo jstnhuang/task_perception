@@ -12,14 +12,36 @@
 #include "task_perception/task_perception_context.h"
 
 namespace pbi {
-struct ScoreData {
+class GraspFeatures {
  public:
-  ScoreData();
+  GraspFeatures();
+
   int antipodal_grasp_pts;
   int non_antipodal_grasp_pts;
   int antipodal_collisions;
   int non_antipodal_collisions;
   double sq_wrist_distance;
+};
+
+class GraspFeatureWeights {
+ public:
+  GraspFeatureWeights();
+
+  double antipodal_grasp_weight;
+  double non_antipodal_grasp_weight;
+  double antipodal_collision_weight;
+  double non_antipodal_collision_weight;
+  double sq_wrist_distance_weight;
+};
+
+class GraspEvaluation {
+ public:
+  GraspEvaluation();
+  std::string ToString() const;
+  double score() const;
+
+  GraspFeatures features;
+  GraspFeatureWeights weights;
 };
 
 // PR2 grasp planner that adapts human grasping configurations to robot grasps.
@@ -58,13 +80,14 @@ class GraspPlanner {
                            const geometry_msgs::Pose& wrist_pose,
                            TaskPerceptionContext* context,
                            geometry_msgs::Pose* next_pose);
-  double ScoreGrasp(const Eigen::Affine3d& pose, const std::string& object_name,
-                    const Eigen::Vector3d& wrist_pos,
-                    TaskPerceptionContext* context, ScoreData* score);
+  void ScoreGrasp(const Eigen::Affine3d& pose, const std::string& object_name,
+                  const Eigen::Vector3d& wrist_pos,
+                  TaskPerceptionContext* context, GraspEvaluation* result);
   void OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                          const std::string& object_name,
                          TaskPerceptionContext* context, int max_iters,
                          geometry_msgs::Pose* next_pose);
+  void UpdateParams();
 
   // Internal visualization publishers
   ros::NodeHandle nh_;
@@ -73,7 +96,8 @@ class GraspPlanner {
   // PR2 gripper marker, with wrist_roll_link at the origin and identity
   // orientation.
   visualization_msgs::MarkerArray kGripperMarkers;
-  const bool kDebug_;
+  bool debug_;
+  GraspFeatureWeights weights_;
 };
 }  // namespace pbi
 

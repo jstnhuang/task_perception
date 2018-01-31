@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -15,37 +16,84 @@
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
+#include "task_perception_msgs/DemoState.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/pr2_gripper_model.h"
+#include "task_perception/ros_utils.h"
 #include "task_perception/task_perception_context.h"
 
 namespace tg = transform_graph;
 using geometry_msgs::Pose;
 
 namespace pbi {
-ScoreData::ScoreData()
+GraspFeatures::GraspFeatures()
     : antipodal_grasp_pts(0),
       non_antipodal_grasp_pts(0),
       antipodal_collisions(0),
       non_antipodal_collisions(0),
       sq_wrist_distance(0) {}
 
+GraspFeatureWeights::GraspFeatureWeights()
+    : antipodal_grasp_weight(0),
+      non_antipodal_grasp_weight(0),
+      antipodal_collision_weight(0),
+      non_antipodal_collision_weight(0),
+      sq_wrist_distance_weight(0) {}
+
 GraspPlanner::GraspPlanner()
     : nh_(),
       gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "grasp_planner/grippers", 1, true)),
       kGripperMarkers(),
-      kDebug_(true) {
+      debug_(false) {
   InitGripperMarkers();
+}
+
+GraspEvaluation::GraspEvaluation() : features(), weights() {}
+
+std::string GraspEvaluation::ToString() const {
+  std::stringstream ss;
+  ss << "score: " << score() << " = " << weights.antipodal_grasp_weight << "*"
+     << features.antipodal_grasp_pts << " + "
+     << weights.non_antipodal_grasp_weight << "*"
+     << features.non_antipodal_grasp_pts << " + "
+     << weights.antipodal_collision_weight << "*"
+     << features.antipodal_collisions << " + "
+     << weights.non_antipodal_collision_weight << "*"
+     << features.non_antipodal_collisions << " + "
+     << weights.sq_wrist_distance_weight << "*" << features.sq_wrist_distance
+     << " = " << weights.antipodal_grasp_weight * features.antipodal_grasp_pts
+     << " + "
+     << weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts
+     << " + "
+     << weights.antipodal_collision_weight * features.antipodal_collisions
+     << " + "
+     << weights.non_antipodal_collision_weight *
+            features.non_antipodal_collisions
+     << " + " << weights.sq_wrist_distance_weight * features.sq_wrist_distance;
+  return ss.str();
+}
+
+double GraspEvaluation::score() const {
+  double score = 0;
+  score += weights.antipodal_grasp_weight * features.antipodal_grasp_pts;
+  score +=
+      weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts;
+  score += weights.antipodal_collision_weight * features.antipodal_collisions;
+  score += weights.non_antipodal_collision_weight *
+           features.non_antipodal_collisions;
+  score += weights.sq_wrist_distance_weight * features.sq_wrist_distance;
+  return score;
 }
 
 void GraspPlanner::Plan(const std::string& left_or_right,
                         const std::string& object_name,
                         TaskPerceptionContext* context, Pose* pose) {
+  UpdateParams();
   Pose wrist_pose;
   if (left_or_right == "left") {
     wrist_pose = context->GetLeftWristPose();
@@ -58,7 +106,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   Pose initial_pose;
   ComputeInitialGrasp(gripper_model, object_name, context, &initial_pose);
   gripper_model.set_pose(initial_pose);
-  if (kDebug_) {
+  if (debug_) {
     VisualizeGripper("optimization", initial_pose,
                      context->camera_info().header.frame_id);
     ros::Duration(0.25).sleep();
@@ -67,7 +115,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   Pose to_wrist_pose;
   OrientTowardsWrist(gripper_model, wrist_pose, context, &to_wrist_pose);
   gripper_model.set_pose(to_wrist_pose);
-  if (kDebug_) {
+  if (debug_) {
     VisualizeGripper("optimization", to_wrist_pose,
                      context->camera_info().header.frame_id);
     ros::Duration(0.25).sleep();
@@ -80,14 +128,19 @@ void GraspPlanner::Plan(const std::string& left_or_right,
                         const std::string& object_name,
                         const Pose& initial_pose,
                         TaskPerceptionContext* context, Pose* pose) {
+  UpdateParams();
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(initial_pose);
 
   Pose wrist_pose;
+  Pose prev_gripper_pose;
+  const task_perception_msgs::DemoState& prev_state = context->prev_state();
   if (left_or_right == "left") {
     wrist_pose = context->GetLeftWristPose();
+    prev_gripper_pose = prev_state.left_hand.contact_pose;
   } else {
     wrist_pose = context->GetRightWristPose();
+    prev_gripper_pose = prev_state.right_hand.contact_pose;
   }
 
   const double kTranslationThreshold = 0.005;
@@ -104,7 +157,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     Pose placed;
     OptimizePlacement(prev_pose, object_name, context, 10, &placed);
     gripper_model.set_pose(placed);
-    if (kDebug_) {
+    if (debug_) {
       VisualizeGripper("optimization", next_pose,
                        context->camera_info().header.frame_id);
       ros::Duration(0.25).sleep();
@@ -114,7 +167,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     OptimizeOrientation(gripper_model, object_name, wrist_pose, context,
                         &rotated_pose);
     gripper_model.set_pose(rotated_pose);
-    if (kDebug_) {
+    if (debug_) {
       VisualizeGripper("optimization", rotated_pose,
                        context->camera_info().header.frame_id);
       ros::Duration(0.25).sleep();
@@ -144,8 +197,10 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     }
     prev_pose = next_pose;
   }
-  VisualizeGripper("optimization", next_pose,
-                   context->camera_info().header.frame_id);
+  if (debug_) {
+    VisualizeGripper("optimization", next_pose,
+                     context->camera_info().header.frame_id);
+  }
   *pose = next_pose;
 }
 
@@ -346,33 +401,21 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       rotated_tf.ToPose(&rotated_pose);
       Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
-      ScoreData score_data;
-      double score =
-          ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &score_data);
+      GraspEvaluation grasp_eval;
+      ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &grasp_eval);
+      double score = grasp_eval.score();
 
       if (score > best_score) {
         best_score = score;
         best_pose = rotated_pose;
-        if (kDebug_) {
-          /*ROS_INFO(
-              "Best so far: y: %f, r: %f, score: %f = 3*%d + 1*%d + 0*%d "
-              "- 1*%d - 1300*%f = %d + %d + %d - %d - %f",
-              yaw_angle * 180 / M_PI, roll_angle * 180 / M_PI, score,
-              score_data.antipodal_grasp_pts,
-              score_data.non_antipodal_grasp_pts,
-              score_data.antipodal_collisions,
-              score_data.non_antipodal_collisions, score_data.sq_wrist_distance,
-              3 * score_data.antipodal_grasp_pts,
-              score_data.non_antipodal_grasp_pts, 0,
-              score_data.non_antipodal_collisions,
-              1300 * score_data.sq_wrist_distance);*/
+        if (debug_) {
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
           ros::Duration(0.01).sleep();
           // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
         }
       } else {
-        if (kDebug_) {
+        if (debug_) {
           VisualizeGripper("optimization", rotated_pose,
                            context->camera_info().header.frame_id);
           ros::Duration(0.01).sleep();
@@ -399,43 +442,35 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
     rotated_tf.ToPose(&rotated_pose);
     Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
-    ScoreData score_data;
-    double score =
-        ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &score_data);
+    GraspEvaluation grasp_eval;
+    ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &grasp_eval);
 
-    ROS_INFO(
-        "p: %f, score: %f = 3*%d + 1*%d + 0*%d "
-        "- 1*%d - 1300*%f = %d + %d + %d - %d - %f",
-        pitch_angle * 180 / M_PI, score, score_data.antipodal_grasp_pts,
-        score_data.non_antipodal_grasp_pts, score_data.antipodal_collisions,
-        score_data.non_antipodal_collisions, score_data.sq_wrist_distance,
-        3 * score_data.antipodal_grasp_pts, score_data.non_antipodal_grasp_pts,
-        0, score_data.non_antipodal_collisions,
-        1300 * score_data.sq_wrist_distance);
-    VisualizeGripper("optimization", rotated_pose,
-                     context->camera_info().header.frame_id);
-    ros::Duration(0.01).sleep();
-    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+    if (debug_) {
+      ROS_INFO("p: %f, %s", pitch_angle * 180 / M_PI,
+               grasp_eval.ToString().c_str());
+      VisualizeGripper("optimization", rotated_pose,
+                       context->camera_info().header.frame_id);
+      ros::Duration(0.01).sleep();
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+    }
 
+    double score = grasp_eval.score();
     if (score > best_score) {
-      ROS_INFO("Found better pitch: %f, score %f > %f",
-               pitch_angle * 180 / M_PI, score, best_score);
       best_score = score;
       best_pose = rotated_pose;
-      if (kDebug_) {
-      }
     }
   }
   *next_pose = best_pose;
 }
 
-double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
-                                const std::string& object_name,
-                                const Eigen::Vector3d& wrist_pos,
-                                TaskPerceptionContext* context,
-                                ScoreData* data) {
+void GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
+                              const std::string& object_name,
+                              const Eigen::Vector3d& wrist_pos,
+                              TaskPerceptionContext* context,
+                              GraspEvaluation* eval) {
   const double kAntipodalDegrees = 15;
   const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
+  eval->weights = weights_;
 
   // Transform object points into rotated gripper frame.
   PointCloudN::Ptr object_cloud =
@@ -447,12 +482,6 @@ double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
   // For all points in the grasp region, measure antipodality (i.e., how
   // collinear the normal is with the finger normals). Instead of
   // averaging, we count the number of normals that are antipodal "enough."
-  // int num_antipodal_grasps = 0;
-  // int num_non_antipodal_grasps = 0;
-  // int num_antipodal_collisions = 0;
-  // int num_non_antipodal_collisions = 0;
-  double score = 0;
-
   for (size_t i = 0; i < transformed_cloud->size(); ++i) {
     PointN pt = transformed_cloud->at(i);
 
@@ -467,24 +496,18 @@ double GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
     bool is_antipodal = fabs(pt.normal_y) > kAntipodalCos;
 
     if (is_grasp && is_antipodal) {
-      ++data->antipodal_grasp_pts;
+      ++eval->features.antipodal_grasp_pts;
     } else if (is_grasp && !is_antipodal) {
-      ++data->non_antipodal_grasp_pts;
+      ++eval->features.non_antipodal_grasp_pts;
     } else if (!is_grasp && is_antipodal) {
-      ++data->antipodal_collisions;
+      ++eval->features.antipodal_collisions;
     } else {
-      ++data->non_antipodal_collisions;
+      ++eval->features.non_antipodal_collisions;
     }
   }
 
-  data->sq_wrist_distance =
+  eval->features.sq_wrist_distance =
       (gripper_pose.translation() - wrist_pos).squaredNorm();
-
-  score = 3 * data->antipodal_grasp_pts + data->non_antipodal_grasp_pts +
-          0 * data->antipodal_collisions - 1 * data->non_antipodal_collisions -
-          1300 * data->sq_wrist_distance;
-
-  return score;
 }
 
 void GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
@@ -543,12 +566,26 @@ void GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
     affine_pose.translate(total);
     tf::poseEigenToMsg(affine_pose, current_pose);
 
-    if (kDebug_) {
+    if (debug_) {
       VisualizeGripper("optimization", current_pose,
                        context->camera_info().header.frame_id);
       ros::Duration(0.01).sleep();
     }
   }
   *next_pose = current_pose;
+}
+
+void GraspPlanner::UpdateParams() {
+  ros::param::get("grasp_planner/debug", debug_);
+  GetParam("grasp_planner/antipodal_grasp_weight",
+           &weights_.antipodal_grasp_weight);
+  GetParam("grasp_planner/non_antipodal_grasp_weight",
+           &weights_.non_antipodal_grasp_weight);
+  GetParam("grasp_planner/antipodal_collision_weight",
+           &weights_.antipodal_collision_weight);
+  GetParam("grasp_planner/non_antipodal_collision_weight",
+           &weights_.non_antipodal_collision_weight);
+  GetParam("grasp_planner/sq_wrist_distance_weight",
+           &weights_.sq_wrist_distance_weight);
 }
 }  // namespace pbi
