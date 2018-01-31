@@ -21,6 +21,7 @@ class GraspFeatures {
   int antipodal_collisions;
   int non_antipodal_collisions;
   double sq_wrist_distance;
+  double sq_prev_distance;
 };
 
 class GraspFeatureWeights {
@@ -32,6 +33,7 @@ class GraspFeatureWeights {
   double antipodal_collision_weight;
   double non_antipodal_collision_weight;
   double sq_wrist_distance_weight;
+  double sq_prev_distance_weight;
 };
 
 class GraspEvaluation {
@@ -78,16 +80,22 @@ class GraspPlanner {
   void OptimizeOrientation(const Pr2GripperModel& gripper_model,
                            const std::string& object_name,
                            const geometry_msgs::Pose& wrist_pose,
+                           const geometry_msgs::Pose& prev_gripper_pose,
                            TaskPerceptionContext* context,
                            geometry_msgs::Pose* next_pose);
   void ScoreGrasp(const Eigen::Affine3d& pose, const std::string& object_name,
                   const Eigen::Vector3d& wrist_pos,
+                  const Eigen::Vector3d& prev_gripper_pose,
                   TaskPerceptionContext* context, GraspEvaluation* result);
   void OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                          const std::string& object_name,
                          TaskPerceptionContext* context, int max_iters,
                          geometry_msgs::Pose* next_pose);
   void UpdateParams();
+
+  void GetPreviousGripperPose(const std::string& left_or_right,
+                              TaskPerceptionContext* context,
+                              geometry_msgs::Pose* prev_pose);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;

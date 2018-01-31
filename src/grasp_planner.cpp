@@ -27,6 +27,7 @@
 #include "task_perception/task_perception_context.h"
 
 namespace tg = transform_graph;
+namespace msgs = task_perception_msgs;
 using geometry_msgs::Pose;
 
 namespace pbi {
@@ -35,14 +36,16 @@ GraspFeatures::GraspFeatures()
       non_antipodal_grasp_pts(0),
       antipodal_collisions(0),
       non_antipodal_collisions(0),
-      sq_wrist_distance(0) {}
+      sq_wrist_distance(0),
+      sq_prev_distance(0) {}
 
 GraspFeatureWeights::GraspFeatureWeights()
     : antipodal_grasp_weight(0),
       non_antipodal_grasp_weight(0),
       antipodal_collision_weight(0),
       non_antipodal_collision_weight(0),
-      sq_wrist_distance_weight(0) {}
+      sq_wrist_distance_weight(0),
+      sq_prev_distance_weight(0) {}
 
 GraspPlanner::GraspPlanner()
     : nh_(),
@@ -66,6 +69,7 @@ std::string GraspEvaluation::ToString() const {
      << weights.non_antipodal_collision_weight << "*"
      << features.non_antipodal_collisions << " + "
      << weights.sq_wrist_distance_weight << "*" << features.sq_wrist_distance
+     << weights.sq_prev_distance_weight << "*" << features.sq_prev_distance
      << " = " << weights.antipodal_grasp_weight * features.antipodal_grasp_pts
      << " + "
      << weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts
@@ -74,7 +78,8 @@ std::string GraspEvaluation::ToString() const {
      << " + "
      << weights.non_antipodal_collision_weight *
             features.non_antipodal_collisions
-     << " + " << weights.sq_wrist_distance_weight * features.sq_wrist_distance;
+     << " + " << weights.sq_wrist_distance_weight * features.sq_wrist_distance
+     << " + " << weights.sq_prev_distance_weight * features.sq_prev_distance;
   return ss.str();
 }
 
@@ -87,6 +92,7 @@ double GraspEvaluation::score() const {
   score += weights.non_antipodal_collision_weight *
            features.non_antipodal_collisions;
   score += weights.sq_wrist_distance_weight * features.sq_wrist_distance;
+  score += weights.sq_prev_distance_weight * features.sq_prev_distance;
   return score;
 }
 
@@ -132,16 +138,17 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(initial_pose);
 
+  // Get current wrist pose and previous gripper pose
+  tg::Graph graph;
+
   Pose wrist_pose;
-  Pose prev_gripper_pose;
-  const task_perception_msgs::DemoState& prev_state = context->prev_state();
   if (left_or_right == "left") {
     wrist_pose = context->GetLeftWristPose();
-    prev_gripper_pose = prev_state.left_hand.contact_pose;
   } else {
     wrist_pose = context->GetRightWristPose();
-    prev_gripper_pose = prev_state.right_hand.contact_pose;
   }
+  Pose prev_gripper_pose;
+  GetPreviousGripperPose("left_or_right", context, &prev_gripper_pose);
 
   const double kTranslationThreshold = 0.005;
   const double kRotationThreshold = 0.1;
@@ -164,8 +171,8 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     }
 
     Pose rotated_pose;
-    OptimizeOrientation(gripper_model, object_name, wrist_pose, context,
-                        &rotated_pose);
+    OptimizeOrientation(gripper_model, object_name, wrist_pose,
+                        prev_gripper_pose, context, &rotated_pose);
     gripper_model.set_pose(rotated_pose);
     if (debug_) {
       VisualizeGripper("optimization", rotated_pose,
@@ -349,6 +356,7 @@ void GraspPlanner::OrientTowardsWrist(const Pr2GripperModel& gripper_model,
 void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                                        const std::string& object_name,
                                        const Pose& wrist_pose,
+                                       const Pose& prev_gripper_pose,
                                        TaskPerceptionContext* context,
                                        Pose* next_pose) {
   // Sample roll and yaw angles (about the center of the grasp)
@@ -370,6 +378,10 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
   Eigen::Vector3d wrist_pos;
   wrist_pos << wrist_pose.position.x, wrist_pose.position.y,
       wrist_pose.position.z;
+
+  Eigen::Vector3d prev_gripper_pos;
+  prev_gripper_pos << prev_gripper_pose.position.x,
+      prev_gripper_pose.position.y, prev_gripper_pose.position.z;
 
   Pose best_pose;
   double best_score = -std::numeric_limits<double>::max();
@@ -402,7 +414,8 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
       GraspEvaluation grasp_eval;
-      ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &grasp_eval);
+      ScoreGrasp(rotated_mat, object_name, wrist_pos, prev_gripper_pos, context,
+                 &grasp_eval);
       double score = grasp_eval.score();
 
       if (score > best_score) {
@@ -443,7 +456,8 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
     Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
     GraspEvaluation grasp_eval;
-    ScoreGrasp(rotated_mat, object_name, wrist_pos, context, &grasp_eval);
+    ScoreGrasp(rotated_mat, object_name, wrist_pos, prev_gripper_pos, context,
+               &grasp_eval);
 
     if (debug_) {
       ROS_INFO("p: %f, %s", pitch_angle * 180 / M_PI,
@@ -466,6 +480,7 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
 void GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
                               const std::string& object_name,
                               const Eigen::Vector3d& wrist_pos,
+                              const Eigen::Vector3d& prev_gripper_pos,
                               TaskPerceptionContext* context,
                               GraspEvaluation* eval) {
   const double kAntipodalDegrees = 15;
@@ -508,6 +523,10 @@ void GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
 
   eval->features.sq_wrist_distance =
       (gripper_pose.translation() - wrist_pos).squaredNorm();
+  if (!prev_gripper_pos.isZero()) {
+    eval->features.sq_prev_distance =
+        (gripper_pose.translation() - prev_gripper_pos).squaredNorm();
+  }
 }
 
 void GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
@@ -587,5 +606,35 @@ void GraspPlanner::UpdateParams() {
            &weights_.non_antipodal_collision_weight);
   GetParam("grasp_planner/sq_wrist_distance_weight",
            &weights_.sq_wrist_distance_weight);
+  GetParam("grasp_planner/sq_prev_distance_weight",
+           &weights_.sq_prev_distance_weight);
+}
+
+void GraspPlanner::GetPreviousGripperPose(const std::string& left_or_right,
+                                          TaskPerceptionContext* context,
+                                          Pose* prev_pose) {
+  const msgs::DemoState& prev_state = context->prev_state();
+  msgs::ObjectState prev_object;
+  Pose prev_contact;
+  if (left_or_right == "left") {
+    if (prev_state.left_hand.current_action == msgs::HandState::NONE) {
+      return;
+    }
+    context->GetPreviousObject(prev_state.left_hand.object_name, &prev_object);
+    prev_contact = prev_state.left_hand.contact_pose;
+  } else {
+    if (prev_state.right_hand.current_action == msgs::HandState::NONE) {
+      return;
+    }
+    context->GetPreviousObject(prev_state.right_hand.object_name, &prev_object);
+    prev_contact = prev_state.right_hand.contact_pose;
+  }
+  tg::Graph graph;
+  graph.Add("object", tg::RefFrame("camera"), prev_object.pose);
+  graph.Add("prev gripper", tg::RefFrame("object"), prev_contact);
+  tg::Transform prev_tf;
+  graph.ComputeDescription(tg::LocalFrame("prev gripper"),
+                           tg::RefFrame("camera"), &prev_tf);
+  prev_tf.ToPose(prev_pose);
 }
 }  // namespace pbi
