@@ -114,7 +114,7 @@ void DemoRuntime::Step() {
   viz_.ShowHandState(current_state.left_hand, "left", &context);
   viz_.ShowHandState(current_state.right_hand, "right", &context);
 
-  imitation_generator_->Step(&context);
+  imitation_generator_->Step(current_state);
 
   states_[frame_number] = current_state;
   ++last_executed_frame_;
