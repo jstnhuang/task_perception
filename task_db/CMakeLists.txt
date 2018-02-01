@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(task_imitation)
+project(task_db)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -8,15 +8,13 @@ project(task_imitation)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
+  mongodb_store
   roscpp
-  task_db
   task_perception_msgs
-  transform_graph
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -107,14 +105,12 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
-    task_imitation_program_generator
+    task_db_demo_states_db
   CATKIN_DEPENDS
-    geometry_msgs
+    mongodb_store
     roscpp
-    task_db
     task_perception_msgs
-    transform_graph
-#  DEPENDS system_lib
+  DEPENDS Boost
 )
 
 ###########
@@ -129,16 +125,16 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(task_imitation_program_generator src/program_generator.cpp)
-add_dependencies(task_imitation_program_generator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(task_imitation_program_generator
+add_library(task_db_demo_states_db src/demo_states_db.cpp)
+add_dependencies(task_db_demo_states_db ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_db_demo_states_db
   ${catkin_LIBRARIES}
 )
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/task_imitation_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/task_db_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -149,6 +145,11 @@ target_link_libraries(task_imitation_program_generator
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+## Specify libraries to link a library or executable target against
+# target_link_libraries(${PROJECT_NAME}_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -190,7 +191,7 @@ target_link_libraries(task_imitation_program_generator
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_task_imitation.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_task_db.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "boost/algorithm/string.hpp"
+#include "boost/optional.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
@@ -12,8 +13,13 @@
 #include "skin_segmentation_msgs/AdvanceSkeleton.h"
 #include "skin_segmentation_msgs/GetSkeletonState.h"
 #include "skin_segmentation_msgs/NerfJointStates.h"
+#include "task_db/demo_states_db.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
+#include "task_perception_msgs/DemoStates.h"
+#include "task_perception_msgs/Demonstration.h"
+#include "task_perception_msgs/Event.h"
+#include "task_perception_msgs/ObjectState.h"
 
 #include "task_perception/bag_utils.h"
 #include "task_perception/database.h"
@@ -33,11 +39,13 @@ namespace pbi {
 AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
                                  const SkeletonServices& skel_services,
                                  const DemonstrationDb& demo_db,
+                                 const DemoStatesDb& demo_states_db,
                                  const ros::ServiceClient& predict_hands,
                                  const MultiObjectTracker& object_trackers)
     : demo_viz_(demo_viz),
       skel_services_(skel_services),
       demo_db_(demo_db),
+      demo_states_db_(demo_states_db),
       nh_(),
       bag_(),
       demo_id_(""),
@@ -52,8 +60,7 @@ AnnotatorServer::AnnotatorServer(const DemoVisualizer& demo_viz,
 
 void AnnotatorServer::Start() { demo_viz_.state_pub.publish(state_); }
 
-void AnnotatorServer::HandleEvent(
-    const task_perception_msgs::AnnotatorEvent& event) {
+void AnnotatorServer::HandleEvent(const msgs::AnnotatorEvent& event) {
   try {
     if (event.type == msgs::AnnotatorEvent::OPEN_BAG) {
       HandleOpen(event.bag_path);
@@ -109,11 +116,7 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   }
 
   // Insert/Retrieve demonstration data from DB.
-  std::vector<std::string> bag_path_parts;
-  boost::split(bag_path_parts, bag_path, boost::is_any_of("/"));
-  std::string last_bag_part(bag_path_parts[bag_path_parts.size() - 1]);
-  std::string bag_name(last_bag_part.substr(0, last_bag_part.size() - 4));
-
+  std::string bag_name = GetNameFromBagPath(bag_path);
   demo_id_ = demo_db_.GetIdByName(bag_name);
   if (demo_id_ == "") {
     msgs::Demonstration demo_new;
@@ -351,6 +354,19 @@ void AnnotatorServer::RunCurrentStep() {
   state_.current_frame += 1;
   demo_runtime_.Step();
   PublishState();
+
+  if (state_.current_frame == state_.frame_count - 1) {
+    msgs::DemoStates demo_states;
+    demo_states.demo_states = demo_runtime_.GetDemoStates();
+    std::string name = GetNameFromBagPath(state_.bag_path);
+    boost::optional<std::string> db_id = demo_states_db_.GetIdByName(name);
+    if (db_id) {
+      demo_states_db_.Update(*db_id, demo_states);
+    } else {
+      demo_states_db_.Insert(demo_states);
+    }
+    ROS_INFO("Bag file ended, inserted demo states into DB.");
+  }
 }
 
 void AnnotatorServer::RerunCurrentStep() {
@@ -389,4 +405,11 @@ void AnnotatorServer::PublishState() {
   // maybe move into here
 }
 
+std::string AnnotatorServer::GetNameFromBagPath(const std::string& bag_path) {
+  std::vector<std::string> parts;
+  boost::split(parts, bag_path, boost::is_any_of("/"));
+  std::string last_bag_part(parts[parts.size() - 1]);
+  std::string bag_name(last_bag_part.substr(0, last_bag_part.size() - 4));
+  return bag_name;
+}
 }  // namespace pbi

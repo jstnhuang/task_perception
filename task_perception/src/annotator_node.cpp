@@ -10,6 +10,7 @@
 #include "skin_segmentation_msgs/NerfJointStates.h"
 #include "skin_segmentation_msgs/PredictHands.h"
 #include "skin_segmentation_msgs/ResetSkeletonTracker.h"
+#include "task_db/demo_states_db.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
 #include "visualization_msgs/Marker.h"
@@ -65,11 +66,15 @@ int main(int argc, char** argv) {
   // Build database
   const std::string& kDatabaseName("pbi");
   const std::string& kCollection("demonstrations");
+  const std::string& kDemoStates("demo_states");
   mongodb_store::MessageStoreProxy message_store(nh, kCollection,
                                                  kDatabaseName);
+  mongodb_store::MessageStoreProxy demo_states_store(nh, kDemoStates,
+                                                     kDatabaseName);
   ros::Publisher demo_pub = nh.advertise<task_perception_msgs::Demonstration>(
       "pbi_annotator/demonstration", 1, true);
   pbi::DemonstrationDb demo_db(&message_store, demo_pub);
+  pbi::DemoStatesDb demo_states_db(&demo_states_store);
 
   // Object trackers
   ros::ServiceClient multi_object_tracker =
@@ -80,8 +85,8 @@ int main(int argc, char** argv) {
   }
   pbi::MultiObjectTracker object_trackers(multi_object_tracker);
 
-  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db, predict_hands,
-                              object_trackers);
+  pbi::AnnotatorServer server(demo_viz, skel_services, demo_db, demo_states_db,
+                              predict_hands, object_trackers);
   server.Start();
   ROS_INFO("Annotator server ready.");
 

@@ -183,12 +183,14 @@ void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
   object_trackers_.Destroy(object_name);
 }
 
+std::vector<msgs::DemoState> DemoRuntime::GetDemoStates() { return states_; }
+
 void DemoRuntime::StepSkeleton(const int frame_number,
                                const msgs::DemoState& prev_state,
                                ss_msgs::NerfJointStates* nerf_joint_states) {
   // Update skeleton state
-  // Set skeleton state from annotation if it exists. Otherwise, step through
-  // the skeleton tracker.
+  // Set skeleton state from annotation if it exists. Otherwise, step
+  // through the skeleton tracker.
   if (demo_model_->HasEventAt(msgs::Event::SET_SKELETON_STATE, frame_number)) {
     msgs::Event skeleton_event;
     demo_model_->EventAt(msgs::Event::SET_SKELETON_STATE, frame_number,

@@ -55,6 +55,7 @@
   <build_depend>rospy</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>skin_segmentation_msgs</build_depend>
+  <build_depend>task_db</build_depend>
   <build_depend>task_perception_msgs</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>transform_graph</build_depend>
@@ -79,6 +80,7 @@
   <run_depend>rospy</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>skin_segmentation_msgs</run_depend>
+  <run_depend>task_db</run_depend>
   <run_depend>task_perception_msgs</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>transform_graph</run_depend>

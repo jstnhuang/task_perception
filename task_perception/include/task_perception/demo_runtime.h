@@ -78,6 +78,9 @@ class DemoRuntime {
   // beginning.
   // void RemoveObjectPoseEvent();
 
+  // Gets all the demo states so far.
+  std::vector<task_perception_msgs::DemoState> GetDemoStates();
+
  private:
   // Given the previous state, steps through the skeleton tracker if needed.
   void StepSkeleton(const int frame_number,

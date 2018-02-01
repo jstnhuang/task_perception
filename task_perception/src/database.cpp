@@ -1,9 +1,11 @@
 #include "task_perception/database.h"
 
+#include <string>
 #include <vector>
 
 #include "mongodb_store/message_store.h"
 #include "ros/ros.h"
+#include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/Demonstration.h"
 #include "task_perception_msgs/Event.h"
 

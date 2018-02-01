@@ -12,6 +12,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "skin_segmentation_msgs/NerfJointStates.h"
+#include "task_db/demo_states_db.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
 #include "task_perception_msgs/Demonstration.h"
@@ -30,6 +31,7 @@ class AnnotatorServer {
   AnnotatorServer(const DemoVisualizer& demo_viz,
                   const SkeletonServices& skel_services,
                   const DemonstrationDb& demo_db,
+                  const DemoStatesDb& demo_states_db,
                   const ros::ServiceClient& predict_hands,
                   const MultiObjectTracker& object_trackers);
   void Start();
@@ -56,10 +58,12 @@ class AnnotatorServer {
                      const std::string& object_mesh, geometry_msgs::Pose* pose);
 
   void PublishState();
+  std::string GetNameFromBagPath(const std::string& bag_path);
 
   DemoVisualizer demo_viz_;
   SkeletonServices skel_services_;
   DemonstrationDb demo_db_;
+  DemoStatesDb demo_states_db_;
 
   ros::NodeHandle nh_;
 

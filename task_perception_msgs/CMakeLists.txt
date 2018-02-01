@@ -53,6 +53,7 @@ add_message_files(
   AnnotatorEvent.msg
   AnnotatorState.msg
   DemoState.msg
+  DemoStates.msg
   Demonstration.msg
   Event.msg
   HandState.msg

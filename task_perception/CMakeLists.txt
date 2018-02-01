@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   skin_segmentation_msgs
+  task_db
   tf
   transform_graph
   urdf
@@ -156,6 +157,7 @@ catkin_package(
     rospy
     sensor_msgs
     skin_segmentation_msgs
+    task_db
     tf
     transform_graph
     urdf
