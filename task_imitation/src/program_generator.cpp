@@ -17,22 +17,22 @@ namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 
 namespace pbi {
-const double ImitationGenerator::kGraspDuration = 2;
-const double ImitationGenerator::kUngraspDuration = 2;
+const double ProgramGenerator::kGraspDuration = 2;
+const double ProgramGenerator::kUngraspDuration = 2;
 
-ImitationGenerator::ImitationGenerator()
+ProgramGenerator::ProgramGenerator()
     : program_(), prev_state_(), start_time_(0) {}
 
-void ImitationGenerator::Step(const msgs::DemoState& state) {
+void ProgramGenerator::Step(const msgs::DemoState& state) {
   ProcessContact(state, msgs::Step::LEFT);
   ProcessContact(state, msgs::Step::RIGHT);
   prev_state_ = state;
 }
 
-msgs::Program ImitationGenerator::program() const { return program_; }
+msgs::Program ProgramGenerator::program() const { return program_; }
 
-void ImitationGenerator::ProcessContact(const msgs::DemoState& state,
-                                        const std::string& arm_name) {
+void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
+                                      const std::string& arm_name) {
   msgs::HandState hand;
   msgs::HandState prev_hand;
   if (arm_name == msgs::Step::LEFT) {
@@ -136,7 +136,7 @@ void ImitationGenerator::ProcessContact(const msgs::DemoState& state,
   }
 }
 
-msgs::Step* ImitationGenerator::GetMostRecentStep(const std::string& arm_name) {
+msgs::Step* ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
   for (int i = program_.steps.size() - 1; i >= 0; --i) {
     const msgs::Step& step = program_.steps[i];
     if (step.arm == arm_name) {
@@ -146,9 +146,9 @@ msgs::Step* ImitationGenerator::GetMostRecentStep(const std::string& arm_name) {
   return NULL;
 }
 
-void ImitationGenerator::GetObjectState(const msgs::DemoState& state,
-                                        const std::string& object_name,
-                                        msgs::ObjectState* object_state) {
+void ProgramGenerator::GetObjectState(const msgs::DemoState& state,
+                                      const std::string& object_name,
+                                      msgs::ObjectState* object_state) {
   for (size_t i = 0; i < state.object_states.size(); ++i) {
     const msgs::ObjectState object = state.object_states[i];
     if (object.name == object_name) {
@@ -159,7 +159,7 @@ void ImitationGenerator::GetObjectState(const msgs::DemoState& state,
   ROS_ERROR("No object \"%s\" in state!", object_name.c_str());
 }
 
-ros::Duration ImitationGenerator::GetEndTime(
+ros::Duration ProgramGenerator::GetEndTime(
     const task_perception_msgs::Step& step) {
   if (step.action_type == msgs::Step::GRASP) {
     return step.start_time + ros::Duration(kGraspDuration);

@@ -1,5 +1,5 @@
-#ifndef _PBI_IMITATION_GENERATOR_H_
-#define _PBI_IMITATION_GENERATOR_H_
+#ifndef _PBI_PROGRAM_GENERATOR_H_
+#define _PBI_PROGRAM_GENERATOR_H_
 
 #include <string>
 
@@ -11,9 +11,9 @@
 
 namespace pbi {
 // Generates a Program given a sequence of DemoStates.
-class ImitationGenerator {
+class ProgramGenerator {
  public:
-  ImitationGenerator();
+  ProgramGenerator();
   void Step(const task_perception_msgs::DemoState& state);
   task_perception_msgs::Program program() const;
 
@@ -45,4 +45,4 @@ class ImitationGenerator {
 };
 }  // namespace pbi
 
-#endif  // _PBI_IMITATION_GENERATOR_H_
+#endif  // _PBI_PROGRAM_GENERATOR_H_
