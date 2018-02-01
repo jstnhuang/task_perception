@@ -54,6 +54,8 @@ flags = [
 '-I',
 'task_perception/include',
 '-I',
+'task_imitation/include',
+'-I',
 '/usr/include/pcl-1.7/',
 '-I',
 '/usr/include/eigen3',

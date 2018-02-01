@@ -1,11 +1,14 @@
 // Given a demonstration as a sequence of DemoStates, generates a program to
 // imitate the demonstration.
-#include "task_perception/imitation_generator.h"
+#include "task_imitation/program_generator.h"
 
 #include <string>
 
+#include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
+#include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/HandState.h"
+#include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/Step.h"
 #include "transform_graph/graph.h"

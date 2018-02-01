@@ -132,7 +132,6 @@ catkin_package(
     pbi_demo_runtime
     pbi_demo_visualizer
     pbi_grasp_planner
-    pbi_imitation_generator
     pbi_multi_object_tracker
     pbi_pcl_utils
     pbi_pose_utils
@@ -228,7 +227,6 @@ target_link_libraries(pbi_demo_runtime
   pbi_default_skeleton
   pbi_demo_model
   pbi_demo_visualizer
-  pbi_imitation_generator
   pbi_multi_object_tracker
   pbi_video_scrubber
   ${catkin_LIBRARIES}
@@ -253,13 +251,6 @@ add_dependencies(pbi_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_
 target_link_libraries(pbi_grasp_planner
   pbi_pr2_gripper_model
   pbi_ros_utils
-  ${catkin_LIBRARIES}
-)
-
-add_library(pbi_imitation_generator src/imitation_generator.cpp)
-add_dependencies(pbi_imitation_generator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_imitation_generator
-  pbi_task_perception_context
   ${catkin_LIBRARIES}
 )
 

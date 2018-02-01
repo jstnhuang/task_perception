@@ -4,12 +4,10 @@
 #include <string>
 
 #include "geometry_msgs/Pose.h"
-#include "ros/time.h"
-#include "task_perception_msgs/HandState.h"
+#include "ros/ros.h"
+#include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
-
-#include "task_perception/task_perception_context.h"
 
 namespace pbi {
 // Generates a Program given a sequence of DemoStates.

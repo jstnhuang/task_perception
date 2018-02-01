@@ -17,7 +17,6 @@
 #include "task_perception/default_skeleton.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
-#include "task_perception/imitation_generator.h"
 #include "task_perception/multi_object_tracker.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
@@ -46,8 +45,7 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       contact_detection_(),
       last_executed_frame_(-1),
       num_frames_(0),
-      states_(),
-      imitation_generator_() {}
+      states_() {}
 
 void DemoRuntime::LoadDemo(const std::string& color_topic,
                            const std::string& depth_topic,
@@ -70,7 +68,6 @@ void DemoRuntime::LoadDemo(const std::string& color_topic,
 
   demo_model_ = demo_model;
   states_.resize(num_frames_);
-  imitation_generator_.reset(new ImitationGenerator);
 }
 
 void DemoRuntime::Step() {
@@ -114,15 +111,9 @@ void DemoRuntime::Step() {
   viz_.ShowHandState(current_state.left_hand, "left", &context);
   viz_.ShowHandState(current_state.right_hand, "right", &context);
 
-  imitation_generator_->Step(current_state);
-
   states_[frame_number] = current_state;
   ++last_executed_frame_;
   PublishViz();
-
-  if (frame_number == num_frames_ - 1) {
-    ROS_INFO_STREAM("Generated program: " << imitation_generator_->program());
-  }
 }
 
 int DemoRuntime::last_executed_frame() const { return last_executed_frame_; }
@@ -311,7 +302,6 @@ void DemoRuntime::ResetState() {
   last_executed_frame_ = -1;
   num_frames_ = 0;
   states_.clear();
-  imitation_generator_.reset();
 }
 
 void DemoRuntime::PublishViz() {
