@@ -8,7 +8,9 @@ project(task_utils)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  rosbag
   roscpp
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -103,8 +105,12 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
+    task_utils_bag_utils
     task_utils_ros_params
-#  CATKIN_DEPENDS roscpp
+  CATKIN_DEPENDS
+    rosbag
+    roscpp
+    sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -120,6 +126,12 @@ include_directories(
 )
 
 ## Declare a C++ library
+add_library(task_utils_bag_utils src/bag_utils.cpp)
+add_dependencies(task_utils_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_utils_bag_utils
+  ${catkin_LIBRARIES}
+)
+
 add_library(task_utils_ros_params src/ros_params.cpp)
 add_dependencies(task_utils_ros_params ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_utils_ros_params

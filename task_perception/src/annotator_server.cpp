@@ -20,8 +20,8 @@
 #include "task_perception_msgs/Demonstration.h"
 #include "task_perception_msgs/Event.h"
 #include "task_perception_msgs/ObjectState.h"
+#include "task_utils/bag_utils.h"
 
-#include "task_perception/bag_utils.h"
 #include "task_perception/database.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_runtime.h"
