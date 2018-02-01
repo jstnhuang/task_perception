@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   skin_segmentation_msgs
   task_db
+  task_utils
   tf
   transform_graph
   urdf
@@ -138,7 +139,6 @@ catkin_package(
     pbi_pose_utils
     pbi_pr2_gripper_model
     pbi_record_video_action_server
-    pbi_ros_utils
     pbi_task_perception_context
     pbi_video_scrubber
   CATKIN_DEPENDS
@@ -158,6 +158,8 @@ catkin_package(
     sensor_msgs
     skin_segmentation_msgs
     task_db
+    task_perception_msgs
+    task_utils
     tf
     transform_graph
     urdf
@@ -252,7 +254,6 @@ add_library(pbi_grasp_planner src/grasp_planner.cpp)
 add_dependencies(pbi_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_grasp_planner
   pbi_pr2_gripper_model
-  pbi_ros_utils
   ${catkin_LIBRARIES}
 )
 
@@ -288,16 +289,9 @@ target_link_libraries(pbi_record_video_action_server
   ${catkin_LIBRARIES}
 )
 
-add_library(pbi_ros_utils src/ros_utils.cpp)
-add_dependencies(pbi_ros_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_ros_utils
-  ${catkin_LIBRARIES}
-)
-
 add_library(pbi_task_perception_context src/task_perception_context.cpp)
 add_dependencies(pbi_task_perception_context ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_task_perception_context
-  pbi_ros_utils
   ${catkin_LIBRARIES}
 )
 

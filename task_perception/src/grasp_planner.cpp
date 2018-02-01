@@ -17,13 +17,13 @@
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
 #include "task_perception_msgs/DemoState.h"
+#include "task_utils/ros_params.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/pr2_gripper_model.h"
-#include "task_perception/ros_utils.h"
 #include "task_perception/task_perception_context.h"
 
 namespace tg = transform_graph;

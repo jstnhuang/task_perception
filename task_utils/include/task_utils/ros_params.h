@@ -1,5 +1,5 @@
-#ifndef _PBI_ROS_UTILS_H_
-#define _PBI_ROS_UTILS_H_
+#ifndef _PBI_ROS_PARAMS_H_
+#define _PBI_ROS_PARAMS_H_
 
 #include <string>
 

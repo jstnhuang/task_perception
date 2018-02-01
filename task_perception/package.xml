@@ -57,6 +57,7 @@
   <build_depend>skin_segmentation_msgs</build_depend>
   <build_depend>task_db</build_depend>
   <build_depend>task_perception_msgs</build_depend>
+  <build_depend>task_utils</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>transform_graph</build_depend>
   <build_depend>urdf</build_depend>
@@ -82,6 +83,7 @@
   <run_depend>skin_segmentation_msgs</run_depend>
   <run_depend>task_db</run_depend>
   <run_depend>task_perception_msgs</run_depend>
+  <run_depend>task_utils</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>transform_graph</run_depend>
   <run_depend>urdf</run_depend>

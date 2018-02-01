@@ -21,9 +21,9 @@
 #include "skin_segmentation_msgs/GetSkeletonState.h"
 #include "skin_segmentation_msgs/PredictHands.h"
 #include "task_perception_msgs/DemoState.h"
+#include "task_utils/ros_params.h"
 
 #include "task_perception/pcl_typedefs.h"
-#include "task_perception/ros_utils.h"
 #include "task_perception/skeleton_services.h"
 
 using std::vector;
