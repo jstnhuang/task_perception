@@ -1,8 +1,10 @@
 #include <string>
 #include <vector>
 
+#include "actionlib/client/simple_action_client.h"
 #include "actionlib/server/simple_action_server.h"
 #include "boost/optional.hpp"
+#include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "mongodb_store/message_store.h"
 #include "ros/ros.h"
 #include "task_db/demo_states_db.h"
@@ -32,6 +34,8 @@ class ProgramServer {
   ros::NodeHandle nh_;
   actionlib::SimpleActionServer<task_perception_msgs::ImitateDemoAction>
       action_server_;
+  actionlib::SimpleActionClient<dbot_ros_msgs::InitializeObjectAction>
+      initialize_object_;
 };
 
 ProgramServer::ProgramServer(const DemoStatesDb& demo_states_db)
@@ -39,8 +43,8 @@ ProgramServer::ProgramServer(const DemoStatesDb& demo_states_db)
       nh_(),
       action_server_(
           nh_, "imitate_demo",
-          boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false) {
-}
+          boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
+      initialize_object_("initialize_object") {}
 
 void ProgramServer::Start() { action_server_.start(); }
 
