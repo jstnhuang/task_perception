@@ -15,6 +15,6 @@
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_server" />
   <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" />
 
-  <node if="$(arg debug)" pkg="task_imitation" type="program_executor" name="program_executor" launch-prefix="xterm -e gdb --args" required="true" output="screen" />
-  <node unless="$(arg debug)" pkg="task_imitation" type="program_executor" name="program_executor" required="true" output="screen" />
+  <node if="$(arg debug)" pkg="task_imitation" type="program_executor" name="program_server" launch-prefix="xterm -e gdb --args" required="true" output="screen" />
+  <node unless="$(arg debug)" pkg="task_imitation" type="program_executor" name="program_server" required="true" output="screen" />
 </launch>

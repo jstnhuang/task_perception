@@ -111,6 +111,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
     task_imitation_program_generator
+    task_imitation_program_server
   CATKIN_DEPENDS
     actionlib
     geometry_msgs
@@ -141,14 +142,21 @@ target_link_libraries(task_imitation_program_generator
   ${catkin_LIBRARIES}
 )
 
+add_library(task_imitation_program_server src/program_server.cpp)
+add_dependencies(task_imitation_program_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_program_server
+  task_imitation_program_generator
+  ${catkin_LIBRARIES}
+)
+
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(task_imitation_program_execution_node src/program_execution_node.cpp)
-set_target_properties(task_imitation_program_execution_node PROPERTIES OUTPUT_NAME program_executor PREFIX "")
-add_dependencies(task_imitation_program_execution_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(task_imitation_program_execution_node
-  task_imitation_program_generator
+add_executable(task_imitation_program_server_node src/program_server_node.cpp)
+set_target_properties(task_imitation_program_server_node PROPERTIES OUTPUT_NAME program_server PREFIX "")
+add_dependencies(task_imitation_program_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_program_server_node
+  task_imitation_program_server
   ${catkin_LIBRARIES}
 )
 
