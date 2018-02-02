@@ -355,9 +355,10 @@ void AnnotatorServer::RunCurrentStep() {
   PublishState();
 
   if (state_.current_frame == state_.frame_count - 1) {
-    msgs::DemoStates demo_states;
-    demo_states.demo_states = demo_runtime_.GetDemoStates();
     std::string name = GetNameFromBagPath(state_.bag_path);
+    msgs::DemoStates demo_states;
+    demo_states.name = name;
+    demo_states.demo_states = demo_runtime_.GetDemoStates();
     boost::optional<std::string> db_id = demo_states_db_.GetIdByName(name);
     if (db_id) {
       demo_states_db_.Update(*db_id, demo_states);
