@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "boost/algorithm/string.hpp"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -46,5 +47,13 @@ int GetNumMessagesOnTopic(const rosbag::Bag& bag, const std::string& topic) {
   topics.push_back(topic);
   rosbag::View view(bag, rosbag::TopicQuery(topics));
   return view.size();
+}
+
+std::string GetNameFromBagPath(const std::string& bag_path) {
+  std::vector<std::string> parts;
+  boost::split(parts, bag_path, boost::is_any_of("/"));
+  std::string last_bag_part(parts[parts.size() - 1]);
+  std::string bag_name(last_bag_part.substr(0, last_bag_part.size() - 4));
+  return bag_name;
 }
 }  // namespace pbi

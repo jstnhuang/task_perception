@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 
-#include "boost/algorithm/string.hpp"
 #include "boost/optional.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
@@ -403,13 +402,5 @@ void AnnotatorServer::PublishState() {
 
   // TODO: skeleton tracker manages its own state and visualization for now,
   // maybe move into here
-}
-
-std::string AnnotatorServer::GetNameFromBagPath(const std::string& bag_path) {
-  std::vector<std::string> parts;
-  boost::split(parts, bag_path, boost::is_any_of("/"));
-  std::string last_bag_part(parts[parts.size() - 1]);
-  std::string bag_name(last_bag_part.substr(0, last_bag_part.size() - 4));
-  return bag_name;
 }
 }  // namespace pbi

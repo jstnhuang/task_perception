@@ -20,6 +20,9 @@ bool GetCameraInfo(const rosbag::Bag& bag,
 
 // Gets the number of messages on the given topic.
 int GetNumMessagesOnTopic(const rosbag::Bag& bag, const std::string& topic);
+
+// Given path/to/NAME.bag, returns NAME
+std::string GetNameFromBagPath(const std::string& bag_path);
 }  // namespace pbi
 
 #endif  // _PBI_BAG_UTILS_H_

@@ -58,7 +58,6 @@ class AnnotatorServer {
                      const std::string& object_mesh, geometry_msgs::Pose* pose);
 
   void PublishState();
-  std::string GetNameFromBagPath(const std::string& bag_path);
 
   DemoVisualizer demo_viz_;
   SkeletonServices skel_services_;
