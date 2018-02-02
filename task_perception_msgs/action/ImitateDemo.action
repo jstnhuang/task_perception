@@ -4,5 +4,5 @@
 # The path to the bag file containing the demonstration. The file name is used as an ID for the demonstration in the database.
 string bag_path
 ---
-task_perception_msgs/Program program
+string error # Empty string on success, error message otherwise
 ---
