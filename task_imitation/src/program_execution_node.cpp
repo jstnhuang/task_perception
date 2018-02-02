@@ -1,3 +1,4 @@
+#include <map>
 #include <string>
 #include <vector>
 
@@ -44,7 +45,11 @@ ProgramServer::ProgramServer(const DemoStatesDb& demo_states_db)
       action_server_(
           nh_, "imitate_demo",
           boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
-      initialize_object_("initialize_object") {}
+      initialize_object_("initialize_object") {
+  while (ros::ok() && !initialize_object_.waitForServer(ros::Duration(2.0))) {
+    ROS_WARN("Waiting for object initializer action.");
+  }
+}
 
 void ProgramServer::Start() { action_server_.start(); }
 
@@ -74,6 +79,42 @@ void ProgramServer::ExecuteImitation(
   msgs::Program program = generator.program();
 
   ROS_INFO_STREAM("program: " << program);
+
+  //  This models the assumption that each demonstration only interacts with an
+  //  object once. We could/should allow the robot to interact with an object
+  //  more than once, but we need to continuosly track the objects in that case.
+  std::map<std::string, msgs::ObjectState> object_states;
+  for (size_t i = 0; i < program.steps.size(); ++i) {
+    const msgs::Step& step = program.steps[i];
+    if (step.action_type == msgs::Step::GRASP) {
+      object_states[step.object_state.name] = step.object_state;
+    }
+  }
+
+  for (std::map<std::string, msgs::ObjectState>::iterator it =
+           object_states.begin();
+       it != object_states.end(); ++it) {
+    ROS_INFO("Initializing pose for object: \"%s\"", it->first.c_str());
+    dbot_ros_msgs::InitializeObjectGoal init_goal;
+    init_goal.frame_id = "base_link";  // TODO: make this the planning frame.
+    init_goal.mesh_name = it->second.mesh_name;
+    init_goal.initial_pose.orientation.w = 1;
+    init_goal.initial_pose.position.x = 1;
+    init_goal.initial_pose.position.z = 1;
+    initialize_object_.sendGoal(init_goal);
+    while (ros::ok() && !initialize_object_.getState().isDone()) {
+      ros::spinOnce();
+    }
+    dbot_ros_msgs::InitializeObjectResultConstPtr init_result =
+        initialize_object_.getResult();
+    it->second.pose = init_result->pose;
+  }
+
+  for (std::map<std::string, msgs::ObjectState>::iterator it =
+           object_states.begin();
+       it != object_states.end(); ++it) {
+    ROS_INFO_STREAM("Pose for " << it->first << ": " << it->second.pose);
+  }
 
   msgs::ImitateDemoResult result;
   action_server_.setSucceeded(result);
