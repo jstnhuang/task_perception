@@ -56,10 +56,10 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     msgs::Step grasp_step;
 
     // Compute start time
-    msgs::Step* prev_step = GetMostRecentStep(arm_name);
+    int prev_step_index = GetMostRecentStep(arm_name);
     grasp_step.start_time = state.stamp - start_time_;
-    if (prev_step != NULL) {
-      ros::Duration prev_end = GetEndTime(*prev_step);
+    if (prev_step_index != -1) {
+      ros::Duration prev_end = GetEndTime(program_.steps[prev_step_index]);
       if (prev_end > grasp_step.start_time) {
         ros::Duration dt = state.stamp - prev_state_.stamp;
         grasp_step.start_time = prev_end + dt;
@@ -72,26 +72,28 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     program_.steps.push_back(grasp_step);
   } else if (hand.current_action == msgs::HandState::GRASPING &&
              prev_hand.current_action == msgs::HandState::GRASPING) {
-    msgs::Step* prev_step = GetMostRecentStep(arm_name);
-    ROS_ASSERT(prev_step != NULL);
-    ROS_ASSERT(prev_step->action_type == msgs::Step::GRASP ||
-               prev_step->action_type == msgs::Step::FOLLOW_TRAJECTORY);
-    ROS_ASSERT(prev_step->object_state.name == hand.object_name);
+    int prev_step_i = GetMostRecentStep(arm_name);
+    ROS_ASSERT(prev_step_i != -1);
+    const msgs::Step& prev_step = program_.steps[prev_step_i];
+    ROS_ASSERT(prev_step.action_type == msgs::Step::GRASP ||
+               prev_step.action_type == msgs::Step::FOLLOW_TRAJECTORY);
+    ROS_ASSERT(prev_step.object_state.name == hand.object_name);
 
     // If previous step was a grasp (meaning this is the first waypoint in the
     // trajectory), insert a trajectory step. Otherwise, use the existing one.
-    msgs::Step* traj_step;
-    if (prev_step->action_type == msgs::Step::GRASP) {
-      msgs::Step inserted_traj_step;
-      inserted_traj_step.start_time =
-          prev_step->start_time + ros::Duration(kGraspDuration);
-      inserted_traj_step.arm = arm_name;
-      inserted_traj_step.action_type = msgs::Step::FOLLOW_TRAJECTORY;
-      inserted_traj_step.object_state = prev_step->object_state;
-      program_.steps.push_back(inserted_traj_step);
-      traj_step = &program_.steps[program_.steps.size() - 1];
+    msgs::Step traj_step;
+    int traj_step_i = 0;
+    if (prev_step.action_type == msgs::Step::GRASP) {
+      traj_step.start_time =
+          prev_step.start_time + ros::Duration(kGraspDuration);
+      traj_step.arm = arm_name;
+      traj_step.action_type = msgs::Step::FOLLOW_TRAJECTORY;
+      traj_step.object_state = prev_step.object_state;
+      program_.steps.push_back(traj_step);
+      traj_step_i = program_.steps.size() - 1;
     } else {
       traj_step = prev_step;
+      traj_step_i = prev_step_i;
     }
 
     // Compute pose of the end-effector.
@@ -99,7 +101,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     GetObjectState(state, hand.object_name, &object_state);
     tg::Graph graph;
     graph.Add("initial object pose", tg::RefFrame("camera"),
-              traj_step->object_state.pose);
+              traj_step.object_state.pose);
     graph.Add("current object pose", tg::RefFrame("camera"), object_state.pose);
     graph.Add("current grasp", tg::RefFrame("current object pose"),
               hand.contact_pose);
@@ -108,42 +110,44 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
                              tg::RefFrame("camera"), &ee_transform);
     geometry_msgs::Pose ee_pose;
     ee_transform.ToPose(&ee_pose);
-    traj_step->ee_trajectory.push_back(ee_pose);
+    traj_step.ee_trajectory.push_back(ee_pose);
 
     // If this is the first waypoint, time from start is just dt.
     // Otherwise, it's last waypoint + dt.
     ros::Duration dt = state.stamp - prev_state_.stamp;
     ros::Duration time_from_step_start;
-    if (prev_step->action_type == msgs::Step::GRASP) {
+    if (traj_step.times_from_start.size() == 0) {
       time_from_step_start = dt;
     } else {
-      time_from_step_start = traj_step->times_from_start.back() + dt;
+      time_from_step_start = traj_step.times_from_start.back() + dt;
     }
-    traj_step->times_from_start.push_back(time_from_step_start);
+    traj_step.times_from_start.push_back(time_from_step_start);
+    program_.steps[traj_step_i] = traj_step;
   } else if (hand.current_action == msgs::HandState::NONE &&
              prev_hand.current_action == msgs::HandState::GRASPING) {
-    msgs::Step* prev_step = GetMostRecentStep(arm_name);
-    ROS_ASSERT(prev_step != NULL);
-    ROS_ASSERT(prev_step->action_type == msgs::Step::GRASP ||
-               prev_step->action_type == msgs::Step::FOLLOW_TRAJECTORY);
+    int prev_step_i = GetMostRecentStep(arm_name);
+    ROS_ASSERT(prev_step_i != -1);
+    const msgs::Step& prev_step = program_.steps[prev_step_i];
+    ROS_ASSERT(prev_step.action_type == msgs::Step::GRASP ||
+               prev_step.action_type == msgs::Step::FOLLOW_TRAJECTORY);
 
     ros::Duration dt = state.stamp - prev_state_.stamp;
     msgs::Step ungrasp_step;
-    ungrasp_step.start_time = GetEndTime(*prev_step) + dt;
+    ungrasp_step.start_time = GetEndTime(prev_step) + dt;
     ungrasp_step.arm = arm_name;
     ungrasp_step.action_type = msgs::Step::UNGRASP;
     program_.steps.push_back(ungrasp_step);
   }
 }
 
-msgs::Step* ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
+int ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
   for (int i = program_.steps.size() - 1; i >= 0; --i) {
     const msgs::Step& step = program_.steps[i];
     if (step.arm == arm_name) {
-      return &program_.steps[i];
+      return i;
     }
   }
-  return NULL;
+  return -1;
 }
 
 void ProgramGenerator::GetObjectState(const msgs::DemoState& state,

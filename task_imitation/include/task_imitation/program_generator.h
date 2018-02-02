@@ -26,7 +26,7 @@ class ProgramGenerator {
 
   // Gets the most recently created step for the given arm.
   // Returns a pointer to the most recent step, or NULL if there was none.
-  task_perception_msgs::Step* GetMostRecentStep(const std::string& arm_name);
+  int GetMostRecentStep(const std::string& arm_name);
 
   void GetObjectState(const task_perception_msgs::DemoState& state,
                       const std::string& object_name,
