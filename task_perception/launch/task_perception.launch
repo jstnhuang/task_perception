@@ -2,6 +2,8 @@
   <arg name="launch_websocket" default="true" />
   <arg name="debug" default="false" />
 
+  <param name="use_sim_time" value="false" />
+
   <!-- MongoDB -->
   <param name="mongodb_use_daemon" value="true" />
   <param name="mongodb_host" value="localhost" />
