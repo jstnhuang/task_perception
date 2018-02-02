@@ -60,6 +60,8 @@ flags = [
 '-I',
 'task_utils/include',
 '-I',
+'../transform_graph/include',
+'-I',
 '/usr/include/pcl-1.7/',
 '-I',
 '/usr/include/eigen3',
