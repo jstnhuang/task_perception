@@ -11,6 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   geometry_msgs
   mongodb_store
+  moveit_core
+  moveit_ros_planning
+  moveit_ros_planning_interface
   roscpp
   task_db
   task_perception_msgs
@@ -116,6 +119,9 @@ catkin_package(
     actionlib
     geometry_msgs
     mongodb_store
+    moveit_core
+    moveit_ros_planning
+    moveit_ros_planning_interface
     roscpp
     task_db
     task_perception_msgs

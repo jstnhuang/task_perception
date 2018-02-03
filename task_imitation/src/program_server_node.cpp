@@ -13,8 +13,11 @@ int main(int argc, char** argv) {
   mongodb_store::MessageStoreProxy demo_states_store(nh, kDemoStates,
                                                      kDatabaseName);
   pbi::DemoStatesDb demo_states_db(&demo_states_store);
-  pbi::ProgramServer program_server(demo_states_db);
+
+  pbi::ProgramServer program_server(demo_states_db, "right_arm");
   program_server.Start();
+
+  ROS_INFO("Task imitation server ready.");
   ros::spin();
   return 0;
 }

@@ -7,6 +7,7 @@
 #include "actionlib/client/simple_action_client.h"
 #include "actionlib/server/simple_action_server.h"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
+#include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
 #include "task_db/demo_states_db.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
@@ -18,19 +19,24 @@ namespace msgs = task_perception_msgs;
 using boost::optional;
 
 namespace pbi {
-ProgramServer::ProgramServer(const DemoStatesDb& demo_states_db)
+ProgramServer::ProgramServer(const DemoStatesDb& demo_states_db,
+                             const std::string& moveit_planning_group)
     : demo_states_db_(demo_states_db),
+      move_group_(moveit_planning_group),
       nh_(),
       action_server_(
           nh_, "imitate_demo",
           boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
-      initialize_object_("initialize_object") {
+      initialize_object_("initialize_object"),
+      planning_frame_(move_group_.getPlanningFrame()) {}
+
+void ProgramServer::Start() {
+  ROS_INFO("Using planning frame: %s", planning_frame_.c_str());
+  action_server_.start();
   while (ros::ok() && !initialize_object_.waitForServer(ros::Duration(2.0))) {
     ROS_WARN("Waiting for object initializer action.");
   }
 }
-
-void ProgramServer::Start() { action_server_.start(); }
 
 void ProgramServer::ExecuteImitation(
     const msgs::ImitateDemoGoalConstPtr& goal) {
@@ -59,9 +65,9 @@ void ProgramServer::ExecuteImitation(
 
   ROS_INFO_STREAM("program: " << program);
 
-  //  This models the assumption that each demonstration only interacts with an
-  //  object once. We could/should allow the robot to interact with an object
-  //  more than once, but we need to continuosly track the objects in that case.
+  // This models the assumption that each demonstration only interacts with
+  // an object once. We could/should allow the robot to interact with an object
+  // more than once, but we need to continuosly track the objects in that case.
   std::map<std::string, msgs::ObjectState> object_states;
   for (size_t i = 0; i < program.steps.size(); ++i) {
     const msgs::Step& step = program.steps[i];
@@ -75,7 +81,7 @@ void ProgramServer::ExecuteImitation(
        it != object_states.end(); ++it) {
     ROS_INFO("Initializing pose for object: \"%s\"", it->first.c_str());
     dbot_ros_msgs::InitializeObjectGoal init_goal;
-    init_goal.frame_id = "base_link";  // TODO: make this the planning frame.
+    init_goal.frame_id = planning_frame_;
     init_goal.mesh_name = it->second.mesh_name;
     init_goal.initial_pose.orientation.w = 1;
     init_goal.initial_pose.position.x = 1;

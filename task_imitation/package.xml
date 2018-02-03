@@ -52,6 +52,9 @@
   <depend>actionlib</depend>
   <depend>geometry_msgs</depend>
   <depend>mongodb_store</depend>
+  <depend>moveit_core</depend>
+  <depend>moveit_ros_planning</depend>
+  <depend>moveit_ros_planning_interface</depend>
   <depend>roscpp</depend>
   <depend>task_db</depend>
   <depend>task_perception_msgs</depend>
