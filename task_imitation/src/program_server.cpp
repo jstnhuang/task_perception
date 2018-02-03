@@ -9,19 +9,18 @@
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
-#include "task_db/demo_states_db.h"
+#include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_utils/bag_utils.h"
 
 #include "task_imitation/program_generator.h"
 
 namespace msgs = task_perception_msgs;
-using boost::optional;
 
 namespace pbi {
-ProgramServer::ProgramServer(const DemoStatesDb& demo_states_db,
+ProgramServer::ProgramServer(const ros::ServiceClient& db_client,
                              const std::string& moveit_planning_group)
-    : demo_states_db_(demo_states_db),
+    : db_client_(db_client),
       move_group_(moveit_planning_group),
       nh_(),
       action_server_(
@@ -40,21 +39,18 @@ void ProgramServer::Start() {
 
 void ProgramServer::ExecuteImitation(
     const msgs::ImitateDemoGoalConstPtr& goal) {
-  std::string name = GetNameFromBagPath(goal->bag_path);
-  optional<std::string> db_id = demo_states_db_.GetIdByName(name);
-  if (!db_id) {
+  msgs::GetDemoStatesRequest get_states_req;
+  get_states_req.name = GetNameFromBagPath(goal->bag_path);
+  msgs::GetDemoStatesResponse get_states_res;
+  db_client_.call(get_states_req, get_states_res);
+  if (get_states_res.error != "") {
+    ROS_ERROR("%s", get_states_res.error.c_str());
     msgs::ImitateDemoResult result;
-    action_server_.setAborted(result, "Unable to find demonstration " + name);
-    return;
-  }
-  optional<msgs::DemoStates> opt_demo_states = demo_states_db_.Get(*db_id);
-  if (!opt_demo_states) {
-    msgs::ImitateDemoResult result;
-    action_server_.setAborted(result, "Unable to load demonstration " + name);
-    return;
+    result.error = get_states_res.error;
+    action_server_.setAborted(result, get_states_res.error);
   }
   const std::vector<msgs::DemoState>& demo_states =
-      opt_demo_states->demo_states;
+      get_states_res.demo_states.demo_states;
 
   ROS_INFO("Generating demonstration...");
   ProgramGenerator generator;
@@ -65,8 +61,8 @@ void ProgramServer::ExecuteImitation(
 
   ROS_INFO_STREAM("program: " << program);
 
-  // This models the assumption that each demonstration only interacts with
-  // an object once. We could/should allow the robot to interact with an object
+  // This models the assumption that each demonstration only interacts with an
+  // object once.We could / should allow the robot to interact with an object
   // more than once, but we need to continuosly track the objects in that case.
   std::map<std::string, msgs::ObjectState> object_states;
   for (size_t i = 0; i < program.steps.size(); ++i) {

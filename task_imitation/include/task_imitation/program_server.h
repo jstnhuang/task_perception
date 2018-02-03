@@ -5,23 +5,25 @@
 
 #include "actionlib/client/simple_action_client.h"
 #include "actionlib/server/simple_action_server.h"
+#include "boost/optional.hpp"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
-#include "task_db/demo_states_db.h"
+#include "task_perception_msgs/DemoStates.h"
+#include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
 
 namespace pbi {
 class ProgramServer {
  public:
-  ProgramServer(const DemoStatesDb& demo_states_db,
+  ProgramServer(const ros::ServiceClient& db_client,
                 const std::string& moveit_planning_group);
   void Start();
   void ExecuteImitation(
       const task_perception_msgs::ImitateDemoGoalConstPtr& goal);
 
  private:
-  DemoStatesDb demo_states_db_;
+  ros::ServiceClient db_client_;
   moveit::planning_interface::MoveGroup move_group_;
 
   ros::NodeHandle nh_;

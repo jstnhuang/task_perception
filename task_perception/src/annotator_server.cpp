@@ -359,12 +359,12 @@ void AnnotatorServer::RunCurrentStep() {
     msgs::DemoStates demo_states;
     demo_states.name = name;
     demo_states.demo_states = demo_runtime_.GetDemoStates();
-    boost::optional<std::string> db_id = demo_states_db_.GetIdByName(name);
-    if (db_id) {
-      demo_states_db_.Update(*db_id, demo_states);
-    } else {
-      demo_states_db_.Insert(demo_states);
-    }
+    // boost::optional<std::string> db_id = demo_states_db_.GetIdByName(name);
+    // if (db_id) {
+    //  demo_states_db_.Update(*db_id, demo_states);
+    //} else {
+    //  demo_states_db_.Insert(demo_states);
+    //}
     ROS_INFO("Bag file ended, inserted demo states into DB.");
   }
 }
