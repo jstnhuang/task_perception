@@ -48,6 +48,7 @@ void ProgramServer::ExecuteImitation(
     msgs::ImitateDemoResult result;
     result.error = get_states_res.error;
     action_server_.setAborted(result, get_states_res.error);
+    return;
   }
   const std::vector<msgs::DemoState>& demo_states =
       get_states_res.demo_states.demo_states;
@@ -90,12 +91,7 @@ void ProgramServer::ExecuteImitation(
         initialize_object_.getResult();
     it->second.pose = init_result->pose;
   }
-
-  for (std::map<std::string, msgs::ObjectState>::iterator it =
-           object_states.begin();
-       it != object_states.end(); ++it) {
-    ROS_INFO_STREAM("Pose for " << it->first << ": " << it->second.pose);
-  }
+  ROS_INFO("All object states initialized.");
 
   msgs::ImitateDemoResult result;
   action_server_.setSucceeded(result);
