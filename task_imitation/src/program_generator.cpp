@@ -96,7 +96,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
       traj_step_i = prev_step_i;
     }
 
-    // Compute pose of the end-effector.
+    // Compute pose of the end-effector relative to initial object pose.
     msgs::ObjectState object_state;
     GetObjectState(state, hand.object_name, &object_state);
     tg::Graph graph;
@@ -106,11 +106,9 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     graph.Add("current grasp", tg::RefFrame("current object pose"),
               hand.contact_pose);
     tg::Transform ee_transform;
-    graph.ComputeDescription(tg::LocalFrame("current object pose"),
-                             tg::RefFrame("camera"), &ee_transform);
-    geometry_msgs::Pose ee_pose;
-    ee_transform.ToPose(&ee_pose);
-    traj_step.ee_trajectory.push_back(ee_pose);
+    graph.ComputeDescription(
+        "current grasp", tg::RefFrame("initial object pose"), &ee_transform);
+    traj_step.ee_trajectory.push_back(ee_transform.pose());
 
     // If this is the first waypoint, time from start is just dt.
     // Otherwise, it's last waypoint + dt.
