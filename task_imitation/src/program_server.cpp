@@ -10,6 +10,9 @@
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
+#include "moveit_msgs/DisplayTrajectory.h"
+#include "moveit_msgs/MoveItErrorCodes.h"
+#include "moveit_msgs/RobotTrajectory.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/GetDemoStates.h"
@@ -192,16 +195,20 @@ std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program) {
   return slices;
 }
 
-ProgramServer::ProgramServer(const ros::ServiceClient& db_client,
-                             const std::string& moveit_planning_group)
+ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
     : db_client_(db_client),
-      move_group_(moveit_planning_group),
+      left_group_("left_arm"),
+      right_group_("right_arm"),
       nh_(),
       action_server_(
           nh_, "imitate_demo",
           boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
       initialize_object_("initialize_object"),
-      planning_frame_(move_group_.getPlanningFrame()) {}
+      planning_frame_(left_group_.getPlanningFrame()),
+      left_traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
+          "program_executor/left_arm_traj", 1, true)),
+      right_traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
+          "program_executor/right_arm_traj", 1, true)) {}
 
 void ProgramServer::Start() {
   ROS_INFO("Using planning frame: %s", planning_frame_.c_str());
@@ -225,6 +232,47 @@ void ProgramServer::ExecuteImitation(
     return;
   }
   std::vector<Slice> slices = ComputeSlices(get_states_res.demo_states);
+
+  // Retime trajectories
+  for (size_t i = 0; i < slices.size(); ++i) {
+    const Slice& slice = slices[i];
+
+    const bool kAvoidCollisions = true;
+    moveit_msgs::MoveItErrorCodes error_code;
+
+    moveit_msgs::RobotTrajectory left_traj;
+    double left_fraction = left_group_.computeCartesianPath(
+        slice.left_traj.ee_trajectory, 0.01, 0.1, left_traj, kAvoidCollisions,
+        &error_code);
+    if (error_code.val != moveit_msgs::MoveItErrorCodes::SUCCESS) {
+      ROS_ERROR("Failed to plan left arm trajectory. MoveIt error %d",
+                error_code.val);
+    } else if (slice.left_traj.ee_trajectory.size() > 0 && left_fraction < 1) {
+      ROS_INFO("Planned %f%% of left arm trajectory", left_fraction * 100);
+    } else {
+      ROS_INFO("Planned %f%% of left arm trajectory", left_fraction * 100);
+    }
+    moveit_msgs::DisplayTrajectory left_display;
+    left_display.trajectory.push_back(left_traj);
+    left_traj_pub_.publish(left_display);
+
+    moveit_msgs::RobotTrajectory right_traj;
+    double right_fraction = right_group_.computeCartesianPath(
+        slice.right_traj.ee_trajectory, 0.01, 0, right_traj, kAvoidCollisions,
+        &error_code);
+    if (error_code.val != moveit_msgs::MoveItErrorCodes::SUCCESS) {
+      ROS_ERROR("Failed to plan right arm trajectory. MoveIt error %d",
+                error_code.val);
+    } else if (slice.right_traj.ee_trajectory.size() > 0 &&
+               right_fraction < 1) {
+      ROS_WARN("Planned %f%% of right arm trajectory", right_fraction * 100);
+    } else {
+      ROS_INFO("Planned %f%% of right arm trajectory", right_fraction * 100);
+    }
+    moveit_msgs::DisplayTrajectory right_display;
+    right_display.trajectory.push_back(right_traj);
+    right_traj_pub_.publish(right_display);
+  }
 
   msgs::ImitateDemoResult result;
   action_server_.setSucceeded(result);

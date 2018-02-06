@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     ROS_WARN("Waiting for service get_demo_states.");
   }
 
-  pbi::ProgramServer program_server(db_client, "right_arm");
+  pbi::ProgramServer program_server(db_client);
   program_server.Start();
 
   ROS_INFO("Task imitation server ready.");

@@ -102,8 +102,7 @@ std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
 
 class ProgramServer {
  public:
-  ProgramServer(const ros::ServiceClient& db_client,
-                const std::string& moveit_planning_group);
+  ProgramServer(const ros::ServiceClient& db_client);
   void Start();
   void ExecuteImitation(
       const task_perception_msgs::ImitateDemoGoalConstPtr& goal);
@@ -115,7 +114,8 @@ class ProgramServer {
       const task_perception_msgs::DemoStates& demo_states);
 
   ros::ServiceClient db_client_;
-  moveit::planning_interface::MoveGroup move_group_;
+  moveit::planning_interface::MoveGroup left_group_;
+  moveit::planning_interface::MoveGroup right_group_;
 
   ros::NodeHandle nh_;
   actionlib::SimpleActionServer<task_perception_msgs::ImitateDemoAction>
@@ -123,6 +123,9 @@ class ProgramServer {
   actionlib::SimpleActionClient<dbot_ros_msgs::InitializeObjectAction>
       initialize_object_;
   const std::string planning_frame_;
+
+  ros::Publisher left_traj_pub_;
+  ros::Publisher right_traj_pub_;
 };
 }  // namespace pbi
 
