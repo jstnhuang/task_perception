@@ -1,13 +1,10 @@
 <launch>
-  <arg name="launch_websocket" default="true" />
   <arg name="debug" default="false" />
 
   <param name="mongodb_use_daemon" value="true" />
   <param name="mongodb_host" value="localhost" />
   <param name="mongodb_port" value="27017" />
-  <node name="message_store" pkg="mongodb_store" type="message_store_node.py" output="screen" required="true" /> 
-
-  <include if="$(arg launch_websocket)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+  <node name="$(anon message_store)" pkg="mongodb_store" type="message_store_node.py" output="screen" required="true" /> 
 
   <rosparam command="load" file="$(find task_perception)/config/particle_tracker.yaml" />
   <rosparam command="load" file="$(find task_perception)/config/camera.yaml" />
