@@ -9,11 +9,13 @@
 #include "boost/optional.hpp"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "moveit/move_group_interface/move_group.h"
+#include "pr2_actions/gripper.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/Program.h"
+#include "tf/transform_listener.h"
 
 namespace pbi {
 // Iterates through events in a list of steps. An event is either a grasp, an
@@ -99,6 +101,8 @@ class Slice {
 };
 
 std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
+std::vector<geometry_msgs::Pose> SampleTrajectory(
+    const std::vector<geometry_msgs::Pose>& traj);
 
 class ProgramServer {
  public:
@@ -126,6 +130,10 @@ class ProgramServer {
 
   ros::Publisher left_traj_pub_;
   ros::Publisher right_traj_pub_;
+
+  pr2_actions::Gripper left_gripper_;
+  pr2_actions::Gripper right_gripper_;
+  tf::TransformListener tf_listener_;
 };
 }  // namespace pbi
 
