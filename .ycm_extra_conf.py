@@ -74,7 +74,9 @@ flags = [
 '-I',
 '../dbot_ros/source',
 '-I',
-'../fl/include'
+'../fl/include',
+'-I',
+'../pr2_actions/include'
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
