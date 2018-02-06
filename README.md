@@ -30,15 +30,14 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] Skin segmentation: `setvenv tf; setws tracking; roslaunch skin_segmentation service_test.launch  --screen`
 - [ ] Skeleton tracking frontend: `setws tracking; roscd skin_segmentation/frontend; polymer serve`
 
-## Imitation procedure (simulation)
-- [ ] Start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
+## Imitation procedure
+- [ ] Start up robot
+  - If simulation: start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
+  - If PR2: Start RWS
+- [ ] Raise torso to 0.4 m
+- [ ] Move to start position
+  - If simulation: use MoveIt
+  - If PR2: use Rapid PbD
 - [ ] Program server: `roslaunch task_imitation task_imitation.launch --screen`
 - [ ] RViz: `rosrun rviz rviz -d task_imitation/config/imitation.rviz`
 - [ ] Trigger processing/execution of a bag file: `python imitation.py`
-
-## Imitation procedure (PR2)
-- [ ] Launch RWS
-- [ ] Start Rapid PbD and move to a start pose
-- [ ] Program server: `setrobot c1; roslaunch task_imitation task_imitation.launch --screen`
-- [ ] RViz: `setrobot c1; rosrun rviz rviz -d task_imitation/config/imitation.rviz`
-- [ ] Trigger processing/execution of a bag file: `setrobot c1; python imitation.py`
