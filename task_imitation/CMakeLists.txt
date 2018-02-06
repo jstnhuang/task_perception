@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface
+  pr2_actions
   roscpp
   task_db
   task_perception_msgs
@@ -122,6 +123,7 @@ catkin_package(
     moveit_core
     moveit_ros_planning
     moveit_ros_planning_interface
+    pr2_actions
     roscpp
     task_db
     task_perception_msgs
