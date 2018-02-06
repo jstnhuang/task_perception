@@ -6,6 +6,7 @@
 - nerf_b (modified to use hand segmentation)
 - dbot (modified)
 - dbot_ros (modified)
+- [pr2_actions](https://github.com/jstnhuang/pr2_actions)
 
 ## Demonstration procedure
 - [ ] Start up robot
