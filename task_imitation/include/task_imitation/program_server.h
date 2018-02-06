@@ -111,6 +111,8 @@ class ProgramServer {
  private:
   std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
       const task_perception_msgs::Program& program);
+  std::vector<Slice> ComputeSlices(
+      const task_perception_msgs::DemoStates& demo_states);
 
   ros::ServiceClient db_client_;
   moveit::planning_interface::MoveGroup move_group_;

@@ -224,47 +224,7 @@ void ProgramServer::ExecuteImitation(
     action_server_.setAborted(result, get_states_res.error);
     return;
   }
-  const std::vector<msgs::DemoState>& demo_states =
-      get_states_res.demo_states.demo_states;
-
-  ProgramGenerator generator;
-  for (size_t i = 0; i < demo_states.size(); ++i) {
-    generator.Step(demo_states[i]);
-  }
-  msgs::Program program = generator.program();
-  std::map<std::string, msgs::ObjectState> object_states =
-      GetObjectPoses(program);
-  ROS_INFO("All object states initialized.");
-
-  // Transform all poses into planning frame
-  // Note: this changes the semantics of a Program. Normally, the trajectory
-  // poses are relative to the object. From here on, they are relative to the
-  // planning frame, regardless of where the object is.
-  tg::Graph graph;
-  for (std::map<std::string, msgs::ObjectState>::const_iterator it =
-           object_states.begin();
-       it != object_states.end(); ++it) {
-    const msgs::ObjectState& os = it->second;
-    graph.Add(os.name, tg::RefFrame(planning_frame_), os.pose);
-  }
-  for (size_t step_i = 0; step_i < program.steps.size(); ++step_i) {
-    msgs::Step& step = program.steps[step_i];
-    if (step.action_type == msgs::Step::GRASP ||
-        step.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
-      const std::string& object_name = step.object_state.name;
-      for (size_t traj_i = 0; traj_i < step.ee_trajectory.size(); ++traj_i) {
-        const geometry_msgs::Pose& pose = step.ee_trajectory[traj_i];
-        tg::Transform pose_in_planning;
-        bool success =
-            graph.DescribePose(pose, tg::Source(object_name),
-                               tg::Target(planning_frame_), &pose_in_planning);
-        ROS_ASSERT(success);
-        step.ee_trajectory[traj_i] = pose_in_planning.pose();
-      }
-    }
-  }
-
-  std::vector<Slice> slices = SliceProgram(program);
+  std::vector<Slice> slices = ComputeSlices(get_states_res.demo_states);
 
   msgs::ImitateDemoResult result;
   action_server_.setSucceeded(result);
@@ -304,5 +264,46 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
   }
 
   return object_states;
+}
+
+std::vector<Slice> ProgramServer::ComputeSlices(
+    const msgs::DemoStates& demo_states) {
+  ProgramGenerator generator;
+  for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
+    generator.Step(demo_states.demo_states[i]);
+  }
+  msgs::Program program = generator.program();
+  std::map<std::string, msgs::ObjectState> object_states =
+      GetObjectPoses(program);
+  ROS_INFO("All object states initialized.");
+
+  // Transform all poses into planning frame
+  // Note: this changes the semantics of a Program. Normally, the trajectory
+  // poses are relative to the object. From here on, they are relative to the
+  // planning frame, regardless of where the object is.
+  tg::Graph graph;
+  for (std::map<std::string, msgs::ObjectState>::const_iterator it =
+           object_states.begin();
+       it != object_states.end(); ++it) {
+    const msgs::ObjectState& os = it->second;
+    graph.Add(os.name, tg::RefFrame(planning_frame_), os.pose);
+  }
+  for (size_t step_i = 0; step_i < program.steps.size(); ++step_i) {
+    msgs::Step& step = program.steps[step_i];
+    if (step.action_type == msgs::Step::GRASP ||
+        step.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
+      const std::string& object_name = step.object_state.name;
+      for (size_t traj_i = 0; traj_i < step.ee_trajectory.size(); ++traj_i) {
+        const geometry_msgs::Pose& pose = step.ee_trajectory[traj_i];
+        tg::Transform pose_in_planning;
+        bool success =
+            graph.DescribePose(pose, tg::Source(object_name),
+                               tg::Target(planning_frame_), &pose_in_planning);
+        ROS_ASSERT(success);
+        step.ee_trajectory[traj_i] = pose_in_planning.pose();
+      }
+    }
+  }
+  return SliceProgram(program);
 }
 }  // namespace pbi
