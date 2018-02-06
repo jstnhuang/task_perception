@@ -6,6 +6,8 @@
 int main(int argc, char** argv) {
   ros::init(argc, argv, "program_generator");
   ros::NodeHandle nh;
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
 
   ros::ServiceClient db_client =
       nh.serviceClient<task_perception_msgs::GetDemoStates>("get_demo_states");
@@ -17,6 +19,6 @@ int main(int argc, char** argv) {
   program_server.Start();
 
   ROS_INFO("Task imitation server ready.");
-  ros::spin();
+  ros::waitForShutdown();
   return 0;
 }
