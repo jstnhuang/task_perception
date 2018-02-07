@@ -21,11 +21,23 @@ For compatibility with `dbot_ros`, all object models must be in `.obj` format.
 You should run `/usr/bin/pcl_mesh_sampling MODEL.obj MODEL.pcd`, most likely with the default settings.
 All object meshes go in a ROS package called `object_meshes` and in a folder named `object_models`.
 
-## Launch procedure
+## Annotation procedure
 - [ ] `roscore`
 - [ ] Frontend: `cd frontend; polymer serve;`
 - [ ] Upload PR2 (only needed once): `roslaunch task_perception upload_pr2.launch`
 - [ ] Backend: `roslaunch task_perception task_perception.launch --screen`
-- [ ] RViz: `rosrun rviz rviz -d config/task_perception.rviz`
+- [ ] RViz: `rosrun rviz rviz -d task_perception/config/task_perception.rviz`
 - [ ] Skin segmentation: `setvenv tf; setws tracking; roslaunch skin_segmentation service_test.launch  --screen`
 - [ ] Skeleton tracking frontend: `setws tracking; roscd skin_segmentation/frontend; polymer serve`
+
+## Imitation procedure
+- [ ] Start up robot
+  - If simulation: start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
+  - If PR2: Start RWS
+- [ ] Raise torso to 0.4 m
+- [ ] Move to start position
+  - If simulation: use MoveIt
+  - If PR2: use Rapid PbD
+- [ ] Program server: `roslaunch task_imitation task_imitation.launch --screen`
+- [ ] RViz: `rosrun rviz rviz -d task_imitation/config/imitation.rviz`
+- [ ] Trigger processing/execution of a bag file: `python imitation.py`
