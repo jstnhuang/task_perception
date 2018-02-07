@@ -134,6 +134,8 @@ class ProgramServer {
   pr2_actions::Gripper left_gripper_;
   pr2_actions::Gripper right_gripper_;
   tf::TransformListener tf_listener_;
+
+  ros::Publisher gripper_pub_;
 };
 }  // namespace pbi
 

@@ -19,6 +19,7 @@
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/Program.h"
 #include "task_utils/bag_utils.h"
+#include "task_utils/pr2_gripper_viz.h"
 #include "tf/transform_listener.h"
 #include "transform_graph/graph.h"
 
@@ -229,7 +230,9 @@ ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
           "program_executor/right_arm_traj", 1, true)),
       left_gripper_(pr2_actions::Gripper::Left()),
       right_gripper_(pr2_actions::Gripper::Right()),
-      tf_listener_() {}
+      tf_listener_(),
+      gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
+          "program_executor/grippers", 10)) {}
 
 void ProgramServer::Start() {
   ROS_INFO("Using planning frame: %s", planning_frame_.c_str());
@@ -437,6 +440,9 @@ std::vector<Slice> ProgramServer::ComputeSlices(
       GetObjectPoses(program);
   ROS_INFO("All object states initialized.");
 
+  Pr2GripperViz gripper_viz;
+  gripper_viz.set_frame_id(planning_frame_);
+
   // Transform all poses into planning frame
   // Note: this changes the semantics of a Program. Normally, the trajectory
   // poses are relative to the object. From here on, they are relative to the
@@ -461,6 +467,9 @@ std::vector<Slice> ProgramServer::ComputeSlices(
                                tg::Target(planning_frame_), &pose_in_planning);
         ROS_ASSERT(success);
         step.ee_trajectory[traj_i] = pose_in_planning.pose();
+        gripper_viz.set_pose(step.ee_trajectory[traj_i]);
+        gripper_pub_.publish(gripper_viz.markers("program"));
+        ros::Duration(0.033).sleep();
       }
     }
   }
