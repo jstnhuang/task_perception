@@ -8,13 +8,19 @@ project(task_utils)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  geometry_msgs
+  eigen_conversions
+  robot_markers
   rosbag
   roscpp
   sensor_msgs
+  urdf
+  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -106,12 +112,19 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
     task_utils_bag_utils
+    task_utils_pr2_gripper_viz
     task_utils_ros_params
   CATKIN_DEPENDS
+    geometry_msgs
+    eigen_conversions
+    robot_markers
     rosbag
     roscpp
     sensor_msgs
-#  DEPENDS system_lib
+    urdf
+    visualization_msgs
+  DEPENDS
+    Eigen
 )
 
 ###########
@@ -129,6 +142,12 @@ include_directories(
 add_library(task_utils_bag_utils src/bag_utils.cpp)
 add_dependencies(task_utils_bag_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_utils_bag_utils
+  ${catkin_LIBRARIES}
+)
+
+add_library(task_utils_pr2_gripper_viz src/pr2_gripper_viz.cpp)
+add_dependencies(task_utils_pr2_gripper_viz ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_utils_pr2_gripper_viz
   ${catkin_LIBRARIES}
 )
 
