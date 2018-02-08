@@ -91,18 +91,29 @@ void DemoModel::AddEvent(const task_perception_msgs::Event& event) {
               demo_.frame_count);
     return;
   }
+  // Check to see if we are replacing an existing event.
   for (size_t i = 0; i < timeline_[event.frame_number].size(); ++i) {
-    Event& evt = timeline_[event.frame_number][i];
-    if (event.type != Event::SET_OBJECT_POSE && evt.type == event.type) {
-      evt = event;
-      return;
+    Event& existing = timeline_[event.frame_number][i];
+    // Only replace events of the same type
+    if (event.type != existing.type) {
+      continue;
     }
-    if (event.type == Event::SET_OBJECT_POSE && evt.type == event.type &&
-        evt.object_name == event.object_name) {
-      evt = event;
+
+    // For object-related events, only replace if the two events pertain to the
+    // same object.
+    if (event.type == Event::SET_OBJECT_POSE ||
+        event.type == Event::SPAWN_OBJECT ||
+        event.type == Event::UNSPAWN_OBJECT) {
+      if (event.object_name == existing.object_name) {
+        existing = event;
+        return;
+      }
+    } else {
+      existing = event;
       return;
     }
   }
+  // Otherwise, insert a new event
   timeline_[event.frame_number].push_back(event);
 }
 
