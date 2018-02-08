@@ -23,6 +23,7 @@
 #include "tf/transform_listener.h"
 #include "transform_graph/graph.h"
 
+#include "task_imitation/bimanual_manipulation.h"
 #include "task_imitation/program_generator.h"
 
 namespace msgs = task_perception_msgs;
@@ -218,6 +219,7 @@ ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
     : db_client_(db_client),
       left_group_("left_arm"),
       right_group_("right_arm"),
+      arms_group_("arms"),
       nh_(),
       action_server_(
           nh_, "imitate_demo",
@@ -321,6 +323,9 @@ void ProgramServer::ExecuteImitation(
     } else {
       ROS_INFO("Planned %f%% of left arm trajectory", left_fraction * 100);
     }
+    if (left_traj.joint_trajectory.points.size() == 0) {
+      left_traj.joint_trajectory = GetNonMovingTrajectory(left_group_);
+    }
     moveit_msgs::DisplayTrajectory left_display;
     left_display.trajectory.push_back(left_traj);
     left_traj_pub_.publish(left_display);
@@ -338,12 +343,16 @@ void ProgramServer::ExecuteImitation(
     } else {
       ROS_INFO("Planned %f%% of right arm trajectory", right_fraction * 100);
     }
+    if (right_traj.joint_trajectory.points.size() == 0) {
+      right_traj.joint_trajectory = GetNonMovingTrajectory(right_group_);
+    }
     moveit_msgs::DisplayTrajectory right_display;
     right_display.trajectory.push_back(right_traj);
     right_traj_pub_.publish(right_display);
+
     moveit::planning_interface::MoveGroup::Plan plan;
-    plan.trajectory_ = right_traj;
-    right_group_.execute(plan);
+    plan.trajectory_ = MergeTrajectories(left_traj, right_traj);
+    arms_group_.execute(plan);
 
     // Execute ungrasp, if applicable
     if (slice.ungrasp.arm != "") {

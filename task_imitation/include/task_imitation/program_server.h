@@ -120,6 +120,7 @@ class ProgramServer {
   ros::ServiceClient db_client_;
   moveit::planning_interface::MoveGroup left_group_;
   moveit::planning_interface::MoveGroup right_group_;
+  moveit::planning_interface::MoveGroup arms_group_;
 
   ros::NodeHandle nh_;
   actionlib::SimpleActionServer<task_perception_msgs::ImitateDemoAction>
