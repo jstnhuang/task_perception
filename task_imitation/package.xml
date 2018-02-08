@@ -60,6 +60,7 @@
   <depend>task_db</depend>
   <depend>task_perception_msgs</depend>
   <depend>task_utils</depend>
+  <depend>trajectory_msgs</depend>
   <depend>transform_graph</depend>
 
   <!-- The export tag contains other, unspecified, tags -->

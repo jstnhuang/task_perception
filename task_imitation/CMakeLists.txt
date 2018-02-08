@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   task_db
   task_perception_msgs
   task_utils
+  trajectory_msgs
   transform_graph
 )
 
@@ -114,6 +115,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
+    task_imitation_bimanual_manipulation
     task_imitation_program_generator
     task_imitation_program_server
   CATKIN_DEPENDS
@@ -128,6 +130,7 @@ catkin_package(
     task_db
     task_perception_msgs
     task_utils
+    trajectory_msgs
     transform_graph
   DEPENDS Boost
 )
@@ -144,6 +147,12 @@ include_directories(
 )
 
 ## Declare a C++ library
+add_library(task_imitation_bimanual_manipulation src/bimanual_manipulation.cpp)
+add_dependencies(task_imitation_bimanual_manipulation ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_bimanual_manipulation
+  ${catkin_LIBRARIES}
+)
+
 add_library(task_imitation_program_generator src/program_generator.cpp)
 add_dependencies(task_imitation_program_generator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_generator
@@ -153,6 +162,7 @@ target_link_libraries(task_imitation_program_generator
 add_library(task_imitation_program_server src/program_server.cpp)
 add_dependencies(task_imitation_program_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_server
+  task_imitation_bimanual_manipulation
   task_imitation_program_generator
   ${catkin_LIBRARIES}
 )
