@@ -67,7 +67,7 @@ void AnnotatorServer::HandleEvent(const msgs::AnnotatorEvent& event) {
       HandleStep();
     } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
       HandleAddObject(event.object_name, event.mesh_name);
-    } else if (event.type == msgs::AnnotatorEvent::ADD_OBJECT) {
+    } else if (event.type == msgs::AnnotatorEvent::REMOVE_OBJECT) {
       HandleRemoveObject(event.object_name);
     } else if (event.type == msgs::AnnotatorEvent::SAVE_SKELETON) {
       HandleSaveSkeleton();
