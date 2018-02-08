@@ -53,6 +53,7 @@ trajectory_msgs::JointTrajectory GetNonMovingTrajectory(
     pt.accelerations.push_back(0);
     pt.effort.push_back(0);
   }
+  result.points.push_back(pt);
   return result;
 }
 
