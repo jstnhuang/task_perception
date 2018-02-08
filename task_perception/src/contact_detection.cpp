@@ -109,8 +109,8 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
     int num_touching_points = NumHandPointsOnObject(
         object, left_or_right, context, context->kTouchingObjectDistance);
     if (num_touching_points > 0 && context->kDebug) {
-      ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
-               num_touching_points);
+      // ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
+      //         num_touching_points);
     }
     is_touching = num_touching_points >= context->kTouchingObjectPoints;
 
@@ -168,8 +168,8 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   int num_touching_points = NumHandPointsOnObject(
       object, left_or_right, context, context->kTouchingReleasedObjectDistance);
   if (num_touching_points > 0 && context->kDebug) {
-    ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
-             num_touching_points);
+    // ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
+    //         num_touching_points);
   }
 
   if (num_touching_points <= context->kTouchingReleasedObjectPoints) {
@@ -186,26 +186,29 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   // Otherwise, keep as GRASPING
   hand_state->current_action = msgs::HandState::GRASPING;
   hand_state->object_name = prev_state.object_name;
+  hand_state->contact_pose = prev_state.contact_pose;
 
   // Re-evaluate the pose
-  tg::Graph graph;
-  graph.Add("object", tg::RefFrame("camera"), object.pose);
-  graph.Add("prev grasp", tg::RefFrame("object"), prev_state.contact_pose);
-  tg::Transform prev_in_camera;
-  graph.ComputeDescription(tg::LocalFrame("prev grasp"), tg::RefFrame("camera"),
-                           &prev_in_camera);
-  geometry_msgs::Pose prev_grasp_in_camera;
-  prev_in_camera.ToPose(&prev_grasp_in_camera);
+  // tg::Graph graph;
+  // graph.Add("object", tg::RefFrame("camera"), object.pose);
+  // graph.Add("prev grasp", tg::RefFrame("object"), prev_state.contact_pose);
+  // tg::Transform prev_in_camera;
+  // graph.ComputeDescription(tg::LocalFrame("prev grasp"),
+  // tg::RefFrame("camera"),
+  //                         &prev_in_camera);
+  // geometry_msgs::Pose prev_grasp_in_camera;
+  // prev_in_camera.ToPose(&prev_grasp_in_camera);
 
-  geometry_msgs::Pose grasp_in_camera;
-  grasp_planner_.Plan(left_or_right, object.name, prev_grasp_in_camera, context,
-                      &grasp_in_camera);
+  // geometry_msgs::Pose grasp_in_camera;
+  // grasp_planner_.Plan(left_or_right, object.name, prev_grasp_in_camera,
+  // context,
+  //                    &grasp_in_camera);
 
-  graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
-  tg::Transform grasp_in_obj;
-  graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
-                           &grasp_in_obj);
-  grasp_in_obj.ToPose(&hand_state->contact_pose);
+  // graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
+  // tg::Transform grasp_in_obj;
+  // graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
+  //                         &grasp_in_obj);
+  // grasp_in_obj.ToPose(&hand_state->contact_pose);
 }
 
 bool ContactDetection::IsObjectCurrentlyCloseToWrist(
