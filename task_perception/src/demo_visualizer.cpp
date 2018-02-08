@@ -112,7 +112,7 @@ void MakeMeshMarker(const geometry_msgs::Pose& pose,
   marker->color.r = 0;
   marker->color.g = 1;
   marker->color.b = 0;
-  marker->color.a = 1;
+  marker->color.a = 0.5;
 }
 
 void MakeDeleteMarker(const std::string& object_name, Marker* marker) {
