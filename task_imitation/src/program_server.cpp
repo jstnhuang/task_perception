@@ -10,6 +10,7 @@
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
+#include "moveit/robot_state/conversions.h"
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
@@ -327,6 +328,8 @@ void ProgramServer::ExecuteImitation(
       left_traj.joint_trajectory = GetNonMovingTrajectory(left_group_);
     }
     moveit_msgs::DisplayTrajectory left_display;
+    moveit::core::robotStateToRobotStateMsg(*left_group_.getCurrentState(),
+                                            left_display.trajectory_start);
     left_display.trajectory.push_back(left_traj);
     left_traj_pub_.publish(left_display);
 
@@ -347,6 +350,8 @@ void ProgramServer::ExecuteImitation(
       right_traj.joint_trajectory = GetNonMovingTrajectory(right_group_);
     }
     moveit_msgs::DisplayTrajectory right_display;
+    moveit::core::robotStateToRobotStateMsg(*right_group_.getCurrentState(),
+                                            right_display.trajectory_start);
     right_display.trajectory.push_back(right_traj);
     right_traj_pub_.publish(right_display);
 
