@@ -41,4 +41,4 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
   - If simulation: use MoveIt
   - If PR2: use Rapid PbD
 - [ ] Program server: `roslaunch task_imitation task_imitation.launch --screen`
-- [ ] Trigger processing/execution of a bag file: `python imitation.py`
+- [ ] Trigger processing/execution of a bag file: `rosrun task_imitation test_imitation.py`
