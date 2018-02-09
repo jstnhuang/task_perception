@@ -261,9 +261,17 @@ void ProgramServer::ExecuteImitation(
     return;
   }
   std::vector<Slice> slices = ComputeSlices(get_states_res.demo_states);
+  ROS_INFO("Generated slices");
+  bool is_sim;
+  ros::param::param("use_sim_time", is_sim, false);
+  double grasp_force = is_sim ? -1 : 50;
 
   for (size_t i = 0; i < slices.size(); ++i) {
     const Slice& slice = slices[i];
+
+    ROS_INFO("Slice %ld: grasp: %s, left pts: %ld, right pts: %ld, ungrasp: %s",
+             i, slice.grasp.arm.c_str(), slice.left_traj.ee_trajectory.size(),
+             slice.right_traj.ee_trajectory.size(), slice.ungrasp.arm.c_str());
 
     // Execute grasp, if applicable
     if (slice.grasp.arm != "") {
@@ -272,7 +280,7 @@ void ProgramServer::ExecuteImitation(
       graph.Add("grasp", tg::RefFrame(planning_frame_), grasp);
       Pose pregrasp;
       pregrasp.orientation.w = 1;
-      pregrasp.position.x = -0.16;
+      pregrasp.position.x = -0.12;
       tg::Transform pregrasp_in_planning;
       graph.DescribePose(pregrasp, tg::Source("grasp"),
                          tg::Target(planning_frame_), &pregrasp_in_planning);
@@ -286,7 +294,7 @@ void ProgramServer::ExecuteImitation(
         }
         left_group_.setPoseTarget(grasp);
         left_group_.move();
-        left_gripper_.StartClosing(50);
+        left_gripper_.StartClosing(grasp_force);
         while (!left_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
@@ -299,7 +307,7 @@ void ProgramServer::ExecuteImitation(
         }
         right_group_.setPoseTarget(grasp);
         right_group_.move();
-        right_gripper_.StartClosing(50);
+        right_gripper_.StartClosing(grasp_force);
         while (!right_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
@@ -379,19 +387,19 @@ void ProgramServer::ExecuteImitation(
       graph.Add("current", tg::RefFrame(planning_frame_), wrist_tf);
       Pose release;
       release.orientation.w = 1;
-      release.position.x = -0.16;
+      release.position.x = -0.12;
       tg::Transform release_in_planning;
       graph.DescribePose(release, tg::Source("current"),
                          tg::Target(planning_frame_), &release_in_planning);
 
-      if (slice.grasp.arm == msgs::Step::LEFT) {
+      if (slice.ungrasp.arm == msgs::Step::LEFT) {
         left_gripper_.StartOpening();
         while (!left_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
         left_group_.setPoseTarget(release_in_planning.pose());
         left_group_.move();
-      } else if (slice.grasp.arm == msgs::Step::RIGHT) {
+      } else if (slice.ungrasp.arm == msgs::Step::RIGHT) {
         right_gripper_.StartOpening();
         while (!right_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
