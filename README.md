@@ -25,6 +25,7 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] `roscore`
 - [ ] Frontend: `cd frontend; polymer serve;`
 - [ ] Upload PR2 (only needed once): `roslaunch task_perception upload_pr2.launch`
+- [ ] Add an object tracker for each object in the demonstration: `rosed task_perception task_perception.launch`
 - [ ] Backend: `roslaunch task_perception task_perception.launch --screen`
 - [ ] RViz: `rosrun rviz rviz -d task_perception/config/task_perception.rviz`
 - [ ] Skin segmentation: `setvenv tf; setws tracking; roslaunch skin_segmentation service_test.launch  --screen`
@@ -33,11 +34,11 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 ## Imitation procedure
 - [ ] Start up robot
   - If simulation: start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
-  - If PR2: Start RWS
+  - If PR2: Start RWS and `rosrun rqt_console rqt_console`
 - [ ] Raise torso to 0.4 m
+- [ ] RViz: `rosrun rviz rviz -d task_imitation/config/imitation.rviz`
 - [ ] Move to start position
   - If simulation: use MoveIt
   - If PR2: use Rapid PbD
 - [ ] Program server: `roslaunch task_imitation task_imitation.launch --screen`
-- [ ] RViz: `rosrun rviz rviz -d task_imitation/config/imitation.rviz`
 - [ ] Trigger processing/execution of a bag file: `python imitation.py`
