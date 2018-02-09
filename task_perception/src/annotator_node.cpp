@@ -77,13 +77,7 @@ int main(int argc, char** argv) {
   pbi::DemoStatesDb demo_states_db(&demo_states_store);
 
   // Object trackers
-  ros::ServiceClient multi_object_tracker =
-      nh.serviceClient<dbot_ros_msgs::MultiTrack>("multi_object_track");
-  while (ros::ok() &&
-         !multi_object_tracker.waitForExistence(ros::Duration(2))) {
-    ROS_WARN("Waiting for object tracker service");
-  }
-  pbi::MultiObjectTracker object_trackers(multi_object_tracker);
+  pbi::MultiObjectTracker object_trackers;
 
   pbi::AnnotatorServer server(demo_viz, skel_services, demo_db, demo_states_db,
                               predict_hands, object_trackers);

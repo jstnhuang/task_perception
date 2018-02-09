@@ -300,7 +300,11 @@ void DemoRuntime::StepObjectPose(
 
 void DemoRuntime::ResetState() {
   object_models_.clear();
-  object_trackers_.DestroyAll();
+  std::vector<std::string> tracked_objects = object_trackers_.TrackedObjects();
+  for (size_t i = 0; i < tracked_objects.size(); ++i) {
+    const std::string& name = tracked_objects[i];
+    object_trackers_.Destroy(name);
+  }
   last_executed_frame_ = -1;
   num_frames_ = 0;
   states_.clear();

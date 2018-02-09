@@ -37,7 +37,8 @@
   <rosparam command="load" file="$(find task_perception)/config/particle_tracker.yaml" />
   <rosparam command="load" file="$(find task_perception)/config/camera.yaml" />
   <rosparam command="load" file="$(find task_perception)/config/object.yaml" />
-  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_server" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_pringles" args="pringles" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_cheezit" args="cheezit" required="true" />
   <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
 
   <!-- Skeleton tracker -->
