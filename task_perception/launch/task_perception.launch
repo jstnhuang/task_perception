@@ -31,14 +31,14 @@
     <param name="camera_frame_id" value="/head_mount_kinect_rgb_optical_frame" />
   </node-->
   <!-- Hard-coded camera pose -->
-  <node pkg="tf" type="static_transform_publisher" name="pbi_camera_pose_publisher" args="0.022 -0.017 1.747 0.614 -0.613 0.351 -0.352 base_link head_mount_kinect_rgb_optical_frame 10" />
+  <node pkg="tf" type="static_transform_publisher" name="pbi_camera_pose_publisher" args="0.022 -0.017 1.747 0.614 -0.613 0.351 -0.352 base_link head_mount_kinect_rgb_optical_frame 10" required="true" />
 
   <!-- Object tracker -->
   <rosparam command="load" file="$(find task_perception)/config/particle_tracker.yaml" />
   <rosparam command="load" file="$(find task_perception)/config/camera.yaml" />
   <rosparam command="load" file="$(find task_perception)/config/object.yaml" />
-  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_server" />
-  <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_server" required="true" />
+  <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
 
   <!-- Skeleton tracker -->
   <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
