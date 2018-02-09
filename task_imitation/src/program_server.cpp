@@ -206,8 +206,8 @@ std::vector<Pose> SampleTrajectory(const std::vector<Pose>& traj) {
   sampled.push_back(traj[0]);
 
   int sample_every;
-  ros::param::param("sample_every", sample_every, 7);
-  for (size_t i = 1; i < traj.size() - 1; i += sample_every) {
+  ros::param::param("sample_every", sample_every, 9);
+  for (size_t i = sample_every; i < traj.size() - 1; i += sample_every) {
     sampled.push_back(traj[i]);
   }
 
@@ -280,7 +280,7 @@ void ProgramServer::ExecuteImitation(
       graph.Add("grasp", tg::RefFrame(planning_frame_), grasp);
       Pose pregrasp;
       pregrasp.orientation.w = 1;
-      pregrasp.position.x = -0.12;
+      pregrasp.position.x = -0.10;
       tg::Transform pregrasp_in_planning;
       graph.DescribePose(pregrasp, tg::Source("grasp"),
                          tg::Target(planning_frame_), &pregrasp_in_planning);
@@ -379,7 +379,7 @@ void ProgramServer::ExecuteImitation(
       tf::StampedTransform wrist_tf;
       ros::Time now = ros::Time::now();
       tf_listener_.waitForTransform(planning_frame_, link, now,
-                                    ros::Duration(1));
+                                    ros::Duration(5.0));
       tf_listener_.lookupTransform(planning_frame_, link, now, wrist_tf);
       tg::Transform wrist_tg(wrist_tf);
 
@@ -387,7 +387,7 @@ void ProgramServer::ExecuteImitation(
       graph.Add("current", tg::RefFrame(planning_frame_), wrist_tf);
       Pose release;
       release.orientation.w = 1;
-      release.position.x = -0.12;
+      release.position.x = -0.08;
       tg::Transform release_in_planning;
       graph.DescribePose(release, tg::Source("current"),
                          tg::Target(planning_frame_), &release_in_planning);
