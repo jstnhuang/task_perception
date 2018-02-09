@@ -126,13 +126,21 @@ void DemoModel::DeleteEvent(const Event& event, int frame_number) {
 
   std::vector<Event> cleaned;
   for (size_t i = 0; i < timeline_[frame_number].size(); ++i) {
-    const Event& evt = timeline_[frame_number][i];
-    if (event.type != Event::SET_OBJECT_POSE && evt.type != event.type) {
-      cleaned.push_back(evt);
+    const Event& existing = timeline_[frame_number][i];
+    if (event.type != existing.type) {
+      cleaned.push_back(existing);
+      continue;
     }
-    if (event.type == Event::SET_OBJECT_POSE &&
-        (evt.type != event.type || evt.object_name != event.object_name)) {
-      cleaned.push_back(evt);
+    if (event.type == Event::SET_OBJECT_POSE ||
+        event.type == Event::SPAWN_OBJECT ||
+        event.type == event.UNSPAWN_OBJECT) {
+      if (event.object_name != existing.object_name) {
+        cleaned.push_back(existing);
+        continue;
+      }
+    } else {
+      cleaned.push_back(existing);
+      continue;
     }
   }
   timeline_[frame_number] = cleaned;
