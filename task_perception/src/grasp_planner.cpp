@@ -115,7 +115,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   if (debug_) {
     VisualizeGripper("optimization", initial_pose,
                      context->camera_info().header.frame_id);
-    ros::Duration(0.25).sleep();
+    ros::Duration(0.2).sleep();
   }
 
   Pose to_wrist_pose;
@@ -124,7 +124,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   if (debug_) {
     VisualizeGripper("optimization", to_wrist_pose,
                      context->camera_info().header.frame_id);
-    ros::Duration(0.25).sleep();
+    ros::Duration(0.2).sleep();
   }
 
   Plan(left_or_right, object_name, to_wrist_pose, context, pose);
@@ -150,7 +150,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
   Pose prev_gripper_pose;
   GetPreviousGripperPose("left_or_right", context, &prev_gripper_pose);
 
-  const double kTranslationThreshold = 0.005;
+  const double kTranslationThreshold = 0.015;
   const double kRotationThreshold = 0.1;
 
   // While termination criteria not reached:
@@ -165,9 +165,9 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     OptimizePlacement(prev_pose, object_name, context, 10, &placed);
     gripper_model.set_pose(placed);
     if (debug_) {
-      VisualizeGripper("optimization", next_pose,
+      VisualizeGripper("optimization", placed,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.25).sleep();
+      ros::Duration(0.2).sleep();
     }
 
     Pose rotated_pose;
@@ -177,7 +177,7 @@ void GraspPlanner::Plan(const std::string& left_or_right,
     if (debug_) {
       VisualizeGripper("optimization", rotated_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.25).sleep();
+      ros::Duration(0.20).sleep();
     }
 
     next_pose = rotated_pose;
@@ -429,15 +429,15 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
         }
       } else {
         if (debug_) {
-          VisualizeGripper("optimization", rotated_pose,
-                           context->camera_info().header.frame_id);
-          ros::Duration(0.01).sleep();
+          // VisualizeGripper("optimization", rotated_pose,
+          //                 context->camera_info().header.frame_id);
+          // ros::Duration(0.01).sleep();
         }
       }
     }
   }
 
-  const double kPitchRange = 72 * M_PI / 180;
+  const double kPitchRange = 63 * M_PI / 180;
   const double kPitchResolution = 9 * M_PI / 180;
   int num_pitch_samples = round(kPitchRange / kPitchResolution) + 1;
   for (int pitch_i = 0; pitch_i < num_pitch_samples; ++pitch_i) {
@@ -460,11 +460,11 @@ void GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
                &grasp_eval);
 
     if (debug_) {
-      ROS_INFO("p: %f, %s", pitch_angle * 180 / M_PI,
-               grasp_eval.ToString().c_str());
+      // ROS_INFO("p: %f, %s", pitch_angle * 180 / M_PI,
+      //         grasp_eval.ToString().c_str());
       VisualizeGripper("optimization", rotated_pose,
                        context->camera_info().header.frame_id);
-      ros::Duration(0.01).sleep();
+      ros::Duration(0.025).sleep();
       // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
