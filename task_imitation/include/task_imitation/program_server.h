@@ -16,6 +16,8 @@
 #include "task_perception_msgs/Program.h"
 #include "tf/transform_listener.h"
 
+#include "task_imitation/program_slice.h"
+
 namespace pbi {
 std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
 std::vector<geometry_msgs::Pose> SampleTrajectory(
@@ -32,7 +34,8 @@ class ProgramServer {
   std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
       const task_perception_msgs::Program& program);
   std::vector<Slice> ComputeSlices(
-      const task_perception_msgs::DemoStates& demo_states);
+      const task_perception_msgs::Program& program,
+      const std::vector<task_perception_msgs::ObjectState>& object_states);
 
   ros::ServiceClient db_client_;
   moveit::planning_interface::MoveGroup left_group_;

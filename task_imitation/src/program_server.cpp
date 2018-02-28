@@ -171,8 +171,21 @@ void ProgramServer::ExecuteImitation(
     action_server_.setAborted(result, get_states_res.error);
     return;
   }
-  std::vector<Slice> slices = ComputeSlices(get_states_res.demo_states);
+
+  // Generate program and slices
+  const msgs::DemoStates& demo_states = get_states_res.demo_states;
+  ProgramGenerator generator;
+  for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
+    generator.Step(demo_states.demo_states[i]);
+  }
+  msgs::Program program = generator.program();
+  std::map<std::string, msgs::ObjectState> object_states =
+      GetObjectPoses(program);
+  ROS_INFO("All object states initialized.");
+  std::vector<Slice> slices = ComputeSlices(program, object_states);
   ROS_INFO("Generated slices");
+
+  // Execute each slice
   bool is_sim;
   ros::param::param("use_sim_time", is_sim, false);
   double grasp_force = is_sim ? -1 : 50;
@@ -363,16 +376,8 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
 }
 
 std::vector<Slice> ProgramServer::ComputeSlices(
-    const msgs::DemoStates& demo_states) {
-  ProgramGenerator generator;
-  for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
-    generator.Step(demo_states.demo_states[i]);
-  }
-  msgs::Program program = generator.program();
-  std::map<std::string, msgs::ObjectState> object_states =
-      GetObjectPoses(program);
-  ROS_INFO("All object states initialized.");
-
+    const msgs::Program& program,
+    const std::vector<msgs::ObjectState>& object_states) {
   Pr2GripperViz gripper_viz;
   gripper_viz.set_frame_id(planning_frame_);
 
