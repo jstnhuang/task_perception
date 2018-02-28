@@ -35,98 +35,6 @@ using boost::optional;
 using geometry_msgs::Pose;
 
 namespace pbi {
-std::vector<Slice> SliceProgram(const msgs::Program& program) {
-  // Split into left/right steps
-  std::vector<msgs::Step> left_steps;
-  std::vector<msgs::Step> right_steps;
-
-  for (size_t i = 0; i < program.steps.size(); ++i) {
-    const msgs::Step& step = program.steps[i];
-    if (step.arm == msgs::Step::LEFT) {
-      left_steps.push_back(step);
-    } else if (step.arm == msgs::Step::RIGHT) {
-      right_steps.push_back(step);
-    }
-  }
-
-  // Iterate through left and right actions.
-  ProgramIterator left_it(left_steps);
-  ProgramIterator right_it(right_steps);
-  left_it.Begin();
-  right_it.Begin();
-  std::vector<Slice> slices;
-  Slice current_slice;
-  while (!left_it.IsDone() || !right_it.IsDone()) {
-    // Walk through the left and right steps in order of time.
-    ProgramIterator* it;
-    msgs::Step* traj_step;
-    if (left_it.IsDone()) {
-      it = &right_it;
-      traj_step = &current_slice.right_traj;
-    } else if (right_it.IsDone()) {
-      it = &left_it;
-      traj_step = &current_slice.left_traj;
-    } else if (left_it.time() < right_it.time()) {
-      it = &left_it;
-      traj_step = &current_slice.left_traj;
-    } else {
-      it = &right_it;
-      traj_step = &current_slice.right_traj;
-    }
-
-    const msgs::Step& step = it->step();
-    if (step.action_type == msgs::Step::GRASP) {
-      // If this slice already has a grasp, then submit the slice and reset.
-      if (current_slice.grasp.action_type != "") {
-        current_slice.FixTrajectories();
-        slices.push_back(current_slice);
-        current_slice.Reset();
-      }
-      current_slice.grasp = step;
-      it->Advance();
-    } else if (step.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
-      // Initialize trajectory message if needed.
-      if (traj_step->ee_trajectory.size() == 0) {
-        traj_step->start_time = step.start_time;
-        traj_step->arm = step.arm;
-        traj_step->action_type = step.action_type;
-        traj_step->object_state = step.object_state;
-      }
-      optional<std::pair<Pose, ros::Duration> > pt = it->trajectory_point();
-      ROS_ASSERT(pt);
-      traj_step->ee_trajectory.push_back(pt->first);
-      traj_step->times_from_start.push_back(pt->second);
-      it->Advance();
-    } else if (step.action_type == msgs::Step::UNGRASP) {
-      current_slice.ungrasp = step;
-      current_slice.FixTrajectories();
-      slices.push_back(current_slice);
-      current_slice.Reset();
-      it->Advance();
-    }
-  }
-
-  return slices;
-}
-
-std::vector<Pose> SampleTrajectory(const std::vector<Pose>& traj) {
-  std::vector<Pose> sampled;
-  if (traj.size() == 0) {
-    return traj;
-  }
-  sampled.push_back(traj[0]);
-
-  int sample_every;
-  ros::param::param("sample_every", sample_every, 9);
-  for (size_t i = sample_every; i < traj.size() - 1; i += sample_every) {
-    sampled.push_back(traj[i]);
-  }
-
-  sampled.push_back(traj.back());
-  ROS_INFO("Sampled %ld poses out of %ld", sampled.size(), traj.size());
-  return sampled;
-}
-
 ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
     : db_client_(db_client),
       left_group_("left_arm"),
@@ -412,5 +320,97 @@ std::vector<Slice> ProgramServer::ComputeSlices(
     }
   }
   return SliceProgram(program);
+}
+
+std::vector<Slice> SliceProgram(const msgs::Program& program) {
+  // Split into left/right steps
+  std::vector<msgs::Step> left_steps;
+  std::vector<msgs::Step> right_steps;
+
+  for (size_t i = 0; i < program.steps.size(); ++i) {
+    const msgs::Step& step = program.steps[i];
+    if (step.arm == msgs::Step::LEFT) {
+      left_steps.push_back(step);
+    } else if (step.arm == msgs::Step::RIGHT) {
+      right_steps.push_back(step);
+    }
+  }
+
+  // Iterate through left and right actions.
+  ProgramIterator left_it(left_steps);
+  ProgramIterator right_it(right_steps);
+  left_it.Begin();
+  right_it.Begin();
+  std::vector<Slice> slices;
+  Slice current_slice;
+  while (!left_it.IsDone() || !right_it.IsDone()) {
+    // Walk through the left and right steps in order of time.
+    ProgramIterator* it;
+    msgs::Step* traj_step;
+    if (left_it.IsDone()) {
+      it = &right_it;
+      traj_step = &current_slice.right_traj;
+    } else if (right_it.IsDone()) {
+      it = &left_it;
+      traj_step = &current_slice.left_traj;
+    } else if (left_it.time() < right_it.time()) {
+      it = &left_it;
+      traj_step = &current_slice.left_traj;
+    } else {
+      it = &right_it;
+      traj_step = &current_slice.right_traj;
+    }
+
+    const msgs::Step& step = it->step();
+    if (step.action_type == msgs::Step::GRASP) {
+      // If this slice already has a grasp, then submit the slice and reset.
+      if (current_slice.grasp.action_type != "") {
+        current_slice.FixTrajectories();
+        slices.push_back(current_slice);
+        current_slice.Reset();
+      }
+      current_slice.grasp = step;
+      it->Advance();
+    } else if (step.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
+      // Initialize trajectory message if needed.
+      if (traj_step->ee_trajectory.size() == 0) {
+        traj_step->start_time = step.start_time;
+        traj_step->arm = step.arm;
+        traj_step->action_type = step.action_type;
+        traj_step->object_state = step.object_state;
+      }
+      optional<std::pair<Pose, ros::Duration> > pt = it->trajectory_point();
+      ROS_ASSERT(pt);
+      traj_step->ee_trajectory.push_back(pt->first);
+      traj_step->times_from_start.push_back(pt->second);
+      it->Advance();
+    } else if (step.action_type == msgs::Step::UNGRASP) {
+      current_slice.ungrasp = step;
+      current_slice.FixTrajectories();
+      slices.push_back(current_slice);
+      current_slice.Reset();
+      it->Advance();
+    }
+  }
+
+  return slices;
+}
+
+std::vector<Pose> SampleTrajectory(const std::vector<Pose>& traj) {
+  std::vector<Pose> sampled;
+  if (traj.size() == 0) {
+    return traj;
+  }
+  sampled.push_back(traj[0]);
+
+  int sample_every;
+  ros::param::param("sample_every", sample_every, 9);
+  for (size_t i = sample_every; i < traj.size() - 1; i += sample_every) {
+    sampled.push_back(traj[i]);
+  }
+
+  sampled.push_back(traj.back());
+  ROS_INFO("Sampled %ld poses out of %ld", sampled.size(), traj.size());
+  return sampled;
 }
 }  // namespace pbi

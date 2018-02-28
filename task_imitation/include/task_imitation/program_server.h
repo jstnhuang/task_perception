@@ -20,10 +20,6 @@
 #include "task_imitation/program_slice.h"
 
 namespace pbi {
-std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
-std::vector<geometry_msgs::Pose> SampleTrajectory(
-    const std::vector<geometry_msgs::Pose>& traj);
-
 class ProgramServer {
  public:
   ProgramServer(const ros::ServiceClient& db_client);
@@ -60,6 +56,11 @@ class ProgramServer {
 
   ros::Publisher gripper_pub_;
 };
+
+std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
+
+std::vector<geometry_msgs::Pose> SampleTrajectory(
+    const std::vector<geometry_msgs::Pose>& traj);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_SERVER_H_
