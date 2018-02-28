@@ -82,14 +82,15 @@ void ProgramServer::ExecuteImitation(
 
   // Generate program and slices
   const msgs::DemoStates& demo_states = get_states_res.demo_states;
+  std::map<std::string, msgs::ObjectState> object_states =
+      GetObjectPoses(demo_states);
+  ROS_INFO("All object states initialized.");
+
   ProgramGenerator generator;
   for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
     generator.Step(demo_states.demo_states[i]);
   }
   msgs::Program program = generator.program();
-  std::map<std::string, msgs::ObjectState> object_states =
-      GetObjectPoses(program);
-  ROS_INFO("All object states initialized.");
   std::vector<Slice> slices = ComputeSlices(program, object_states);
   ROS_INFO("Generated slices");
 
@@ -247,16 +248,19 @@ void ProgramServer::ExecuteImitation(
 }
 
 std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
-    const msgs::Program& program) {
+    const msgs::DemoStates& demo_states) {
   // This models the assumption that each demonstration only interacts with an
   // object once.We could / should allow the robot to interact with an object
   // more than once, but we need to continuosly track the objects in that
   // case.
   std::map<std::string, msgs::ObjectState> object_states;
-  for (size_t i = 0; i < program.steps.size(); ++i) {
-    const msgs::Step& step = program.steps[i];
-    if (step.action_type == msgs::Step::GRASP) {
-      object_states[step.object_state.name] = step.object_state;
+  for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
+    const msgs::DemoState& state = demo_states.demo_states[i];
+    for (size_t j = 0; j < state.object_states.size(); ++j) {
+      const msgs::ObjectState& os = state.object_states[j];
+      if (object_states.find(os.name) != object_states.end()) {
+        object_states[os.name] = os;
+      }
     }
   }
 

@@ -29,7 +29,7 @@ class ProgramServer {
 
  private:
   std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
-      const task_perception_msgs::Program& program);
+      const task_perception_msgs::DemoStates& demo_states);
   std::vector<Slice> ComputeSlices(
       const task_perception_msgs::Program& program,
       const std::map<std::string, task_perception_msgs::ObjectState>&
