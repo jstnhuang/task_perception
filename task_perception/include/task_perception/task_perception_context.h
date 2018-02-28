@@ -18,15 +18,16 @@ namespace pbi {
 // Lazily computes context for a single frame of a demonstration.
 class TaskPerceptionContext {
  public:
-  TaskPerceptionContext(
-      pbi::SkeletonServices& skel_services, ros::ServiceClient& predict_hands,
-      const task_perception_msgs::DemoState& current_state,
-      const task_perception_msgs::DemoState& prev_state,
-      const sensor_msgs::Image& color_image,
-      const sensor_msgs::Image& depth_image,
-      const sensor_msgs::CameraInfo& camera_info,
-      std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>*
-          object_models);
+  typedef std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>
+      ObjectModelCache;
+  TaskPerceptionContext(pbi::SkeletonServices& skel_services,
+                        ros::ServiceClient& predict_hands,
+                        const task_perception_msgs::DemoState& current_state,
+                        const task_perception_msgs::DemoState& prev_state,
+                        const sensor_msgs::Image& color_image,
+                        const sensor_msgs::Image& depth_image,
+                        const sensor_msgs::CameraInfo& camera_info,
+                        ObjectModelCache* object_models);
   bool LoadParams();
   const geometry_msgs::Pose& GetLeftWristPose();
   const geometry_msgs::Pose& GetRightWristPose();

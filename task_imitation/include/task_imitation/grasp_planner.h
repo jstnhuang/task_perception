@@ -1,5 +1,5 @@
-#ifndef _PBI_GRASP_PLANNER_H_
-#define _PBI_GRASP_PLANNER_H_
+#ifndef _TASK_IMITATION_GRASP_PLANNER_H_
+#define _TASK_IMITATION_GRASP_PLANNER_H_
 
 #include <set>
 #include <string>
@@ -109,4 +109,4 @@ class GraspPlanner {
 };
 }  // namespace pbi
 
-#endif  // _PBI_GRASP_PLANNER_H_
+#endif  // _TASK_IMITATION_GRASP_PLANNER_H_

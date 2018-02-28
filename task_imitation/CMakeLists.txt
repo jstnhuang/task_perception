@@ -9,22 +9,29 @@ project(task_imitation)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   actionlib
+  eigen_conversions
   geometry_msgs
   mongodb_store
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface
+  pcl_conversions
   pr2_actions
+  robot_markers
   roscpp
   task_db
+  task_perception
   task_perception_msgs
   task_utils
   trajectory_msgs
   transform_graph
+  urdf
+  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(PCL REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -116,23 +123,30 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
     task_imitation_bimanual_manipulation
+    task_imitation_grasp_planner
     task_imitation_program_generator
     task_imitation_program_server
   CATKIN_DEPENDS
     actionlib
+    eigen_conversions
     geometry_msgs
     mongodb_store
     moveit_core
     moveit_ros_planning
     moveit_ros_planning_interface
+    pcl_conversions
     pr2_actions
+    robot_markers
     roscpp
     task_db
+    task_perception
     task_perception_msgs
     task_utils
     trajectory_msgs
     transform_graph
-  DEPENDS Boost
+    urdf
+    visualization_msgs
+  DEPENDS Boost PCL
 )
 
 ###########
@@ -151,6 +165,13 @@ add_library(task_imitation_bimanual_manipulation src/bimanual_manipulation.cpp)
 add_dependencies(task_imitation_bimanual_manipulation ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_bimanual_manipulation
   ${catkin_LIBRARIES}
+)
+
+add_library(task_perception_grasp_planner src/grasp_planner.cpp)
+add_dependencies(task_perception_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_perception_grasp_planner
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_library(task_imitation_program_generator src/program_generator.cpp)

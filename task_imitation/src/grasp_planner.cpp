@@ -1,4 +1,4 @@
-#include "task_perception/grasp_planner.h"
+#include "task_imitation/grasp_planner.h"
 
 #include <limits.h>
 #include <iostream>
@@ -25,6 +25,7 @@
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/pr2_gripper_model.h"
 #include "task_perception/task_perception_context.h"
+#include "task_utils/ros_params.h"
 
 namespace tg = transform_graph;
 namespace msgs = task_perception_msgs;

@@ -89,8 +89,6 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
   }
 
   vector<msgs::ObjectState> current_objects = context->GetCurrentObjects();
-  // TODO: figure out which object is being touched, then do grasp planning
-  // outside the loop
   for (size_t i = 0; i < current_objects.size(); ++i) {
     const msgs::ObjectState& object = current_objects[i];
     PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
@@ -120,17 +118,18 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
       hand_state->current_action = msgs::HandState::GRASPING;
       hand_state->object_name = object.name;
 
-      geometry_msgs::Pose grasp_in_camera;
-      grasp_planner_.Plan(left_or_right, object.name, context,
-                          &grasp_in_camera);
+      // geometry_msgs::Pose grasp_in_camera;
+      // grasp_planner_.Plan(left_or_right, object.name, context,
+      //                    &grasp_in_camera);
 
-      tg::Graph graph;
-      graph.Add("object", tg::RefFrame("camera"), object.pose);
-      graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
-      tg::Transform grasp_in_obj;
-      graph.ComputeDescription(tg::LocalFrame("grasp"), tg::RefFrame("object"),
-                               &grasp_in_obj);
-      grasp_in_obj.ToPose(&hand_state->contact_pose);
+      // tg::Graph graph;
+      // graph.Add("object", tg::RefFrame("camera"), object.pose);
+      // graph.Add("grasp", tg::RefFrame("camera"), grasp_in_camera);
+      // tg::Transform grasp_in_obj;
+      // graph.ComputeDescription(tg::LocalFrame("grasp"),
+      // tg::RefFrame("object"),
+      //                         &grasp_in_obj);
+      // grasp_in_obj.ToPose(&hand_state->contact_pose);
       break;
     }
   }
