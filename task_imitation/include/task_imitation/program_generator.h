@@ -5,12 +5,9 @@
 
 #include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
-#include "task_perception/task_perception_context.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
-
-#include "task_imitation/grasp_planner.h"
 
 namespace pbi {
 // Generates a Program given a sequence of DemoStates.
@@ -45,8 +42,6 @@ class ProgramGenerator {
 
   // The real-world timestamp of first step we take.
   ros::Time start_time_;
-  GraspPlanner grasp_planner_;
-  TaskPerceptionContext::ObjectModelCache* object_models_;
 };
 }  // namespace pbi
 

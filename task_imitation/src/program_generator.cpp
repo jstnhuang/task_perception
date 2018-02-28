@@ -21,7 +21,7 @@ const double ProgramGenerator::kGraspDuration = 2;
 const double ProgramGenerator::kUngraspDuration = 2;
 
 ProgramGenerator::ProgramGenerator()
-    : program_(), prev_state_(), start_time_(0), grasp_planner_() {}
+    : program_(), prev_state_(), start_time_(0) {}
 
 void ProgramGenerator::Step(const msgs::DemoState& state) {
   ProcessContact(state, msgs::Step::LEFT);
@@ -53,13 +53,10 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
       start_time_ = state.stamp;
     }
 
+    // Must find a suitable grasp point.
     msgs::Step grasp_step;
-    geometry_msgs::Pose grasp_in_camera;
-    TaskPerceptionContext context(skel_services_, predict_hand_, state,
-                                  prev_state_, color_image, depth_image,
-                                  camera_info, &object_models);
-    hand.contact_pose = grasp_planner_.Plan(arm_name, hand.object_name, context,
-                                            &grasp_in_camera);
+    grasp_step.arm = arm_name;
+    grasp_step.action_type = msgs::Step::GRASP;
 
     // Compute start time
     int prev_step_index = GetMostRecentStep(arm_name);
@@ -71,8 +68,6 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
         grasp_step.start_time = prev_end + dt;
       }
     }
-    grasp_step.arm = arm_name;
-    grasp_step.action_type = msgs::Step::GRASP;
     GetObjectState(state, hand.object_name, &grasp_step.object_state);
     grasp_step.ee_trajectory.push_back(hand.contact_pose);
     program_.steps.push_back(grasp_step);
