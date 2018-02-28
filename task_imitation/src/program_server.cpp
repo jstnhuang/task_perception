@@ -26,6 +26,8 @@
 
 #include "task_imitation/bimanual_manipulation.h"
 #include "task_imitation/program_generator.h"
+#include "task_imitation/program_iterator.h"
+#include "task_imitation/program_slice.h"
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
@@ -33,98 +35,7 @@ using boost::optional;
 using geometry_msgs::Pose;
 
 namespace pbi {
-
-ProgramIterator::ProgramIterator(const std::vector<msgs::Step>& steps)
-    : steps_(steps), step_i_(0), traj_i_(0) {}
-
-void ProgramIterator::Begin() {
-  step_i_ = 0;
-  traj_i_ = 0;
-}
-
-void ProgramIterator::Advance() {
-  if (IsDone()) {
-    ROS_WARN("Called Advance() on finished ProgramIterator");
-    return;
-  }
-  const msgs::Step& current = step();
-  if (current.action_type == msgs::Step::GRASP) {
-    ++step_i_;
-  } else if (current.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
-    if (traj_i_ < current.ee_trajectory.size() - 1) {
-      ++traj_i_;
-    } else {
-      traj_i_ = 0;
-      ++step_i_;
-    }
-  } else if (current.action_type == msgs::Step::UNGRASP) {
-    ++step_i_;
-  }
-}
-
-bool ProgramIterator::IsDone() { return step_i_ >= steps_.size(); }
-
-ros::Duration ProgramIterator::time() {
-  ROS_ASSERT(!IsDone());
-
-  const msgs::Step& current = step();
-  if (current.action_type == msgs::Step::GRASP) {
-    return current.start_time;
-  } else if (current.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
-    return current.start_time + current.times_from_start[traj_i_];
-  } else if (current.action_type == msgs::Step::UNGRASP) {
-    return current.start_time;
-  } else {
-    ROS_ASSERT_MSG(false, "Unsupported action type \"%s\"",
-                   current.action_type.c_str());
-    ros::Duration zero;
-    return zero;
-  }
-}
-
-msgs::Step ProgramIterator::step() {
-  ROS_ASSERT(!IsDone());
-  return steps_[step_i_];
-}
-
-optional<std::pair<Pose, ros::Duration> > ProgramIterator::trajectory_point() {
-  ROS_ASSERT(!IsDone());
-  const msgs::Step& current = step();
-  if (current.action_type != msgs::Step::FOLLOW_TRAJECTORY) {
-    return boost::none;
-  }
-  return std::make_pair<Pose, ros::Duration>(current.ee_trajectory[traj_i_],
-                                             current.times_from_start[traj_i_]);
-}
-
-Slice::Slice() : grasp(), left_traj(), right_traj(), ungrasp() {}
-
-void Slice::Reset() {
-  msgs::Step blank;
-  grasp = blank;
-  left_traj = blank;
-  right_traj = blank;
-  ungrasp = blank;
-}
-
-void Slice::FixTrajectories() {
-  if (!left_traj.start_time.isZero() && left_traj.ee_trajectory.size() > 0) {
-    ros::Duration offset = left_traj.times_from_start[0];
-    left_traj.start_time += offset;
-    for (size_t i = 0; i < left_traj.times_from_start.size(); ++i) {
-      left_traj.times_from_start[i] -= (offset - ros::Duration(0.033));
-    }
-  }
-  if (!right_traj.start_time.isZero() && right_traj.ee_trajectory.size() > 0) {
-    ros::Duration offset = right_traj.times_from_start[0];
-    right_traj.start_time += offset;
-    for (size_t i = 0; i < right_traj.times_from_start.size(); ++i) {
-      right_traj.times_from_start[i] -= (offset - ros::Duration(0.033));
-    }
-  }
-}
-
-std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program) {
+std::vector<Slice> SliceProgram(const msgs::Program& program) {
   // Split into left/right steps
   std::vector<msgs::Step> left_steps;
   std::vector<msgs::Step> right_steps;
