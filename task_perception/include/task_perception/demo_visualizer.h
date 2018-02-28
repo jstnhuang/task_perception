@@ -20,14 +20,6 @@ class DemoVisualizer {
   void PublishObjects(
       const std::vector<task_perception_msgs::ObjectState>& object_states,
       const std::string& frame_id) const;
-  void ShowHandState(const task_perception_msgs::HandState& hand_state,
-                     const std::string& left_or_right,
-                     TaskPerceptionContext* context);
-  void PublishGripper(const std::string& left_or_right,
-                      const std::string& frame_id,
-                      const geometry_msgs::Pose& pose) const;
-  void DeleteGripper(const std::string& left_or_right,
-                     const std::string& frame_id) const;
 
   ros::Publisher camera_info_pub;
   ros::Publisher color_pub;

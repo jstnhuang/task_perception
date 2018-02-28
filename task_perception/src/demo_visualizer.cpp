@@ -47,55 +47,6 @@ void DemoVisualizer::PublishObjects(
   }
 }
 
-void DemoVisualizer::ShowHandState(
-    const task_perception_msgs::HandState& hand_state,
-    const std::string& left_or_right, TaskPerceptionContext* context) {
-  if (hand_state.current_action != msgs::HandState::NONE) {
-    msgs::ObjectState object;
-    context->GetCurrentObject(hand_state.object_name, &object);
-
-    tg::Graph graph;
-    graph.Add("object", tg::RefFrame("camera"), object.pose);
-    graph.Add("gripper", tg::RefFrame("object"), hand_state.contact_pose);
-    tg::Transform gripper_in_camera;
-    graph.ComputeDescription(tg::LocalFrame("gripper"), tg::RefFrame("camera"),
-                             &gripper_in_camera);
-    geometry_msgs::Pose gripper_in_camera_pose;
-    gripper_in_camera.ToPose(&gripper_in_camera_pose);
-    PublishGripper(left_or_right, context->camera_info().header.frame_id,
-                   gripper_in_camera_pose);
-  } else {
-    DeleteGripper(left_or_right, context->camera_info().header.frame_id);
-  }
-}
-
-void DemoVisualizer::PublishGripper(const std::string& left_or_right,
-                                    const std::string& frame_id,
-                                    const geometry_msgs::Pose& pose) const {
-  Pr2GripperModel model;
-  model.set_pose(pose);
-  visualization_msgs::MarkerArray marker_arr;
-  model.ToMarkerArray(frame_id, &marker_arr);
-  for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
-    Marker& marker = marker_arr.markers[i];
-    marker.ns = left_or_right;
-  }
-  gripper_pub.publish(marker_arr);
-}
-
-void DemoVisualizer::DeleteGripper(const std::string& left_or_right,
-                                   const std::string& frame_id) const {
-  Pr2GripperModel model;
-  visualization_msgs::MarkerArray marker_arr;
-  model.ToMarkerArray(frame_id, &marker_arr);
-  for (size_t i = 0; i < marker_arr.markers.size(); ++i) {
-    Marker& marker = marker_arr.markers[i];
-    marker.ns = left_or_right;
-    marker.action = Marker::DELETE;
-  }
-  gripper_pub.publish(marker_arr);
-}
-
 void MakeMeshMarker(const geometry_msgs::Pose& pose,
                     const std::string& frame_id, const std::string& object_name,
                     const std::string& mesh_name, Marker* marker) {

@@ -107,10 +107,6 @@ void DemoRuntime::Step() {
   contact_detection_.Predict(&context, &current_state.left_hand,
                              &current_state.right_hand);
 
-  // Visualize contacts
-  // viz_.ShowHandState(current_state.left_hand, "left", &context);
-  // viz_.ShowHandState(current_state.right_hand, "right", &context);
-
   states_[frame_number] = current_state;
   ++last_executed_frame_;
   PublishViz();
