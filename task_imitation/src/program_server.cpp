@@ -377,7 +377,7 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
 
 std::vector<Slice> ProgramServer::ComputeSlices(
     const msgs::Program& program,
-    const std::vector<msgs::ObjectState>& object_states) {
+    const std::map<std::string, msgs::ObjectState>& object_states) {
   Pr2GripperViz gripper_viz;
   gripper_viz.set_frame_id(planning_frame_);
 
@@ -393,7 +393,7 @@ std::vector<Slice> ProgramServer::ComputeSlices(
     graph.Add(os.name, tg::RefFrame(planning_frame_), os.pose);
   }
   for (size_t step_i = 0; step_i < program.steps.size(); ++step_i) {
-    msgs::Step& step = program.steps[step_i];
+    msgs::Step step = program.steps[step_i];
     if (step.action_type == msgs::Step::GRASP ||
         step.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
       const std::string& object_name = step.object_state.name;

@@ -1,6 +1,7 @@
 #ifndef _PBI_PROGRAM_SERVER_H_
 #define _PBI_PROGRAM_SERVER_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -35,7 +36,8 @@ class ProgramServer {
       const task_perception_msgs::Program& program);
   std::vector<Slice> ComputeSlices(
       const task_perception_msgs::Program& program,
-      const std::vector<task_perception_msgs::ObjectState>& object_states);
+      const std::map<std::string, task_perception_msgs::ObjectState>&
+          object_states);
 
   ros::ServiceClient db_client_;
   moveit::planning_interface::MoveGroup left_group_;
