@@ -67,9 +67,9 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     grasp_step.arm = arm_name;
     grasp_step.type = msgs::Step::GRASP;
     grasp_step.object_name = hand.object_name;
-
     msgs::ObjectState object_state = GetObjectState(state, hand.object_name);
     grasp_step.object_mesh = object_state.mesh_name;
+    grasp_step.wrist_pose = hand.wrist_pose;
     program_.steps.push_back(grasp_step);
   }
   // If we are continuing a contact, then create/append to the trajectory

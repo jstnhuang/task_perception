@@ -18,23 +18,28 @@ string type
 # - object_name: the name of the object we are grasping.
 # - object_mesh: the mesh file of the object (given just as the file name,
 #     not the full path, e.g., "pringles_1k.obj")
+# - wrist_pose: the pose of the person's wrist at the time of the grasp,
+#     relative to the object frame
 # - object_trajectory: unused
 # - times_from_start: unused
 
 # If action_type == UNGRASP:
 # - object_name: unused
-# - object_mesh: unused.
+# - object_mesh: unused
+# - wrist_pose: unused
 # - object_trajectory: unused
 # - times_from_start: unused
 
 # If action_type == FOLLOW_TRAJECTORY:
 # - object_name: the name of the object we are currently moving
 # - object_mesh: the mesh file of the object.
+# - wrist_pose: unused
 # - object_trajectory: the trajectory of the object relative to its initial pose
 # - times_from_start: timing information for the trajectory
 
 string object_name
 string object_mesh
+geometry_msgs/Pose wrist_pose
 
 # Times for each pose in the ee_trajectory from the start of this step
 # The trajectory will be retimed as needed for the robot.

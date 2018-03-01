@@ -46,6 +46,15 @@ class GraspEvaluation {
   GraspFeatureWeights weights;
 };
 
+// Contains data relevant for grasp planning
+struct GraspPlanningContext {
+  std::string planning_frame;      // The ID
+  geometry_msgs::Pose wrist_pose;  // Human wrist pose in planning frame
+  std::string object_name;
+  std::string object_mesh;
+  geometry_msgs::Pose object_pose;  // Object pose in planning frame
+};
+
 // PR2 grasp planner that adapts human grasping configurations to robot grasps.
 class GraspPlanner {
  public:
@@ -53,13 +62,15 @@ class GraspPlanner {
 
   // Adapts the human grasping configuration to a robot grasping configuration.
   // Output pose is in the camera frame.
-  void Plan(const std::string& left_or_right, const std::string& object_name,
-            TaskPerceptionContext* context, geometry_msgs::Pose* pose);
+  geometry_msgs::Pose Plan(const std::string& left_or_right,
+                           const std::string& object_name,
+                           const GraspPlanningContext& context);
   // Same as Plan, but with an initial pose relative to the object as a hint.
   // The initial pose should be given in the camera frame.
-  void Plan(const std::string& left_or_right, const std::string& object_name,
-            const geometry_msgs::Pose& initial_pose,
-            TaskPerceptionContext* context, geometry_msgs::Pose* pose);
+  geometry_msgs::Pose Plan(const std::string& left_or_right,
+                           const std::string& object_name,
+                           const geometry_msgs::Pose& initial_pose,
+                           const GraspPlanningContext& context);
 
  private:
   // Initialize kGripperMarkers.
