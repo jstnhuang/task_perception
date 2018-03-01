@@ -12,26 +12,31 @@ string arm
 string GRASP = grasp
 string UNGRASP = ungrasp
 string FOLLOW_TRAJECTORY = follow trajectory
-string action_type
+string type
 
 # If action_type == GRASP:
-# - object_state: the object we are grasping
-# - ee_trajectory: the first element is the transform of the grasp relative to the object
+# - object_name: the name of the object we are grasping.
+# - object_mesh: the mesh file of the object (given just as the file name,
+#     not the full path, e.g., "pringles_1k.obj")
+# - object_trajectory: unused
 # - times_from_start: unused
 
 # If action_type == UNGRASP:
-# - object_state: unused
-# - ee_trajectory: unused
+# - object_name: unused
+# - object_mesh: unused.
+# - object_trajectory: unused
 # - times_from_start: unused
 
 # If action_type == FOLLOW_TRAJECTORY:
-# - object_state: initial state of the object
-# - ee_trajectory: is an end-effector trajectory relative to the initial object pose
-# - times_from_start: timing information for the start is 
+# - object_name: the name of the object we are currently moving
+# - object_mesh: the mesh file of the object.
+# - object_trajectory: the trajectory of the object relative to its initial pose
+# - times_from_start: timing information for the trajectory
 
-task_perception_msgs/ObjectState object_state
+string object_name
+string object_mesh
 
 # Times for each pose in the ee_trajectory from the start of this step
 # The trajectory will be retimed as needed for the robot.
-geometry_msgs/Pose[] ee_trajectory
+geometry_msgs/Pose[] object_trajectory
 duration[] times_from_start 

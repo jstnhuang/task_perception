@@ -90,6 +90,7 @@ void ProgramServer::ExecuteImitation(
   for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
     generator.Step(demo_states.demo_states[i]);
   }
+
   msgs::Program program = generator.program();
   std::vector<Slice> slices = ComputeSlices(program, object_states);
   ROS_INFO("Generated slices");

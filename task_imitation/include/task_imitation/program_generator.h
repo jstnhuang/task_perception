@@ -28,10 +28,6 @@ class ProgramGenerator {
   // Returns a pointer to the most recent step, or NULL if there was none.
   int GetMostRecentStep(const std::string& arm_name);
 
-  void GetObjectState(const task_perception_msgs::DemoState& state,
-                      const std::string& object_name,
-                      task_perception_msgs::ObjectState* object_state);
-
   geometry_msgs::Pose ComputeRelativePose(
       const task_perception_msgs::DemoState&);
 
@@ -43,6 +39,10 @@ class ProgramGenerator {
   // The real-world timestamp of first step we take.
   ros::Time start_time_;
 };
+
+task_perception_msgs::ObjectState GetObjectState(
+    const task_perception_msgs::DemoState& state,
+    const std::string& object_name);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_GENERATOR_H_

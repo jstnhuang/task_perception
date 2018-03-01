@@ -43,9 +43,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     prev_hand = prev_state_.right_hand;
   }
 
-  // If we start a contact, then add a grasp action and start a trajectory
-  // If we are continuing a contact, then append to the trajectory
-  // If we are ending a contact, then end the trajectory
+  // If we start a contact, then add a grasp step to the program
   if (hand.current_action == msgs::HandState::GRASPING &&
       (prev_hand.current_action == "" ||
        prev_hand.current_action == msgs::HandState::NONE)) {
@@ -53,10 +51,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
       start_time_ = state.stamp;
     }
 
-    // Must find a suitable grasp point.
     msgs::Step grasp_step;
-    grasp_step.arm = arm_name;
-    grasp_step.action_type = msgs::Step::GRASP;
 
     // Compute start time
     int prev_step_index = GetMostRecentStep(arm_name);
@@ -68,28 +63,36 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
         grasp_step.start_time = prev_end + dt;
       }
     }
-    GetObjectState(state, hand.object_name, &grasp_step.object_state);
-    grasp_step.ee_trajectory.push_back(hand.contact_pose);
+
+    grasp_step.arm = arm_name;
+    grasp_step.type = msgs::Step::GRASP;
+    grasp_step.object_name = hand.object_name;
+
+    msgs::ObjectState object_state = GetObjectState(state, hand.object_name);
+    grasp_step.object_mesh = object_state.mesh_name;
     program_.steps.push_back(grasp_step);
-  } else if (hand.current_action == msgs::HandState::GRASPING &&
-             prev_hand.current_action == msgs::HandState::GRASPING) {
+  }
+  // If we are continuing a contact, then create/append to the trajectory
+  else if (hand.current_action == msgs::HandState::GRASPING &&
+           prev_hand.current_action == msgs::HandState::GRASPING) {
     int prev_step_i = GetMostRecentStep(arm_name);
     ROS_ASSERT(prev_step_i != -1);
     const msgs::Step& prev_step = program_.steps[prev_step_i];
-    ROS_ASSERT(prev_step.action_type == msgs::Step::GRASP ||
-               prev_step.action_type == msgs::Step::FOLLOW_TRAJECTORY);
-    ROS_ASSERT(prev_step.object_state.name == hand.object_name);
+    ROS_ASSERT(prev_step.type == msgs::Step::GRASP ||
+               prev_step.type == msgs::Step::FOLLOW_TRAJECTORY);
+    ROS_ASSERT(prev_step.object_name == hand.object_name);
 
     // If previous step was a grasp (meaning this is the first waypoint in the
     // trajectory), insert a trajectory step. Otherwise, use the existing one.
     msgs::Step traj_step;
     int traj_step_i = 0;
-    if (prev_step.action_type == msgs::Step::GRASP) {
+    if (prev_step.type == msgs::Step::GRASP) {
       traj_step.start_time =
           prev_step.start_time + ros::Duration(kGraspDuration);
       traj_step.arm = arm_name;
-      traj_step.action_type = msgs::Step::FOLLOW_TRAJECTORY;
-      traj_step.object_state = prev_step.object_state;
+      traj_step.type = msgs::Step::FOLLOW_TRAJECTORY;
+      traj_step.object_name = prev_step.object_name;
+      traj_step.object_mesh = prev_step.object_mesh;
       program_.steps.push_back(traj_step);
       traj_step_i = program_.steps.size() - 1;
     } else {
@@ -97,19 +100,19 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
       traj_step_i = prev_step_i;
     }
 
-    // Compute pose of the end-effector relative to initial object pose.
-    msgs::ObjectState object_state;
-    GetObjectState(state, hand.object_name, &object_state);
+    // Compute pose of the object relative to its initial pose.
+    msgs::ObjectState grasped_object_state =
+        GetObjectState(prev_state_, hand.object_name);
+    msgs::ObjectState object_state = GetObjectState(state, hand.object_name);
     tg::Graph graph;
     graph.Add("initial object pose", tg::RefFrame("camera"),
-              traj_step.object_state.pose);
+              grasped_object_state.pose);
     graph.Add("current object pose", tg::RefFrame("camera"), object_state.pose);
-    graph.Add("current grasp", tg::RefFrame("current object pose"),
-              hand.contact_pose);
-    tg::Transform ee_transform;
-    graph.ComputeDescription(
-        "current grasp", tg::RefFrame("initial object pose"), &ee_transform);
-    traj_step.ee_trajectory.push_back(ee_transform.pose());
+    tg::Transform object_transform;
+    graph.ComputeDescription("current object pose",
+                             tg::RefFrame("initial object pose"),
+                             &object_transform);
+    traj_step.object_trajectory.push_back(object_transform.pose());
 
     // If this is the first waypoint, time from start is just dt.
     // Otherwise, it's last waypoint + dt.
@@ -122,19 +125,22 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     }
     traj_step.times_from_start.push_back(time_from_step_start);
     program_.steps[traj_step_i] = traj_step;
-  } else if (hand.current_action == msgs::HandState::NONE &&
-             prev_hand.current_action == msgs::HandState::GRASPING) {
+  }
+
+  // If we are ending a contact, then end the trajectory
+  else if (hand.current_action == msgs::HandState::NONE &&
+           prev_hand.current_action == msgs::HandState::GRASPING) {
     int prev_step_i = GetMostRecentStep(arm_name);
     ROS_ASSERT(prev_step_i != -1);
     const msgs::Step& prev_step = program_.steps[prev_step_i];
-    ROS_ASSERT(prev_step.action_type == msgs::Step::GRASP ||
-               prev_step.action_type == msgs::Step::FOLLOW_TRAJECTORY);
+    ROS_ASSERT(prev_step.type == msgs::Step::GRASP ||
+               prev_step.type == msgs::Step::FOLLOW_TRAJECTORY);
 
     ros::Duration dt = state.stamp - prev_state_.stamp;
     msgs::Step ungrasp_step;
     ungrasp_step.start_time = GetEndTime(prev_step) + dt;
     ungrasp_step.arm = arm_name;
-    ungrasp_step.action_type = msgs::Step::UNGRASP;
+    ungrasp_step.type = msgs::Step::UNGRASP;
     program_.steps.push_back(ungrasp_step);
   }
 }
@@ -149,33 +155,33 @@ int ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
   return -1;
 }
 
-void ProgramGenerator::GetObjectState(const msgs::DemoState& state,
-                                      const std::string& object_name,
-                                      msgs::ObjectState* object_state) {
-  for (size_t i = 0; i < state.object_states.size(); ++i) {
-    const msgs::ObjectState object = state.object_states[i];
-    if (object.name == object_name) {
-      *object_state = object;
-      return;
-    }
-  }
-  ROS_ERROR("No object \"%s\" in state!", object_name.c_str());
-}
-
 ros::Duration ProgramGenerator::GetEndTime(
     const task_perception_msgs::Step& step) {
-  if (step.action_type == msgs::Step::GRASP) {
+  if (step.type == msgs::Step::GRASP) {
     return step.start_time + ros::Duration(kGraspDuration);
-  } else if (step.action_type == msgs::Step::UNGRASP) {
+  } else if (step.type == msgs::Step::UNGRASP) {
     return step.start_time + ros::Duration(kUngraspDuration);
-  } else if (step.action_type == msgs::Step::FOLLOW_TRAJECTORY) {
+  } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
     if (step.times_from_start.size() > 0) {
       return step.start_time + step.times_from_start.back();
     } else {
       return step.start_time;
     }
   }
-  ROS_ASSERT_MSG(false, "Unknown step type %s", step.action_type.c_str());
+  ROS_ASSERT_MSG(false, "Unknown step type %s", step.type.c_str());
   return ros::Duration(0);
+}
+
+msgs::ObjectState GetObjectState(const msgs::DemoState& state,
+                                 const std::string& object_name) {
+  for (size_t i = 0; i < state.object_states.size(); ++i) {
+    const msgs::ObjectState object = state.object_states[i];
+    if (object.name == object_name) {
+      return object;
+    }
+  }
+  ROS_ERROR("No object \"%s\" in state!", object_name.c_str());
+  msgs::ObjectState kBlank;
+  return kBlank;
 }
 }  // namespace pbi
