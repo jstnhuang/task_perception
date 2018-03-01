@@ -117,6 +117,7 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
                object.name.c_str());
       hand_state->current_action = msgs::HandState::GRASPING;
       hand_state->object_name = object.name;
+      hand_state->wrist_pose = wrist_pose;  // TODO: transform to camera frame!
       break;
     }
   }
