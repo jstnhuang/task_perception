@@ -30,7 +30,7 @@ void ProgramIterator::Advance() {
   if (current.type == msgs::Step::GRASP) {
     ++step_i_;
   } else if (current.type == msgs::Step::FOLLOW_TRAJECTORY) {
-    if (traj_i_ < current.ee_trajectory.size() - 1) {
+    if (traj_i_ < current.object_trajectory.size() - 1) {
       ++traj_i_;
     } else {
       traj_i_ = 0;
@@ -72,7 +72,7 @@ optional<std::pair<Pose, ros::Duration> > ProgramIterator::trajectory_point() {
   if (current.type != msgs::Step::FOLLOW_TRAJECTORY) {
     return boost::none;
   }
-  return std::make_pair<Pose, ros::Duration>(current.ee_trajectory[traj_i_],
+  return std::make_pair<Pose, ros::Duration>(current.object_trajectory[traj_i_],
                                              current.times_from_start[traj_i_]);
 }
 }  // namespace pbi
