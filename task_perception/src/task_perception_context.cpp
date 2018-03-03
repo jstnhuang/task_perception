@@ -5,16 +5,11 @@
 #include <vector>
 
 #include "Eigen/Dense"
-#include "eigen_conversions/eigen_msg.h"
 #include "image_geometry/pinhole_camera_model.h"
 #include "pcl/common/transforms.h"
-#include "pcl/features/normal_3d_omp.h"
-#include "pcl/io/io.h"
-#include "pcl/io/pcd_io.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "pcl/search/kdtree.h"
-#include "ros/package.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -23,6 +18,7 @@
 #include "task_perception_msgs/DemoState.h"
 #include "task_utils/ros_params.h"
 
+#include "task_perception/lazy_object_model.h"
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/skeleton_services.h"
 
@@ -57,14 +53,11 @@ TaskPerceptionContext::TaskPerceptionContext(
       have_wrist_poses_(false),
       left_wrist_pose_(),
       right_wrist_pose_(),
-      kPackagePath_(ros::package::getPath("object_meshes") + "/object_models/"),
       are_objects_indexed_(false),
       current_objects_(),
       prev_objects_(),
       object_models_(object_models),
-      object_clouds_(),
-      object_clouds_with_normals_(),
-      object_trees_(),
+      lazy_objects_(),
       both_hands_cloud_(),
       left_hand_indices_(),
       right_hand_indices_(),
@@ -113,61 +106,23 @@ const vector<msgs::ObjectState>& TaskPerceptionContext::GetCurrentObjects()
 
 PointCloudP::Ptr TaskPerceptionContext::GetObjectModel(const string& name) {
   IndexObjects();
-  const std::string& mesh_name = current_objects_[name].mesh_name;
-
-  if (object_models_->find(mesh_name) == object_models_->end()) {
-    std::string path = kPackagePath_ + mesh_name;
-    path = ReplaceObjWithPcd(path);
-    PointCloudP::Ptr model = LoadModel(path);
-    model->header.frame_id = camera_info_.header.frame_id;
-    object_models_->insert(
-        std::pair<string, PointCloudP::Ptr>(mesh_name, model));
-  }
-  return object_models_->at(mesh_name);
+  return lazy_objects_.at(name).GetObjectModel();
 }
 
 PointCloudP::Ptr TaskPerceptionContext::GetObjectCloud(const string& name) {
-  if (object_clouds_.find(name) == object_clouds_.end()) {
-    IndexObjects();
-    const geometry_msgs::Pose& object_pose = current_objects_[name].pose;
-    PointCloudP::Ptr object_model = GetObjectModel(name);
-    Eigen::Affine3d object_transform;
-    tf::poseMsgToEigen(object_pose, object_transform);
-    PointCloudP::Ptr object_cloud(new PointCloudP);
-    pcl::transformPointCloud(*object_model, *object_cloud, object_transform);
-    object_cloud->header.frame_id = camera_info_.header.frame_id;
-    object_clouds_[name] = object_cloud;
-  }
-  return object_clouds_[name];
+  IndexObjects();
+  return lazy_objects_.at(name).GetObjectCloud();
 }
 
 PointCloudN::Ptr TaskPerceptionContext::GetObjectCloudWithNormals(
     const string& name) {
-  if (object_clouds_with_normals_.find(name) ==
-      object_clouds_with_normals_.end()) {
-    PointCloudP::Ptr object_cloud = GetObjectCloud(name);
-    KdTreeP::Ptr tree = GetObjectTree(name);
-    pcl::NormalEstimationOMP<PointP, pcl::Normal> ne;
-    ne.setInputCloud(object_cloud);
-    ne.setSearchMethod(tree);
-    // Assumes that PCD models have a voxel size of 0.01
-    ne.setRadiusSearch(0.012);
-    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-    ne.compute(*normals);
-    PointCloudN::Ptr output(new PointCloudN);
-    pcl::concatenateFields(*object_cloud, *normals, *output);
-    object_clouds_with_normals_[name] = output;
-  }
-  return object_clouds_with_normals_[name];
+  IndexObjects();
+  return lazy_objects_.at(name).GetObjectCloudWithNormals();
 }
 
 KdTreeP::Ptr TaskPerceptionContext::GetObjectTree(const string& name) {
-  if (object_trees_.find(name) == object_trees_.end()) {
-    KdTreeP::Ptr tree(new pcl::search::KdTree<PointP>);
-    tree->setInputCloud(GetObjectCloud(name));
-    object_trees_[name] = tree;
-  }
-  return object_trees_[name];
+  IndexObjects();
+  return lazy_objects_.at(name).GetObjectTree();
 }
 
 bool TaskPerceptionContext::GetCurrentObject(
@@ -208,20 +163,16 @@ void TaskPerceptionContext::IndexObjects() {
   for (size_t i = 0; i < current_state_.object_states.size(); ++i) {
     const msgs::ObjectState& obj = current_state_.object_states[i];
     current_objects_[obj.name] = obj;
+    LazyObjectModel lazy_model(obj.name, obj.mesh_name, obj.pose);
+    lazy_model.set_object_model_cache(object_models_);
+    lazy_objects_.insert(
+        std::pair<std::string, LazyObjectModel>(obj.name, lazy_model));
   }
   for (size_t i = 0; i < prev_state_.object_states.size(); ++i) {
     const msgs::ObjectState& obj = prev_state_.object_states[i];
     prev_objects_[obj.name] = obj;
   }
   are_objects_indexed_ = true;
-}
-
-PointCloudP::Ptr TaskPerceptionContext::LoadModel(const string& mesh_path) {
-  PointCloudP::Ptr object_model(new PointCloudP);
-  pcl::io::loadPCDFile(mesh_path, *object_model);
-  ROS_INFO("Loaded mesh %s with %ld points", mesh_path.c_str(),
-           object_model->size());
-  return object_model;
 }
 
 ros::Time TaskPerceptionContext::GetPreviousTime() { return prev_state_.stamp; }
@@ -389,10 +340,5 @@ void TaskPerceptionContext::ComputeLeftRightHands() {
       right_hand_indices_->push_back(i);
     }
   }
-}
-
-std::string ReplaceObjWithPcd(const std::string& path) {
-  std::string base_path = path.substr(0, path.size() - 4);
-  return base_path + ".pcd";
 }
 }  // namespace pbi

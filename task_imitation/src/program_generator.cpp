@@ -66,9 +66,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
 
     grasp_step.arm = arm_name;
     grasp_step.type = msgs::Step::GRASP;
-    grasp_step.object_name = hand.object_name;
-    msgs::ObjectState object_state = GetObjectState(state, hand.object_name);
-    grasp_step.object_mesh = object_state.mesh_name;
+    grasp_step.object_state = GetObjectState(state, hand.object_name);
     grasp_step.wrist_pose = hand.wrist_pose;
     program_.steps.push_back(grasp_step);
   }
@@ -80,7 +78,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     const msgs::Step& prev_step = program_.steps[prev_step_i];
     ROS_ASSERT(prev_step.type == msgs::Step::GRASP ||
                prev_step.type == msgs::Step::FOLLOW_TRAJECTORY);
-    ROS_ASSERT(prev_step.object_name == hand.object_name);
+    ROS_ASSERT(prev_step.object_state.name == hand.object_name);
 
     // If previous step was a grasp (meaning this is the first waypoint in the
     // trajectory), insert a trajectory step. Otherwise, use the existing one.
@@ -91,8 +89,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
           prev_step.start_time + ros::Duration(kGraspDuration);
       traj_step.arm = arm_name;
       traj_step.type = msgs::Step::FOLLOW_TRAJECTORY;
-      traj_step.object_name = prev_step.object_name;
-      traj_step.object_mesh = prev_step.object_mesh;
+      traj_step.object_state = prev_step.object_state;
       program_.steps.push_back(traj_step);
       traj_step_i = program_.steps.size() - 1;
     } else {

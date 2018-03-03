@@ -18,6 +18,7 @@
 #include "transform_graph/graph.h"
 
 #include "task_imitation/bimanual_manipulation.h"
+#include "task_imitation/grasp_planning_context.h"
 #include "task_imitation/program_iterator.h"
 #include "task_imitation/program_slice.h"
 
@@ -60,6 +61,9 @@ void ProgramExecutor::Execute(
   ros::param::param("use_sim_time", is_sim, false);
   double grasp_force = is_sim ? -1 : 50;
 
+  Pose current_left_grasp_in_obj;
+  Pose current_right_grasp_in_obj;
+
   for (size_t i = 0; i < slices.size(); ++i) {
     const Slice& slice = slices[i];
 
@@ -70,10 +74,30 @@ void ProgramExecutor::Execute(
 
     // Execute grasp, if applicable
     if (slice.grasp.arm != "") {
-      // TODO: PLAN GRASP HERE
-      Pose grasp = grasp_planner_.Plan(context);
+      const msgs::ObjectState& demo_object_state = slice.grasp.object_state;
+      GraspPlanningContext context(
+          slice.grasp.wrist_pose, planning_frame_, demo_object_state.name,
+          demo_object_state.mesh_name, demo_object_state.pose);
+      Pose demo_grasp = grasp_planner_.Plan(context);
+      // TODO: the grasp planner gives the grasp at the time of the
+      // demonstration.
+      // We need to adapt the grasp to the current object position.
       tg::Graph graph;
-      graph.Add("grasp", tg::RefFrame(planning_frame_), grasp);
+      graph.Add("demo grasp", tg::RefFrame(planning_frame_), demo_grasp);
+      graph.Add("demo object", tg::RefFrame(planning_frame_),
+                demo_object_state.pose);
+      tg::Transform grasp_in_object;
+      graph.ComputeDescription("demo grasp", tg::RefFrame("demo object"),
+                               &grasp_in_object);
+      graph.Add("current object", tg::RefFrame(planning_frame_),
+                object_states.at(demo_object_state.name).pose);
+      tg::Transform grasp_in_planning_frame;
+      graph.DescribePose(grasp_in_object, tg::Source("current object"),
+                         tg::Target(planning_frame_), &grasp_in_planning_frame);
+      Pose grasp = grasp_in_planning_frame.pose();
+
+      graph.Add("grasp", tg::RefFrame(planning_frame_),
+                grasp_in_planning_frame);
       Pose pregrasp;
       pregrasp.orientation.w = 1;
       pregrasp.position.x = -0.10;
@@ -91,6 +115,7 @@ void ProgramExecutor::Execute(
         left_group_.setPoseTarget(grasp);
         left_group_.move();
         left_gripper_.StartClosing(grasp_force);
+        current_left_grasp_in_obj = grasp_in_object.pose();
         while (!left_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
@@ -107,6 +132,7 @@ void ProgramExecutor::Execute(
         while (!right_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
+        current_right_grasp_in_obj = grasp_in_object.pose();
       }
     }
 
@@ -117,9 +143,11 @@ void ProgramExecutor::Execute(
     // Plan trajectory
     double jump_threshold;
     ros::param::param("jump_threshold", jump_threshold, 1.6);
+    std::vector<Pose> left_ee_trajectory = ComputeGraspTrajectory(
+        current_left_grasp_in_obj, slice.left_traj.object_trajectory);
     double left_fraction = left_group_.computeCartesianPath(
-        SampleTrajectory(slice.left_traj.ee_trajectory), 0.01, jump_threshold,
-        left_traj, kAvoidCollisions, &error_code);
+        SampleTrajectory(left_ee_trajectory), 0.01, jump_threshold, left_traj,
+        kAvoidCollisions, &error_code);
     if (error_code.val != moveit_msgs::MoveItErrorCodes::SUCCESS) {
       ROS_ERROR("Failed to plan left arm trajectory. MoveIt error %d",
                 error_code.val);
@@ -139,9 +167,11 @@ void ProgramExecutor::Execute(
     left_traj_pub_.publish(left_display);
 
     moveit_msgs::RobotTrajectory right_traj;
+    std::vector<Pose> right_ee_trajectory = ComputeGraspTrajectory(
+        current_right_grasp_in_obj, slice.right_traj.object_trajectory);
     double right_fraction = right_group_.computeCartesianPath(
-        SampleTrajectory(slice.right_traj.ee_trajectory), 0.01, jump_threshold,
-        right_traj, kAvoidCollisions, &error_code);
+        SampleTrajectory(right_ee_trajectory), 0.01, jump_threshold, right_traj,
+        kAvoidCollisions, &error_code);
     if (error_code.val != moveit_msgs::MoveItErrorCodes::SUCCESS) {
       ROS_ERROR("Failed to plan right arm trajectory. MoveIt error %d",
                 error_code.val);
@@ -321,6 +351,22 @@ std::vector<Slice> SliceProgram(const msgs::Program& program) {
   }
 
   return slices;
+}
+
+std::vector<Pose> ComputeGraspTrajectory(
+    const Pose& grasp_in_obj, const std::vector<Pose>& object_trajectory) {
+  std::vector<Pose> gripper_traj(object_trajectory.size());
+  tg::Graph graph;
+  graph.Add("grasp", tg::RefFrame("object"), grasp_in_obj);
+  for (size_t i = 0; i < object_trajectory.size(); ++i) {
+    const Pose& obj_pose = object_trajectory[i];
+    graph.Add("object", tg::RefFrame("planning frame"), obj_pose);
+    tg::Transform grasp_in_planning;
+    graph.ComputeDescription("grasp", tg::RefFrame("planning frame"),
+                             &grasp_in_planning);
+    gripper_traj[i] = grasp_in_planning.pose();
+  }
+  return gripper_traj;
 }
 
 std::vector<Pose> SampleTrajectory(const std::vector<Pose>& traj) {

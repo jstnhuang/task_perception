@@ -132,6 +132,7 @@ catkin_package(
     pbi_demo_model
     pbi_demo_runtime
     pbi_demo_visualizer
+    pbi_lazy_object_model
     pbi_multi_object_tracker
     pbi_pcl_utils
     pbi_pose_utils
@@ -240,15 +241,16 @@ target_link_libraries(pbi_default_skeleton
   ${catkin_LIBRARIES}
 )
 
+add_library(pbi_lazy_object_model src/lazy_object_model.cpp)
+add_dependencies(pbi_lazy_object_model ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_lazy_object_model
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
 add_library(pbi_multi_object_tracker src/multi_object_tracker.cpp)
 add_dependencies(pbi_multi_object_tracker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_multi_object_tracker
-  ${catkin_LIBRARIES}
-)
-
-add_library(pbi_pose_utils src/pose_utils.cpp)
-add_dependencies(pbi_pose_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pbi_pose_utils
   ${catkin_LIBRARIES}
 )
 
@@ -257,6 +259,12 @@ add_dependencies(pbi_pcl_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPO
 target_link_libraries(pbi_pcl_utils
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
+)
+
+add_library(pbi_pose_utils src/pose_utils.cpp)
+add_dependencies(pbi_pose_utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_pose_utils
+  ${catkin_LIBRARIES}
 )
 
 add_library(pbi_pr2_gripper_model src/pr2_gripper_model.cpp)
@@ -275,6 +283,7 @@ target_link_libraries(pbi_record_video_action_server
 add_library(pbi_task_perception_context src/task_perception_context.cpp)
 add_dependencies(pbi_task_perception_context ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_task_perception_context
+  pbi_lazy_object_model
   ${catkin_LIBRARIES}
 )
 

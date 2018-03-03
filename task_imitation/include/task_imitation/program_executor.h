@@ -12,6 +12,7 @@
 #include "task_perception_msgs/Program.h"
 #include "tf/transform_listener.h"
 
+#include "task_imitation/grasp_planner.h"
 #include "task_imitation/program_slice.h"
 
 namespace pbi {
@@ -49,9 +50,16 @@ class ProgramExecutor {
   ros::Publisher gripper_pub_;
 
   tf::TransformListener tf_listener_;
+  GraspPlanner grasp_planner_;
 };
 
 std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
+
+// Given an object-relative grasp and an object trajectory, computes the
+// trajectory of the grasp.
+std::vector<geometry_msgs::Pose> ComputeGraspTrajectory(
+    const geometry_msgs::Pose& grasp_in_obj,
+    const std::vector<geometry_msgs::Pose>& object_trajectory);
 
 std::vector<geometry_msgs::Pose> SampleTrajectory(
     const std::vector<geometry_msgs::Pose>& traj);

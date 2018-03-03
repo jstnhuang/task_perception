@@ -1,0 +1,106 @@
+#include "task_perception/lazy_object_model.h"
+
+#include "Eigen/Eigen"
+#include "eigen_conversions/eigen_msg.h"
+#include "geometry_msgs/Pose.h"
+#include "pcl/common/transforms.h"
+#include "pcl/features/normal_3d_omp.h"
+#include "pcl/io/io.h"
+#include "pcl/io/pcd_io.h"
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
+#include "pcl/search/kdtree.h"
+#include "ros/package.h"
+#include "ros/ros.h"
+
+#include "task_perception/pcl_typedefs.h"
+
+namespace pbi {
+LazyObjectModel::LazyObjectModel(const std::string& name,
+                                 const std::string& mesh_name,
+                                 const geometry_msgs::Pose& pose)
+    : name_(name),
+      mesh_name_(mesh_name),
+      pose_(pose),
+      cache_(NULL),
+      kPackagePath_(ros::package::getPath("object_meshes") + "/object_models/"),
+      object_model_(),
+      object_cloud_(),
+      object_cloud_with_normals_(),
+      object_tree_() {}
+
+void LazyObjectModel::set_object_model_cache(ObjectModelCache* cache) {
+  cache_ = cache;
+}
+
+PointCloudP::Ptr LazyObjectModel::GetObjectModel() const {
+  if (!object_model_) {
+    // Get from cache if possible
+    if (cache_ != NULL && cache_->find(mesh_name_) != cache_->end()) {
+      object_model_ = cache_->at(mesh_name_);
+      return object_model_;
+    }
+    // Otherwise, load the model and insert into the cache if possible
+    std::string path = kPackagePath_ + mesh_name_;
+    path = ReplaceObjWithPcd(path);
+    object_model_ = LoadModel(path);
+    if (cache_ != NULL) {
+      cache_->insert(
+          std::pair<std::string, PointCloudP::Ptr>(mesh_name_, object_model_));
+    }
+    return object_model_;
+  } else {
+    return object_model_;
+  }
+}
+
+PointCloudP::Ptr LazyObjectModel::GetObjectCloud() const {
+  if (!object_cloud_) {
+    PointCloudP::Ptr object_model = GetObjectModel();
+    Eigen::Affine3d object_transform;
+    tf::poseMsgToEigen(pose_, object_transform);
+    object_cloud_.reset(new PointCloudP);
+    pcl::transformPointCloud(*object_model, *object_cloud_, object_transform);
+  }
+  return object_cloud_;
+}
+
+PointCloudN::Ptr LazyObjectModel::GetObjectCloudWithNormals() const {
+  if (!object_cloud_with_normals_) {
+    PointCloudP::Ptr object_cloud = GetObjectCloud();
+    KdTreeP::Ptr tree = GetObjectTree();
+    pcl::NormalEstimationOMP<PointP, pcl::Normal> ne;
+    ne.setInputCloud(object_cloud);
+    ne.setSearchMethod(tree);
+    // Assumes that PCD models have a voxel size of 0.01
+    ne.setRadiusSearch(0.012);
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    ne.compute(*normals);
+    object_cloud_with_normals_.reset(new PointCloudN);
+    pcl::concatenateFields(*object_cloud, *normals,
+                           *object_cloud_with_normals_);
+  }
+  return object_cloud_with_normals_;
+}
+
+KdTreeP::Ptr LazyObjectModel::GetObjectTree() const {
+  if (!object_tree_) {
+    object_tree_.reset(new pcl::search::KdTree<PointP>);
+    object_tree_->setInputCloud(GetObjectCloud());
+  }
+  return object_tree_;
+}
+
+PointCloudP::Ptr LoadModel(const std::string& mesh_path) {
+  PointCloudP::Ptr object_model(new PointCloudP);
+  pcl::io::loadPCDFile(mesh_path, *object_model);
+  ROS_INFO("Loaded mesh %s with %ld points", mesh_path.c_str(),
+           object_model->size());
+  return object_model;
+}
+
+std::string ReplaceObjWithPcd(const std::string& path) {
+  std::string base_path = path.substr(0, path.size() - 4);
+  return base_path + ".pcd";
+}
+}  // namespace pbi

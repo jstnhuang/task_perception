@@ -15,30 +15,25 @@ string FOLLOW_TRAJECTORY = follow trajectory
 string type
 
 # If action_type == GRASP:
-# - object_name: the name of the object we are grasping.
-# - object_mesh: the mesh file of the object (given just as the file name,
-#     not the full path, e.g., "pringles_1k.obj")
+# - object_state: the object state at the time of the demonstration
 # - wrist_pose: the pose of the person's wrist at the time of the grasp,
 #     relative to the object frame
 # - object_trajectory: unused
 # - times_from_start: unused
 
 # If action_type == UNGRASP:
-# - object_name: unused
-# - object_mesh: unused
+# - object_state: unused
 # - wrist_pose: unused
 # - object_trajectory: unused
 # - times_from_start: unused
 
 # If action_type == FOLLOW_TRAJECTORY:
-# - object_name: the name of the object we are currently moving
-# - object_mesh: the mesh file of the object.
+# - object_state: the object state at the beginning of the demonstrated trajectory
 # - wrist_pose: unused
 # - object_trajectory: the trajectory of the object relative to its initial pose
 # - times_from_start: timing information for the trajectory
 
-string object_name
-string object_mesh
+task_perception_msgs/ObjectState object_state
 geometry_msgs/Pose wrist_pose
 
 # Times for each pose in the ee_trajectory from the start of this step

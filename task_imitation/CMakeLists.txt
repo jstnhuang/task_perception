@@ -124,6 +124,7 @@ catkin_package(
   LIBRARIES
     task_imitation_bimanual_manipulation
     task_imitation_grasp_planner
+    task_imitation_grasp_planning_context
     task_imitation_program_executor
     task_imitation_program_generator
     task_imitation_program_iterator
@@ -173,6 +174,14 @@ target_link_libraries(task_imitation_bimanual_manipulation
 add_library(task_imitation_grasp_planner src/grasp_planner.cpp)
 add_dependencies(task_imitation_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_grasp_planner
+  task_imitation_grasp_planning_context
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
+add_library(task_imitation_grasp_planning_context src/grasp_planning_context.cpp)
+add_dependencies(task_imitation_grasp_planning_context ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_grasp_planning_context
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
@@ -181,6 +190,8 @@ add_library(task_imitation_program_executor src/program_executor.cpp)
 add_dependencies(task_imitation_program_executor ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_executor
   task_imitation_bimanual_manipulation
+  task_imitation_grasp_planner
+  task_imitation_grasp_planning_context
   task_imitation_program_iterator
   task_imitation_program_slice
   ${catkin_LIBRARIES}

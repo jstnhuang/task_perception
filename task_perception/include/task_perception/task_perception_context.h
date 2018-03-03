@@ -12,6 +12,7 @@
 #include "sensor_msgs/Image.h"
 #include "task_perception_msgs/DemoState.h"
 
+#include "task_perception/lazy_object_model.h"
 #include "task_perception/skeleton_services.h"
 
 namespace pbi {
@@ -70,7 +71,6 @@ class TaskPerceptionContext {
   void GetWristPoses();
   // Must be called before using [current,prev]_objects_
   void IndexObjects();
-  pcl::PointCloud<pcl::PointXYZ>::Ptr LoadModel(const std::string& mesh_path);
   void ComputeHandClouds();
   void ComputeLeftRightHands();
 
@@ -89,15 +89,11 @@ class TaskPerceptionContext {
   geometry_msgs::Pose right_wrist_pose_;
 
   // Object models
-  const std::string kPackagePath_;
   bool are_objects_indexed_;
   std::map<std::string, task_perception_msgs::ObjectState> current_objects_;
   std::map<std::string, task_perception_msgs::ObjectState> prev_objects_;
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>* object_models_;
-  std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_clouds_;
-  std::map<std::string, pcl::PointCloud<pcl::PointNormal>::Ptr>
-      object_clouds_with_normals_;
-  std::map<std::string, pcl::search::KdTree<pcl::PointXYZ>::Ptr> object_trees_;
+  std::map<std::string, LazyObjectModel> lazy_objects_;
 
   // Hand segmentation
   pcl::PointCloud<pcl::PointXYZ>::Ptr both_hands_cloud_;
@@ -106,9 +102,6 @@ class TaskPerceptionContext {
   pcl::search::KdTree<pcl::PointXYZ>::Ptr left_hand_tree_;
   pcl::search::KdTree<pcl::PointXYZ>::Ptr right_hand_tree_;
 };
-
-// Replace path/to/file.obj to path/to/file.pcd.
-std::string ReplaceObjWithPcd(const std::string& path);
 }  // namespace pbi
 
 #endif  // _PBI_TASK_PERCEPTION_CONTEXT_H_
