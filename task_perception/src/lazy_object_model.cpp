@@ -18,9 +18,11 @@
 namespace pbi {
 LazyObjectModel::LazyObjectModel(const std::string& name,
                                  const std::string& mesh_name,
+                                 const std::string& frame_id,
                                  const geometry_msgs::Pose& pose)
     : name_(name),
       mesh_name_(mesh_name),
+      frame_id_(frame_id),
       pose_(pose),
       cache_(NULL),
       kPackagePath_(ros::package::getPath("object_meshes") + "/object_models/"),
@@ -61,6 +63,7 @@ PointCloudP::Ptr LazyObjectModel::GetObjectCloud() const {
     tf::poseMsgToEigen(pose_, object_transform);
     object_cloud_.reset(new PointCloudP);
     pcl::transformPointCloud(*object_model, *object_cloud_, object_transform);
+    object_cloud_->header.frame_id = frame_id_;
   }
   return object_cloud_;
 }
@@ -79,6 +82,7 @@ PointCloudN::Ptr LazyObjectModel::GetObjectCloudWithNormals() const {
     object_cloud_with_normals_.reset(new PointCloudN);
     pcl::concatenateFields(*object_cloud, *normals,
                            *object_cloud_with_normals_);
+    object_cloud_with_normals_->header.frame_id = frame_id_;
   }
   return object_cloud_with_normals_;
 }

@@ -83,6 +83,7 @@ class GraspPlanner {
   // Internal visualization publishers
   ros::NodeHandle nh_;
   ros::Publisher gripper_pub_;
+  ros::Publisher object_pub_;
 
   // PR2 gripper marker, with wrist_roll_link at the origin and identity
   // orientation.

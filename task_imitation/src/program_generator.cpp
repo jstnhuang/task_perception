@@ -98,8 +98,7 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     }
 
     // Compute pose of the object relative to its initial pose.
-    msgs::ObjectState grasped_object_state =
-        GetObjectState(prev_state_, hand.object_name);
+    const msgs::ObjectState& grasped_object_state = traj_step.object_state;
     msgs::ObjectState object_state = GetObjectState(state, hand.object_name);
     tg::Graph graph;
     graph.Add("initial object pose", tg::RefFrame("camera"),

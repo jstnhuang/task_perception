@@ -15,8 +15,10 @@
 #include "pcl_conversions/pcl_conversions.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
+#include "sensor_msgs/PointCloud2.h"
 #include "std_msgs/Bool.h"
 #include "task_perception/pcl_typedefs.h"
+#include "task_perception/pcl_utils.h"
 #include "task_perception/pr2_gripper_model.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_utils/ros_params.h"
@@ -44,15 +46,6 @@ GraspFeatureWeights::GraspFeatureWeights()
       antipodal_collision_weight(0),
       non_antipodal_collision_weight(0),
       sq_wrist_distance_weight(0) {}
-
-GraspPlanner::GraspPlanner()
-    : nh_(),
-      gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
-          "grasp_planner/grippers", 1, true)),
-      kGripperMarkers(),
-      debug_(false) {
-  InitGripperMarkers();
-}
 
 GraspEvaluation::GraspEvaluation() : features(), weights() {}
 
@@ -91,17 +84,36 @@ double GraspEvaluation::score() const {
   return score;
 }
 
+GraspPlanner::GraspPlanner()
+    : nh_(),
+      gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
+          "grasp_planner/grippers", 1, true)),
+      object_pub_(nh_.advertise<sensor_msgs::PointCloud2>(
+          "grasp_planner/object", 1, true)),
+      kGripperMarkers(),
+      debug_(true) {
+  InitGripperMarkers();
+}
+
 Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
   UpdateParams();
   Pose wrist_pose = context.wrist_pose();
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(wrist_pose);
+  if (debug_) {
+    VisualizeGripper("optimization", wrist_pose, context.planning_frame_id());
+    ros::Duration(0.2).sleep();
+    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+  }
+
+  PublishPointCloud(object_pub_, *context.object_cloud());
 
   Pose initial_pose = ComputeInitialGrasp(gripper_model, context);
   gripper_model.set_pose(initial_pose);
   if (debug_) {
     VisualizeGripper("optimization", initial_pose, context.planning_frame_id());
     ros::Duration(0.2).sleep();
+    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
 
   Pose to_wrist_pose = OrientTowardsWrist(gripper_model, context);
@@ -110,6 +122,7 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
     VisualizeGripper("optimization", to_wrist_pose,
                      context.planning_frame_id());
     ros::Duration(0.2).sleep();
+    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
 
   return Plan(to_wrist_pose, context);
@@ -120,6 +133,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   UpdateParams();
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(initial_pose);
+
+  PublishPointCloud(object_pub_, *context.object_cloud());
 
   // Get current wrist pose and previous gripper pose
   tg::Graph graph;
@@ -148,6 +163,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       VisualizeGripper("optimization", rotated_pose,
                        context.planning_frame_id());
       ros::Duration(0.20).sleep();
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     next_pose = rotated_pose;
@@ -372,8 +388,7 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       rotated_tf.ToPose(&rotated_pose);
       Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
-      GraspEvaluation grasp_eval;
-      ScoreGrasp(rotated_mat, wrist_pos, context);
+      GraspEvaluation grasp_eval = ScoreGrasp(rotated_mat, wrist_pos, context);
       double score = grasp_eval.score();
 
       if (score > best_score) {
@@ -383,6 +398,8 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
           VisualizeGripper("optimization", rotated_pose,
                            context.planning_frame_id());
           ros::Duration(0.01).sleep();
+          ROS_INFO("%f %f: %s", yaw_angle, roll_angle,
+                   grasp_eval.ToString().c_str());
           // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
         }
       } else {

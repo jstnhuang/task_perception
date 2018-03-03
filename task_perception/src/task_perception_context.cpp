@@ -111,13 +111,17 @@ PointCloudP::Ptr TaskPerceptionContext::GetObjectModel(const string& name) {
 
 PointCloudP::Ptr TaskPerceptionContext::GetObjectCloud(const string& name) {
   IndexObjects();
-  return lazy_objects_.at(name).GetObjectCloud();
+  PointCloudP::Ptr object_cloud = lazy_objects_.at(name).GetObjectCloud();
+  object_cloud->header.frame_id = camera_info_.header.frame_id;
+  return object_cloud;
 }
 
 PointCloudN::Ptr TaskPerceptionContext::GetObjectCloudWithNormals(
     const string& name) {
   IndexObjects();
-  return lazy_objects_.at(name).GetObjectCloudWithNormals();
+  PointCloudN::Ptr output = lazy_objects_.at(name).GetObjectCloudWithNormals();
+  output->header.frame_id = camera_info_.header.frame_id;
+  return output;
 }
 
 KdTreeP::Ptr TaskPerceptionContext::GetObjectTree(const string& name) {
@@ -163,7 +167,8 @@ void TaskPerceptionContext::IndexObjects() {
   for (size_t i = 0; i < current_state_.object_states.size(); ++i) {
     const msgs::ObjectState& obj = current_state_.object_states[i];
     current_objects_[obj.name] = obj;
-    LazyObjectModel lazy_model(obj.name, obj.mesh_name, obj.pose);
+    LazyObjectModel lazy_model(obj.name, obj.mesh_name,
+                               camera_info_.header.frame_id, obj.pose);
     lazy_model.set_object_model_cache(object_models_);
     lazy_objects_.insert(
         std::pair<std::string, LazyObjectModel>(obj.name, lazy_model));

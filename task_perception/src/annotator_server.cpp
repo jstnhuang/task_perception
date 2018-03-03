@@ -359,6 +359,12 @@ void AnnotatorServer::RunCurrentStep() {
     msgs::DemoStates demo_states;
     demo_states.name = name;
     demo_states.demo_states = demo_runtime_.GetDemoStates();
+    // NOTE: we erase the skeleton joint states because we don't use them during
+    // the imitation phase, and they clutter the message a lot.
+    ss_msgs::NerfJointStates kBlankJointStates;
+    for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
+      demo_states.demo_states[i].nerf_joint_states = kBlankJointStates;
+    }
     boost::optional<std::string> db_id = demo_states_db_.GetIdByName(name);
     if (db_id) {
       demo_states_db_.Update(*db_id, demo_states);

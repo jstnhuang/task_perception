@@ -75,29 +75,26 @@ void ProgramExecutor::Execute(
     // Execute grasp, if applicable
     if (slice.grasp.arm != "") {
       const msgs::ObjectState& demo_object_state = slice.grasp.object_state;
-      GraspPlanningContext context(
-          slice.grasp.wrist_pose, planning_frame_, demo_object_state.name,
-          demo_object_state.mesh_name, demo_object_state.pose);
-      Pose demo_grasp = grasp_planner_.Plan(context);
-      // TODO: the grasp planner gives the grasp at the time of the
-      // demonstration.
-      // We need to adapt the grasp to the current object position.
+      Pose wrist_pose;
       tg::Graph graph;
-      graph.Add("demo grasp", tg::RefFrame(planning_frame_), demo_grasp);
-      graph.Add("demo object", tg::RefFrame(planning_frame_),
-                demo_object_state.pose);
-      tg::Transform grasp_in_object;
-      graph.ComputeDescription("demo grasp", tg::RefFrame("demo object"),
-                               &grasp_in_object);
       graph.Add("current object", tg::RefFrame(planning_frame_),
                 object_states.at(demo_object_state.name).pose);
-      tg::Transform grasp_in_planning_frame;
-      graph.DescribePose(grasp_in_object, tg::Source("current object"),
-                         tg::Target(planning_frame_), &grasp_in_planning_frame);
-      Pose grasp = grasp_in_planning_frame.pose();
+      graph.Add("wrist", tg::RefFrame("current object"),
+                slice.grasp.wrist_pose);
+      tg::Transform wrist_in_planning;
+      graph.ComputeDescription("wrist", tg::RefFrame(planning_frame_),
+                               &wrist_in_planning);
 
-      graph.Add("grasp", tg::RefFrame(planning_frame_),
-                grasp_in_planning_frame);
+      GraspPlanningContext context(
+          wrist_in_planning.pose(), planning_frame_, demo_object_state.name,
+          demo_object_state.mesh_name,
+          object_states.at(demo_object_state.name).pose);
+      Pose grasp = grasp_planner_.Plan(context);
+      graph.Add("grasp", tg::RefFrame(planning_frame_), grasp);
+      tg::Transform grasp_in_object;
+      graph.ComputeDescription("grasp", tg::RefFrame("current object"),
+                               &grasp_in_object);
+
       Pose pregrasp;
       pregrasp.orientation.w = 1;
       pregrasp.position.x = -0.10;
@@ -112,6 +109,7 @@ void ProgramExecutor::Execute(
         while (!left_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
+        ros::Duration(1.0).sleep();
         left_group_.setPoseTarget(grasp);
         left_group_.move();
         left_gripper_.StartClosing(grasp_force);
@@ -123,6 +121,7 @@ void ProgramExecutor::Execute(
         right_gripper_.StartOpening();
         right_group_.setPoseTarget(pregrasp_in_planning.pose());
         right_group_.move();
+        ros::Duration(1.0).sleep();
         while (!right_gripper_.IsDone() && ros::ok()) {
           ros::spinOnce();
         }
@@ -140,11 +139,21 @@ void ProgramExecutor::Execute(
     moveit_msgs::MoveItErrorCodes error_code;
     moveit_msgs::RobotTrajectory left_traj;
 
-    // Plan trajectory
     double jump_threshold;
     ros::param::param("jump_threshold", jump_threshold, 1.6);
-    std::vector<Pose> left_ee_trajectory = ComputeGraspTrajectory(
-        current_left_grasp_in_obj, slice.left_traj.object_trajectory);
+
+    // Plan trajectory
+    // TODO: fix the fact that it's not set?
+    std::vector<Pose> left_ee_trajectory;
+    if (slice.left_traj.object_trajectory.size() > 0) {
+      ROS_INFO_STREAM("initial object pose in camera frame: "
+                      << slice.left_traj.object_state);
+      Pose current_left_obj =
+          object_states.at(slice.left_traj.object_state.name).pose;
+      left_ee_trajectory = ComputeGraspTrajectory(
+          current_left_grasp_in_obj, slice.left_traj.object_state.pose,
+          slice.left_traj.object_trajectory, current_left_obj);
+    }
     double left_fraction = left_group_.computeCartesianPath(
         SampleTrajectory(left_ee_trajectory), 0.01, jump_threshold, left_traj,
         kAvoidCollisions, &error_code);
@@ -167,8 +176,14 @@ void ProgramExecutor::Execute(
     left_traj_pub_.publish(left_display);
 
     moveit_msgs::RobotTrajectory right_traj;
-    std::vector<Pose> right_ee_trajectory = ComputeGraspTrajectory(
-        current_right_grasp_in_obj, slice.right_traj.object_trajectory);
+    std::vector<Pose> right_ee_trajectory;
+    if (slice.right_traj.object_trajectory.size() > 0) {
+      Pose current_right_obj =
+          object_states.at(slice.right_traj.object_state.name).pose;
+      right_ee_trajectory = ComputeGraspTrajectory(
+          current_right_grasp_in_obj, slice.right_traj.object_state.pose,
+          slice.right_traj.object_trajectory, current_right_obj);
+    }
     double right_fraction = right_group_.computeCartesianPath(
         SampleTrajectory(right_ee_trajectory), 0.01, jump_threshold, right_traj,
         kAvoidCollisions, &error_code);
@@ -197,7 +212,6 @@ void ProgramExecutor::Execute(
     // Execute ungrasp, if applicable
     if (slice.ungrasp.arm != "") {
       std::string link;
-      Pose wrist_pose;
       if (slice.ungrasp.arm == msgs::Step::LEFT) {
         link = "l_wrist_roll_link";
       } else if (slice.ungrasp.arm == msgs::Step::RIGHT) {
@@ -335,6 +349,7 @@ std::vector<Slice> SliceProgram(const msgs::Program& program) {
         traj_step->start_time = step.start_time;
         traj_step->arm = step.arm;
         traj_step->type = step.type;
+        traj_step->object_state = step.object_state;
       }
       optional<std::pair<Pose, ros::Duration> > pt = it->trajectory_point();
       ROS_ASSERT(pt);
@@ -354,15 +369,29 @@ std::vector<Slice> SliceProgram(const msgs::Program& program) {
 }
 
 std::vector<Pose> ComputeGraspTrajectory(
-    const Pose& grasp_in_obj, const std::vector<Pose>& object_trajectory) {
+    const Pose& grasp_in_obj, const Pose& demo_obj_start,
+    const std::vector<Pose>& object_trajectory, const Pose& current_obj_pose) {
   std::vector<Pose> gripper_traj(object_trajectory.size());
+  if (object_trajectory.size() == 0) {
+    return gripper_traj;
+  }
+  Pose demo_start = demo_obj_start;
   tg::Graph graph;
+  graph.Add("demo start", tg::RefFrame("camera"), demo_start);
   graph.Add("grasp", tg::RefFrame("object"), grasp_in_obj);
+  graph.Add("current object", tg::RefFrame("planning"), current_obj_pose);
+  ROS_INFO_STREAM("start pose in camera: " << demo_start);
+  ROS_INFO_STREAM("grasp in object: " << grasp_in_obj);
+  ROS_INFO_STREAM("object: " << current_obj_pose);
   for (size_t i = 0; i < object_trajectory.size(); ++i) {
     const Pose& obj_pose = object_trajectory[i];
-    graph.Add("object", tg::RefFrame("planning frame"), obj_pose);
+    if (i % 5 == 0) {
+      ROS_INFO_STREAM("Object motion: " << obj_pose);
+    }
+
+    graph.Add("object", tg::RefFrame("current object"), obj_pose);
     tg::Transform grasp_in_planning;
-    graph.ComputeDescription("grasp", tg::RefFrame("planning frame"),
+    graph.ComputeDescription("grasp", tg::RefFrame("planning"),
                              &grasp_in_planning);
     gripper_traj[i] = grasp_in_planning.pose();
   }

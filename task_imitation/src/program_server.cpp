@@ -85,7 +85,7 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
     const msgs::DemoState& state = demo_states.demo_states[i];
     for (size_t j = 0; j < state.object_states.size(); ++j) {
       const msgs::ObjectState& os = state.object_states[j];
-      if (object_states.find(os.name) != object_states.end()) {
+      if (object_states.find(os.name) == object_states.end()) {
         object_states[os.name] = os;
       }
     }

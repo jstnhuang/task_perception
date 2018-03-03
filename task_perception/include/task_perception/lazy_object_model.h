@@ -24,7 +24,7 @@ class LazyObjectModel {
   // "pringles_1k.pcd". This is because dbot uses .obj files, but when we
   // convert the .obj to a point cloud, we save the point cloud as .pcd.
   LazyObjectModel(const std::string& name, const std::string& mesh_name,
-                  const geometry_msgs::Pose& pose);
+                  const std::string& frame_id, const geometry_msgs::Pose& pose);
   void set_object_model_cache(ObjectModelCache* cache);
 
   // Returns the object model (in the frame defined by the object model).
@@ -38,6 +38,7 @@ class LazyObjectModel {
  private:
   std::string name_;
   std::string mesh_name_;
+  std::string frame_id_;
   geometry_msgs::Pose pose_;
 
   mutable ObjectModelCache* cache_;  // No ownership

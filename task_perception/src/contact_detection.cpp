@@ -117,7 +117,13 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
                object.name.c_str());
       hand_state->current_action = msgs::HandState::GRASPING;
       hand_state->object_name = object.name;
-      hand_state->wrist_pose = wrist_pose;  // TODO: transform to camera frame!
+      tg::Graph graph;
+      graph.Add("object", tg::RefFrame("camera"), object.pose);
+      graph.Add("wrist", tg::RefFrame("camera"), wrist_pose);
+      tg::Transform wrist_in_object;
+      graph.ComputeDescription("wrist", tg::RefFrame("object"),
+                               &wrist_in_object);
+      hand_state->wrist_pose = wrist_in_object.pose();
       break;
     }
   }
@@ -158,6 +164,9 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   //  ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
   //           num_touching_points);
   //}
+
+  PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
+  PublishPointCloud(obj_viz_, *object_cloud);
 
   if (num_touching_points <= context->kTouchingReleasedObjectPoints) {
     ROS_INFO("Changed %s hand state to NONE (%d out of %d points)",

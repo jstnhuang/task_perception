@@ -57,9 +57,19 @@ std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
 
 // Given an object-relative grasp and an object trajectory, computes the
 // trajectory of the grasp.
+//
+// grasp_in_obj: Grasp relative to object
+// demo_obj_start: Initial pose of the object at the time of the demonstration,
+// relative to the camera frame.
+// object_trajectory: The trajectory of the object during the demonstration,
+// relative t othe camera frame.
+// current_obj_pose: The pose of the object at execution time, in the planning
+// frame.
 std::vector<geometry_msgs::Pose> ComputeGraspTrajectory(
     const geometry_msgs::Pose& grasp_in_obj,
-    const std::vector<geometry_msgs::Pose>& object_trajectory);
+    const geometry_msgs::Pose& demo_obj_start,
+    const std::vector<geometry_msgs::Pose>& object_trajectory,
+    const geometry_msgs::Pose& current_obj_pose);
 
 std::vector<geometry_msgs::Pose> SampleTrajectory(
     const std::vector<geometry_msgs::Pose>& traj);
