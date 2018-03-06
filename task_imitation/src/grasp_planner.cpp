@@ -398,8 +398,8 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
           VisualizeGripper("optimization", rotated_pose,
                            context.planning_frame_id());
           ros::Duration(0.01).sleep();
-          ROS_INFO("%f %f: %s", yaw_angle, roll_angle,
-                   grasp_eval.ToString().c_str());
+          // ROS_INFO("%f %f: %s", yaw_angle, roll_angle,
+          //         grasp_eval.ToString().c_str());
           // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
         }
       } else {

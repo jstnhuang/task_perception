@@ -1,32 +1,46 @@
 #ifndef _PBI_PROGRAM_GENERATOR_H_
 #define _PBI_PROGRAM_GENERATOR_H_
 
+#include <map>
 #include <string>
 
 #include "geometry_msgs/Pose.h"
+#include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
+#include "task_perception_msgs/Step.h"
 
 namespace pbi {
-// Generates a Program given a sequence of DemoStates.
+// Generates an executable robot program given a sequence of states extracted
+// from a demonstration.
 class ProgramGenerator {
+  typedef std::map<std::string, task_perception_msgs::ObjectState>
+      ObjectStateIndex;
+
  public:
-  ProgramGenerator();
-  void Step(const task_perception_msgs::DemoState& state);
-  task_perception_msgs::Program program() const;
+  ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
+                   moveit::planning_interface::MoveGroup& right_group);
+  task_perception_msgs::Program Generate(
+      const std::vector<task_perception_msgs::DemoState>& demo_states,
+      const ObjectStateIndex& object_states);
 
   const static double kGraspDuration;
   const static double kUngraspDuration;
 
  private:
+  void Step(const task_perception_msgs::DemoState& state,
+            const ObjectStateIndex& object_states);
   void ProcessContact(const task_perception_msgs::DemoState& state,
+                      const ObjectStateIndex& object_states,
                       const std::string& arm_name);
 
   // Gets the most recently created step for the given arm.
   // Returns a pointer to the most recent step, or NULL if there was none.
   int GetMostRecentStep(const std::string& arm_name);
+  task_perception_msgs::Step GetMostRecentGraspStep(
+      const std::string& arm_name);
 
   geometry_msgs::Pose ComputeRelativePose(
       const task_perception_msgs::DemoState&);
@@ -38,6 +52,10 @@ class ProgramGenerator {
 
   // The real-world timestamp of first step we take.
   ros::Time start_time_;
+
+  moveit::planning_interface::MoveGroup& left_group_;
+  moveit::planning_interface::MoveGroup& right_group_;
+  std::string planning_frame_;
 };
 
 task_perception_msgs::ObjectState GetObjectState(

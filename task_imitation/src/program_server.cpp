@@ -33,7 +33,9 @@ ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
           nh_, "imitate_demo",
           boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
       initialize_object_("initialize_object"),
-      executor_() {}
+      left_group_("left_arm"),
+      right_group_("right_arm"),
+      executor_(left_group_, right_group_) {}
 
 void ProgramServer::Start() {
   action_server_.start();
@@ -63,12 +65,10 @@ void ProgramServer::ExecuteImitation(
       GetObjectPoses(demo_states);
   ROS_INFO("All object states initialized.");
 
-  ProgramGenerator generator;
-  for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
-    generator.Step(demo_states.demo_states[i]);
-  }
+  ProgramGenerator generator(left_group_, right_group_);
+  msgs::Program program =
+      generator.Generate(demo_states.demo_states, object_states);
 
-  msgs::Program program = generator.program();
   executor_.Execute(program, object_states);
   msgs::ImitateDemoResult result;
   action_server_.setSucceeded(result);

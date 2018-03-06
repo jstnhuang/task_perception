@@ -2,36 +2,50 @@
 // imitate the demonstration.
 #include "task_imitation/program_generator.h"
 
-#include <string>
-
-#include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
-#include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/HandState.h"
-#include "task_perception_msgs/ObjectState.h"
-#include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/Step.h"
 #include "transform_graph/graph.h"
 
+#include "task_imitation/grasp_planner.h"
+#include "task_imitation/grasp_planning_context.h"
+
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
+using geometry_msgs::Pose;
 
 namespace pbi {
 const double ProgramGenerator::kGraspDuration = 2;
 const double ProgramGenerator::kUngraspDuration = 2;
 
-ProgramGenerator::ProgramGenerator()
-    : program_(), prev_state_(), start_time_(0) {}
+ProgramGenerator::ProgramGenerator(
+    moveit::planning_interface::MoveGroup& left_group,
+    moveit::planning_interface::MoveGroup& right_group)
+    : program_(),
+      prev_state_(),
+      start_time_(0),
+      left_group_(left_group),
+      right_group_(right_group),
+      planning_frame_(left_group_.getPlanningFrame()) {}
 
-void ProgramGenerator::Step(const msgs::DemoState& state) {
-  ProcessContact(state, msgs::Step::LEFT);
-  ProcessContact(state, msgs::Step::RIGHT);
+msgs::Program ProgramGenerator::Generate(
+    const std::vector<task_perception_msgs::DemoState>& demo_states,
+    const ObjectStateIndex& object_states) {
+  for (size_t i = 0; i < demo_states.size(); ++i) {
+    Step(demo_states[i], object_states);
+  }
+  return program_;
+}
+
+void ProgramGenerator::Step(const msgs::DemoState& state,
+                            const ObjectStateIndex& object_states) {
+  ProcessContact(state, object_states, msgs::Step::LEFT);
+  ProcessContact(state, object_states, msgs::Step::RIGHT);
   prev_state_ = state;
 }
 
-msgs::Program ProgramGenerator::program() const { return program_; }
-
 void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
+                                      const ObjectStateIndex& object_states,
                                       const std::string& arm_name) {
   msgs::HandState hand;
   msgs::HandState prev_hand;
@@ -67,7 +81,26 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
     grasp_step.arm = arm_name;
     grasp_step.type = msgs::Step::GRASP;
     grasp_step.object_state = GetObjectState(state, hand.object_name);
-    grasp_step.wrist_pose = hand.wrist_pose;
+    const std::string object_name = grasp_step.object_state.name;
+
+    // Plan grasp
+    tg::Graph graph;
+    const Pose& current_obj_pose = object_states.at(object_name).pose;
+    graph.Add("object", tg::RefFrame("planning"), current_obj_pose);
+    tg::Transform wrist_in_planning;
+    graph.DescribePose(hand.wrist_pose, tg::Source("object"),
+                       tg::Target("planning"), &wrist_in_planning);
+
+    GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
+                                 object_name, grasp_step.object_state.mesh_name,
+                                 current_obj_pose);
+    GraspPlanner grasp_planner;
+    Pose grasp_in_planning = grasp_planner.Plan(context);
+    graph.Add("grasp", tg::RefFrame("planning"), grasp_in_planning);
+    tg::Transform grasp_in_obj;
+    graph.ComputeDescription("grasp", tg::RefFrame("object"), &grasp_in_obj);
+
+    grasp_step.ee_trajectory.push_back(grasp_in_obj.pose());
     program_.steps.push_back(grasp_step);
   }
   // If we are continuing a contact, then create/append to the trajectory
@@ -97,18 +130,21 @@ void ProgramGenerator::ProcessContact(const msgs::DemoState& state,
       traj_step_i = prev_step_i;
     }
 
-    // Compute pose of the object relative to its initial pose.
-    const msgs::ObjectState& grasped_object_state = traj_step.object_state;
+    // Compute pose of the gripper relative to the object's initial pose.
+    // TODO: for objects with symmetry (e.g., cylinders), plan new grasps that
+    // ignore possible vision system errors about the axis of symmetry.
+    msgs::Step grasp_step = GetMostRecentGraspStep(arm_name);
+    const Pose& grasp_pose = grasp_step.ee_trajectory[0];  // Relative to obj
     msgs::ObjectState object_state = GetObjectState(state, hand.object_name);
     tg::Graph graph;
     graph.Add("initial object pose", tg::RefFrame("camera"),
-              grasped_object_state.pose);
+              grasp_step.object_state.pose);
     graph.Add("current object pose", tg::RefFrame("camera"), object_state.pose);
-    tg::Transform object_transform;
-    graph.ComputeDescription("current object pose",
-                             tg::RefFrame("initial object pose"),
-                             &object_transform);
-    traj_step.object_trajectory.push_back(object_transform.pose());
+    graph.Add("grasp", tg::RefFrame("current object pose"), grasp_pose);
+    tg::Transform grasp_in_initial;
+    graph.ComputeDescription("grasp", tg::RefFrame("initial object pose"),
+                             &grasp_in_initial);
+    traj_step.ee_trajectory.push_back(grasp_in_initial.pose());
 
     // If this is the first waypoint, time from start is just dt.
     // Otherwise, it's last waypoint + dt.
@@ -149,6 +185,19 @@ int ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
     }
   }
   return -1;
+}
+
+msgs::Step ProgramGenerator::GetMostRecentGraspStep(
+    const std::string& arm_name) {
+  for (int i = program_.steps.size() - 1; i >= 0; --i) {
+    const msgs::Step& step = program_.steps[i];
+    if (step.type == msgs::Step::GRASP && step.arm == arm_name) {
+      return step;
+    }
+  }
+  msgs::Step kBlank;
+  ROS_ERROR("Failed to find most recent grasp pose for %s!", arm_name.c_str());
+  return kBlank;
 }
 
 ros::Duration ProgramGenerator::GetEndTime(

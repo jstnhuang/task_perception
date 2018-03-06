@@ -8,12 +8,12 @@
 #include "actionlib/client/simple_action_client.h"
 #include "actionlib/server/simple_action_server.h"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
+#include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/Program.h"
-#include "tf/transform_listener.h"
 
 #include "task_imitation/program_executor.h"
 
@@ -36,6 +36,9 @@ class ProgramServer {
       action_server_;
   actionlib::SimpleActionClient<dbot_ros_msgs::InitializeObjectAction>
       initialize_object_;
+
+  moveit::planning_interface::MoveGroup left_group_;
+  moveit::planning_interface::MoveGroup right_group_;
 
   ProgramExecutor executor_;
 };
