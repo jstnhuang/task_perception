@@ -4,10 +4,12 @@
 # Before running: edit bag_path
 # After running, you may want to save the pose of the objects for visualization purposes.
 
+from actionlib_msgs.msg import GoalStatus
 from geometry_msgs.msg import Point, Pose, Quaternion
 from task_perception_msgs.msg import ImitateDemoAction, ImitateDemoGoal
 from visualization_msgs.msg import Marker
 from sensor_msgs.msg import CameraInfo, Image
+from dbot_ros_msgs.srv import InitInteractiveObjectPose, InitInteractiveObjectPoseRequest
 import actionlib
 import rosbag
 import rospy
@@ -119,6 +121,18 @@ def main():
     goal = ImitateDemoGoal()
     goal.bag_path = bag_path
     client.send_goal(goal)
+
+    while client.get_state() != GoalStatus.PENDING:
+        rospy.sleep(0.1)
+
+    # Init start poses
+    init_object = rospy.ServiceProxy('init_interactive_object_pose', InitInteractiveObjectPose)
+    for mesh_name, pose in start_poses[bag_path]:
+        init_req = InitInteractiveObjectPoseRequest()
+        init_req.mesh_name = mesh_name
+        init_req.pose = pose
+        init_object.call(init_req)
+
     client.wait_for_result()
 
 
