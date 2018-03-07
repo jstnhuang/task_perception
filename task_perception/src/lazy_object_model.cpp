@@ -3,6 +3,7 @@
 #include "Eigen/Eigen"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
+#include "pcl/common/common.h"
 #include "pcl/common/transforms.h"
 #include "pcl/features/normal_3d_omp.h"
 #include "pcl/io/io.h"
@@ -16,12 +17,10 @@
 #include "task_perception/pcl_typedefs.h"
 
 namespace pbi {
-LazyObjectModel::LazyObjectModel(const std::string& name,
-                                 const std::string& mesh_name,
+LazyObjectModel::LazyObjectModel(const std::string& mesh_name,
                                  const std::string& frame_id,
                                  const geometry_msgs::Pose& pose)
-    : name_(name),
-      mesh_name_(mesh_name),
+    : mesh_name_(mesh_name),
       frame_id_(frame_id),
       pose_(pose),
       cache_(NULL),
@@ -29,7 +28,10 @@ LazyObjectModel::LazyObjectModel(const std::string& name,
       object_model_(),
       object_cloud_(),
       object_cloud_with_normals_(),
-      object_tree_() {}
+      object_tree_(),
+      scale_() {
+  scale_.x = -1;
+}
 
 void LazyObjectModel::set_object_model_cache(ObjectModelCache* cache) {
   cache_ = cache;
@@ -93,6 +95,20 @@ KdTreeP::Ptr LazyObjectModel::GetObjectTree() const {
     object_tree_->setInputCloud(GetObjectCloud());
   }
   return object_tree_;
+}
+
+geometry_msgs::Pose LazyObjectModel::pose() const { return pose_; }
+
+geometry_msgs::Vector3 LazyObjectModel::scale() const {
+  if (scale_.x < 0) {
+    PointCloudP::Ptr model = GetObjectModel();
+    PointP min, max;
+    pcl::getMinMax3D(*model, min, max);
+    scale_.x = max.x - min.x;
+    scale_.y = max.y - min.y;
+    scale_.z = max.z - min.z;
+  }
+  return scale_;
 }
 
 PointCloudP::Ptr LoadModel(const std::string& mesh_path) {

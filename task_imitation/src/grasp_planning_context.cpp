@@ -22,7 +22,7 @@ GraspPlanningContext::GraspPlanningContext(const Pose& wrist_pose,
       object_name_(object_name),
       object_mesh_(object_mesh),
       object_pose_(object_pose),
-      lazy_model_(object_name, object_mesh, planning_frame_id, object_pose) {}
+      lazy_model_(object_mesh, planning_frame_id, object_pose) {}
 
 Pose GraspPlanningContext::wrist_pose() const { return wrist_pose_; }
 
