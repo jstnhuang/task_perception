@@ -117,30 +117,31 @@ int main(int argc, char** argv) {
                             end_time);
 
   // Get transform from base link to camera frame.
-  while (ros::ok() &&
-         !tf_listener.waitForTransform(camera_info.header.frame_id, "base_link",
-                                       ros::Time(0), ros::Duration(5.0))) {
-    ROS_WARN("Waiting for transform from base_link to %s",
-             camera_info.header.frame_id.c_str());
-  }
-  tf::StampedTransform camera_frame;
-  tf_listener.lookupTransform(camera_info.header.frame_id, "base_link",
-                              ros::Time(0), camera_frame);
-  geometry_msgs::Pose camera_pose;
-  camera_pose.position.x = camera_frame.getOrigin().x();
-  camera_pose.position.y = camera_frame.getOrigin().y();
-  camera_pose.position.z = camera_frame.getOrigin().z();
-  camera_pose.orientation.w = camera_frame.getRotation().w();
-  camera_pose.orientation.x = camera_frame.getRotation().x();
-  camera_pose.orientation.y = camera_frame.getRotation().y();
-  camera_pose.orientation.z = camera_frame.getRotation().z();
+  // while (ros::ok() &&
+  //       !tf_listener.waitForTransform(camera_info.header.frame_id,
+  //       "base_link",
+  //                                     ros::Time(0), ros::Duration(5.0))) {
+  //  ROS_WARN("Waiting for transform from base_link to %s",
+  //           camera_info.header.frame_id.c_str());
+  //}
+  // tf::StampedTransform camera_frame;
+  // tf_listener.lookupTransform(camera_info.header.frame_id, "base_link",
+  //                            ros::Time(0), camera_frame);
+  // geometry_msgs::Pose camera_pose;
+  // camera_pose.position.x = camera_frame.getOrigin().x();
+  // camera_pose.position.y = camera_frame.getOrigin().y();
+  // camera_pose.position.z = camera_frame.getOrigin().z();
+  // camera_pose.orientation.w = camera_frame.getRotation().w();
+  // camera_pose.orientation.x = camera_frame.getRotation().x();
+  // camera_pose.orientation.y = camera_frame.getRotation().y();
+  // camera_pose.orientation.z = camera_frame.getRotation().z();
 
   // Start writing output
   std::string output_path(argv[2]);
   BagWriter output_writer(output_path);
 
   output_writer.WriteCameraInfo(camera_info, start_time);
-  output_writer.WriteCameraPose(camera_pose, start_time);
+  // output_writer.WriteCameraPose(camera_pose, start_time);
 
   message_filters::Cache<Image> rgb_cache(100);
   message_filters::Cache<Image> depth_cache(100);
