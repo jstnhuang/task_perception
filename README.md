@@ -7,6 +7,7 @@
 - dbot (modified)
 - dbot_ros (modified)
 - [pr2_actions](https://github.com/jstnhuang/pr2_actions)
+- [rapid_collision](https://github.com/jstnhuang/rapid_collision)
 
 ## Demonstration procedure
 - [ ] Start up cameras
