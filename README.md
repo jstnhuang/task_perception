@@ -15,7 +15,7 @@
 - [ ] Verify workspace and person are visible (up to neck, 30 degree head tilt works well)
 - [ ] Record data
   - If tripod: `roslaunch task_perception record_demonstration.launch is_pr2:=false`
-  - If tripod: `roslaunch task_perception record_demonstration.launch is_pr2:=true`
+  - If PR2: `roslaunch task_perception record_demonstration.launch is_pr2:=true`
 - [ ] Check amount of time to trim from beginning and end: `rosed task_perception process_bag.launch`
 - [ ] Process bag: `roslaunch task_perception process_bag.launch input:=/path/to/INPUT.bag output:=/path/to/OUTPUT.bag`
 
