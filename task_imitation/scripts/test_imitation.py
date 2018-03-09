@@ -65,7 +65,8 @@ def main():
     cheezit_2 = '/home/jstn/data/demonstrations/cheezit_2.bag'
     move_two = '/home/jstn/data/demonstrations/move_two.bag'
     stack = '/home/jstn/data/demonstrations/stack.bag'
-    bag_path = move_two
+    arrange_cheezit = '/home/jstn/data/demonstrations/arrange_cheezit.bag'
+    bag_path = arrange_cheezit
 
     pose = Pose()
     start_poses = {
@@ -78,6 +79,11 @@ def main():
             position=Point(0.67, -0.133, 0.76),
             orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
                 position=Point(0.485, 0.203, 0.76),
+                orientation=Quaternion(0, 0, 0, 1)))],
+        arrange_cheezit: [('cheezit_1k.obj', Pose(
+            position=Point(0.718, -0.36, 0.76),
+            orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
+                position=Point(0.668, 0.322, 0.77),
                 orientation=Quaternion(0, 0, 0, 1)))]
     }
 
@@ -126,12 +132,12 @@ def main():
         rospy.sleep(0.1)
 
     # Init start poses
-    init_object = rospy.ServiceProxy('init_interactive_object_pose', InitInteractiveObjectPose)
-    for mesh_name, pose in start_poses[bag_path]:
-        init_req = InitInteractiveObjectPoseRequest()
-        init_req.mesh_name = mesh_name
-        init_req.pose = pose
-        init_object.call(init_req)
+    #init_object = rospy.ServiceProxy('init_interactive_object_pose', InitInteractiveObjectPose)
+    #for mesh_name, pose in start_poses[bag_path]:
+    #    init_req = InitInteractiveObjectPoseRequest()
+    #    init_req.mesh_name = mesh_name
+    #    init_req.pose = pose
+    #    init_object.call(init_req)
 
     client.wait_for_result()
 
