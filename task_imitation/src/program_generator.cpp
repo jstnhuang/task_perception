@@ -2,7 +2,15 @@
 // imitate the demonstration.
 #include "task_imitation/program_generator.h"
 
+#include "boost/foreach.hpp"
+#include "geometry_msgs/Pose.h"
+#include "geometry_msgs/Vector3.h"
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
+#include "rapid_collision/collision_checks.h"
 #include "ros/ros.h"
+#include "task_perception/lazy_object_model.h"
+#include "task_perception/pcl_typedefs.h"
 #include "task_perception_msgs/HandState.h"
 #include "task_perception_msgs/Step.h"
 #include "transform_graph/graph.h"
@@ -26,15 +34,59 @@ ProgramGenerator::ProgramGenerator(
       start_time_(0),
       left_group_(left_group),
       right_group_(right_group),
-      planning_frame_(left_group_.getPlanningFrame()) {}
+      planning_frame_(left_group_.getPlanningFrame()),
+      model_cache_() {}
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
     const ObjectStateIndex& object_states) {
+  Segment(demo_states);
   for (size_t i = 0; i < demo_states.size(); ++i) {
     Step(demo_states[i], object_states);
   }
   return program_;
+}
+
+void ProgramGenerator::Segment(
+    const std::vector<msgs::DemoState>& demo_states) {
+  for (size_t i = 0; i < demo_states.size(); ++i) {
+    const msgs::DemoState& demo_state = demo_states[i];
+    if (demo_state.left_hand.current_action != msgs::HandState::NONE) {
+      msgs::ObjectState held_object =
+          GetObjectState(demo_state, demo_state.left_hand.object_name);
+      CheckContacts(held_object, demo_state.object_states);
+    }
+    if (demo_state.right_hand.current_action != msgs::HandState::NONE) {
+      msgs::ObjectState held_object =
+          GetObjectState(demo_state, demo_state.right_hand.object_name);
+      CheckContacts(held_object, demo_state.object_states);
+    }
+  }
+}
+
+void ProgramGenerator::CheckContacts(
+    const task_perception_msgs::ObjectState& object,
+    const std::vector<task_perception_msgs::ObjectState>& other_objects) {
+  const double kInflationSize = 0.05;  // Add 0.025 all around
+  LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
+                                 object.pose);
+  held_obj_model.set_object_model_cache(&model_cache_);
+  const geometry_msgs::Pose& held_obj_pose = held_obj_model.pose();
+  geometry_msgs::Vector3 held_obj_scale =
+      InflateScale(held_obj_model.scale(), kInflationSize);
+  BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
+    if (other.name == object.name) {
+      continue;
+    }
+    LazyObjectModel other_model(other.mesh_name, planning_frame_, other.pose);
+    other_model.set_object_model_cache(&model_cache_);
+    if (rapid::AreObbsInCollision(
+            held_obj_pose, held_obj_scale, other_model.pose(),
+            InflateScale(other_model.scale(), kInflationSize))) {
+      ROS_INFO("%s is colliding with %s", object.name.c_str(),
+               other.name.c_str());
+    }
+  }
 }
 
 void ProgramGenerator::Step(const msgs::DemoState& state,
@@ -215,6 +267,15 @@ ros::Duration ProgramGenerator::GetEndTime(
   }
   ROS_ASSERT_MSG(false, "Unknown step type %s", step.type.c_str());
   return ros::Duration(0);
+}
+
+geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
+                                    double distance) {
+  geometry_msgs::Vector3 inflated = scale;
+  inflated.x += distance;
+  inflated.y += distance;
+  inflated.z += distance;
+  return inflated;
 }
 
 msgs::ObjectState GetObjectState(const msgs::DemoState& state,

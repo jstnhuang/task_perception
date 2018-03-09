@@ -7,6 +7,7 @@
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
+#include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
@@ -30,11 +31,15 @@ class ProgramGenerator {
   const static double kUngraspDuration;
 
  private:
+  void Segment(const std::vector<task_perception_msgs::DemoState>& demo_states);
   void Step(const task_perception_msgs::DemoState& state,
             const ObjectStateIndex& object_states);
   void ProcessContact(const task_perception_msgs::DemoState& state,
                       const ObjectStateIndex& object_states,
                       const std::string& arm_name);
+  void CheckContacts(
+      const task_perception_msgs::ObjectState& object,
+      const std::vector<task_perception_msgs::ObjectState>& other_objects);
 
   // Gets the most recently created step for the given arm.
   // Returns a pointer to the most recent step, or NULL if there was none.
@@ -56,7 +61,13 @@ class ProgramGenerator {
   moveit::planning_interface::MoveGroup& left_group_;
   moveit::planning_interface::MoveGroup& right_group_;
   std::string planning_frame_;
+
+  LazyObjectModel::ObjectModelCache model_cache_;
 };
+
+// Add a constant to a vector3.
+geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
+                                    double distance);
 
 task_perception_msgs::ObjectState GetObjectState(
     const task_perception_msgs::DemoState& state,
