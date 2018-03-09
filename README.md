@@ -9,9 +9,13 @@
 - [pr2_actions](https://github.com/jstnhuang/pr2_actions)
 
 ## Demonstration procedure
-- [ ] Start up robot
+- [ ] Start up cameras
+  - If tripod: `roslaunch task_perception xtion_tripod.launch`
+  - If PR2: start up as usual
 - [ ] Verify workspace and person are visible (up to neck, 30 degree head tilt works well)
-- [ ] Record data: `roslaunch task_perception record_demonstration.launch`
+- [ ] Record data
+  - If tripod: `roslaunch task_perception record_demonstration.launch is_pr2:=false`
+  - If tripod: `roslaunch task_perception record_demonstration.launch is_pr2:=true`
 - [ ] Check amount of time to trim from beginning and end: `rosed task_perception process_bag.launch`
 - [ ] Process bag: `roslaunch task_perception process_bag.launch input:=/path/to/INPUT.bag output:=/path/to/OUTPUT.bag`
 
