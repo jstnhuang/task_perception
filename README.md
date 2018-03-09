@@ -11,7 +11,7 @@
 ## Demonstration procedure
 - [ ] Start up robot
 - [ ] Verify workspace and person are visible (up to neck, 30 degree head tilt works well)
-- [ ] Record data: `roslaunch task_perception record_data.launch`
+- [ ] Record data: `roslaunch task_perception record_demonstration.launch`
 - [ ] Check amount of time to trim from beginning and end: `rosed task_perception process_bag.launch`
 - [ ] Process bag: `roslaunch task_perception process_bag.launch input:=/path/to/INPUT.bag output:=/path/to/OUTPUT.bag`
 
