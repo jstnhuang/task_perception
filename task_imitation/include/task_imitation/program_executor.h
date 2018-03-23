@@ -7,7 +7,7 @@
 
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
-#include "pr2_actions/gripper.h"
+#include "rapid_pr2/gripper.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
 #include "tf/transform_listener.h"
@@ -38,8 +38,8 @@ class ProgramExecutor {
   moveit::planning_interface::MoveGroup& right_group_;
   moveit::planning_interface::MoveGroup arms_group_;
   const std::string planning_frame_;
-  pr2_actions::Gripper left_gripper_;
-  pr2_actions::Gripper right_gripper_;
+  rapid_pr2::Gripper left_gripper_;
+  rapid_pr2::Gripper right_gripper_;
 
   ros::Publisher left_traj_pub_;
   ros::Publisher right_traj_pub_;

@@ -57,8 +57,8 @@
   <depend>moveit_ros_planning</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>pcl_conversions</depend>
-  <depend>pr2_actions</depend>
   <depend>rapid_collision</depend>
+  <depend>rapid_pr2</depend>
   <depend>robot_markers</depend>
   <depend>roscpp</depend>
   <depend>task_db</depend>
