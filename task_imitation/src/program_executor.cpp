@@ -26,8 +26,8 @@ ProgramExecutor::ProgramExecutor(
       right_group_(right_group),
       arms_group_("arms"),
       planning_frame_(left_group_.getPlanningFrame()),
-      left_gripper_(rapid_pr2::Gripper::Left()),
-      right_gripper_(rapid_pr2::Gripper::Right()),
+      left_gripper_(rapid::pr2::Gripper::Left()),
+      right_gripper_(rapid::pr2::Gripper::Right()),
       left_traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
           "program_executor/left_arm_traj", 1, true)),
       right_traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
