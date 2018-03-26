@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
+</launch>

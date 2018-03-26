@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_cheezit" args="cheezit1" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_cheezit2" args="cheezit2" required="true" />
+  <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
+  <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
+</launch>

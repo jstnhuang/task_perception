@@ -6,7 +6,6 @@
   <param name="mongodb_port" value="27017" />
   <node name="$(anon message_store)" pkg="mongodb_store" type="message_store_node.py" output="screen" required="true" /> 
 
-  <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
   <node pkg="task_db" type="demo_states_db" name="demo_states_db" required="true" output="screen" />
 
   <rosparam command="load" file="$(find task_imitation)/config/grasp_planner.yaml" />
