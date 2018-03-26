@@ -1,13 +1,18 @@
 # Task perception
 
 ## Requirements
-- skin_segmentation
+- dbot_ros_msgs
+- object_meshes
 - skin_segmentation_msgs
-- nerf_b (modified to use hand segmentation)
+- [rapid](https://github.com/jstnhuang/rapid)
+
+Build in a separate workspace called **tracking**:
+- skin_segmentation
+
+Buid these in a separate workspace called **dbot**:
+- nerf_b
 - dbot (modified)
 - dbot_ros (modified)
-- [pr2_actions](https://github.com/jstnhuang/pr2_actions)
-- [rapid_collision](https://github.com/jstnhuang/rapid_collision)
 
 ## Demonstration procedure
 - [ ] Start up cameras
@@ -30,10 +35,11 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] `roscore`
 - [ ] Frontend: `cd frontend; polymer serve;`
 - [ ] Upload PR2 (only needed once): `roslaunch task_perception upload_pr2.launch`
-- [ ] Add an object tracker for each object in the demonstration: `rosed task_perception task_perception.launch`
+- [ ] Add an object tracker for each object in the demonstration: `rosed task_perception dbot_nerf.launch`
+- [ ] In dbot/nerf workspace, run skeleton/object tracking: `cd task_perception/launch; setws dbot; roslaunch dbot_nerf.launch`
 - [ ] Backend: `roslaunch task_perception task_perception.launch --screen`
 - [ ] RViz: `rosrun rviz rviz -d task_perception/config/task_perception.rviz`
-- [ ] Skin segmentation: `setvenv tf; setws tracking; roslaunch skin_segmentation service_test.launch  --screen`
+- [ ] Skin segmentation: `setvenv tf; setws tracking; roslaunch skin_segmentation service_test.launch --screen`
 - [ ] Skeleton tracking frontend: `setws tracking; roscd skin_segmentation/frontend; polymer serve`
 
 ## Imitation procedure
