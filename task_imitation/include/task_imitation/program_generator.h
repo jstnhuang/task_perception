@@ -34,7 +34,16 @@ class ProgramGenerator {
   void Segment(const std::vector<task_perception_msgs::DemoState>& demo_states);
   void Step(const task_perception_msgs::DemoState& state,
             const ObjectStateIndex& object_states);
-  void ProcessContact(const task_perception_msgs::DemoState& state,
+  void ProcessStep(const task_perception_msgs::DemoState& state,
+                   const ObjectStateIndex& object_states,
+                   const std::string& arm_name);
+  void AddGraspStep(const task_perception_msgs::DemoState& state,
+                    const ObjectStateIndex& object_states,
+                    const std::string& arm_name);
+  void AddOrAppendToTrajectoryStep(const task_perception_msgs::DemoState& state,
+                                   const ObjectStateIndex& object_states,
+                                   const std::string& arm_name);
+  void AddUngraspStep(const task_perception_msgs::DemoState& state,
                       const ObjectStateIndex& object_states,
                       const std::string& arm_name);
   void CheckContacts(
