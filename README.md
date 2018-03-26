@@ -51,5 +51,7 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] Move to start position
   - If simulation: use MoveIt
   - If PR2: use Rapid PbD
+- [ ] Run dbot object initializer: `cd task_imitation/launch; setws dbot; roslaunch dbot.launch`
 - [ ] Program server: `roslaunch task_imitation task_imitation.launch --screen`
+- [ ] Choose which task to imitate: `rosed task_imitation test_imitation.py`
 - [ ] Trigger processing/execution of a bag file: `rosrun task_imitation test_imitation.py`
