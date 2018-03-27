@@ -12,8 +12,10 @@ string arm
 string GRASP = grasp
 string UNGRASP = ungrasp
 string FOLLOW_TRAJECTORY = follow trajectory
+string MOVE_TO_POSE = move to pose
 string type
 
+# Step parameters ###########################################################
 # If action_type == GRASP:
 # - object_state: the object state at the time of the demonstration
 # - ee_trajectory: the first element is the transform of the grasp relative to the object
@@ -28,6 +30,11 @@ string type
 # - object_state: the object state at the beginning of the demonstrated trajectory
 # - ee_trajectory: the trajectory of the end effector relative to the object's initial pose, given in object_state
 # - times_from_start: timing information for the trajectory
+
+# If action_type == MOVE_TO_POSE:
+# - object_state: the object to move relative to
+# - ee_trajectory: the first element is the pose of the grasp relative to the pose given in object_state
+# - times_from_start: unused
 
 task_perception_msgs/ObjectState object_state
 
