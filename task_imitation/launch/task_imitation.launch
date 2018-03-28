@@ -9,6 +9,7 @@
   <node pkg="task_db" type="demo_states_db" name="demo_states_db" required="true" output="screen" />
 
   <rosparam command="load" file="$(find task_imitation)/config/grasp_planner.yaml" />
+  <rosparam command="load" file="$(find task_imitation)/config/imitation.yaml" />
 
   <node if="$(arg debug)" pkg="task_imitation" type="program_server" name="program_server" launch-prefix="xterm -e gdb --args" required="true" output="screen" />
   <node unless="$(arg debug)" pkg="task_imitation" type="program_server" name="program_server" required="true" output="screen" />
