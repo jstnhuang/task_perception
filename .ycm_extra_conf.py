@@ -76,9 +76,11 @@ flags = [
 '-I',
 '../fl/include',
 '-I',
+'../rapid/rapid_collision/include',
+'-I',
 '../rapid/rapid_pr2/include',
 '-I',
-'../rapid/rapid_collision/include',
+'../rapid/rapid_ros/include',
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
