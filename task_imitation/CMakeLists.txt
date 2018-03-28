@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   pcl_conversions
   rapid_collision
+  rapid_ros
   rapid_pr2
   robot_markers
   roscpp
