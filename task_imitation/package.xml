@@ -60,6 +60,7 @@
   <depend>rapid_collision</depend>
   <depend>rapid_pr2</depend>
   <depend>rapid_ros</depend>
+  <depend>rapid_utils</depend>
   <depend>robot_markers</depend>
   <depend>roscpp</depend>
   <depend>task_db</depend>

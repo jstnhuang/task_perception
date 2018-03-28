@@ -10,6 +10,7 @@
 #include "pcl/point_types.h"
 #include "rapid_collision/collision_checks.h"
 #include "rapid_ros/params.h"
+#include "rapid_utils/vector3_traits.hpp"
 #include "ros/ros.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception/pcl_typedefs.h"
@@ -403,6 +404,7 @@ std::string ProgramGenerator::CheckCollisions(
                                  object.pose);
   held_obj_model.set_object_model_cache(&model_cache_);
   const geometry_msgs::Pose& held_obj_pose = held_obj_model.pose();
+  Eigen::Vector3d held_obj_vec = rapid::AsVector3d(held_obj_pose.position);
   geometry_msgs::Vector3 held_obj_scale =
       InflateScale(held_obj_model.scale(), kInflationSize);
   BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
@@ -414,8 +416,10 @@ std::string ProgramGenerator::CheckCollisions(
     if (rapid::AreObbsInCollision(
             held_obj_pose, held_obj_scale, other_model.pose(),
             InflateScale(other_model.scale(), kInflationSize))) {
-      ROS_INFO("%s is colliding with %s", object.name.c_str(),
-               other.name.c_str());
+      Eigen::Vector3d other_vec =
+          rapid::AsVector3d(other_model.pose().position);
+      ROS_INFO("%s is colliding with %s, dist=%f", object.name.c_str(),
+               other.name.c_str(), (held_obj_vec - other_vec).norm());
       return other.name;
     }
   }
