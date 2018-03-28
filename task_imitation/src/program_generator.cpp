@@ -163,6 +163,56 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
   return segments;
 }
 
+boost::optional<ProgramSegment> ProgramGenerator::SegmentGrasp(
+    const task_perception_msgs::DemoState& state,
+    const task_perception_msgs::DemoState& prev_state,
+    const std::string& arm_name) {
+  msgs::HandState hand;
+  msgs::HandState prev_hand;
+  if (arm_name == msgs::Step::LEFT) {
+    hand = state.left_hand;
+    prev_hand = prev_state.left_hand;
+  } else if (arm_name == msgs::Step::RIGHT) {
+    hand = state.right_hand;
+    prev_hand = prev_state.right_hand;
+  }
+  if (hand.current_action == msgs::HandState::GRASPING &&
+      prev_hand.current_action == msgs::HandState::NONE) {
+    ProgramSegment segment;
+    segment.arm_name = arm_name;
+    segment.type = msgs::Step::GRASP;
+    segment.demo_states.push_back(state);
+    return segment;
+  } else {
+    return boost::none;
+  }
+}
+
+boost::optional<ProgramSegment> ProgramGenerator::SegmentUngrasp(
+    const task_perception_msgs::DemoState& state,
+    const task_perception_msgs::DemoState& prev_state,
+    const std::string& arm_name) {
+  msgs::HandState hand;
+  msgs::HandState prev_hand;
+  if (arm_name == msgs::Step::LEFT) {
+    hand = state.left_hand;
+    prev_hand = prev_state.left_hand;
+  } else if (arm_name == msgs::Step::RIGHT) {
+    hand = state.right_hand;
+    prev_hand = prev_state.right_hand;
+  }
+  if (hand.current_action == msgs::HandState::NONE &&
+      prev_hand.current_action == msgs::HandState::GRASPING) {
+    ProgramSegment segment;
+    segment.arm_name = arm_name;
+    segment.type = msgs::Step::UNGRASP;
+    segment.demo_states.push_back(state);
+    return segment;
+  } else {
+    return boost::none;
+  }
+}
+
 void ProgramGenerator::Step(const msgs::DemoState& state,
                             const ObjectStateIndex& initial_objects) {
   ProcessStep(state, initial_objects, msgs::Step::LEFT);
