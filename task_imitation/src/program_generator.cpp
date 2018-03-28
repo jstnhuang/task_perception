@@ -3,11 +3,13 @@
 #include "task_imitation/program_generator.h"
 
 #include "boost/foreach.hpp"
+#include "boost/optional.hpp"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "rapid_collision/collision_checks.h"
+#include "rapid_ros/params.h"
 #include "ros/ros.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception/pcl_typedefs.h"
@@ -20,6 +22,7 @@
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
+using boost::optional;
 using geometry_msgs::Pose;
 
 namespace pbi {
@@ -39,75 +42,147 @@ ProgramGenerator::ProgramGenerator(
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
-    const ObjectStateIndex& object_states) {
-  Segment(demo_states);
+    const ObjectStateIndex& initial_objects) {
+  std::vector<ProgramSegment> segments = Segment(demo_states, initial_objects);
   for (size_t i = 0; i < demo_states.size(); ++i) {
-    Step(demo_states[i], object_states);
+    Step(demo_states[i], initial_objects);
   }
   return program_;
 }
 
-// Segments a demonstration based on when objects are touching or in the sphere
-// of influence.
-void ProgramGenerator::Segment(
-    const std::vector<msgs::DemoState>& demo_states) {
-  for (size_t i = 0; i < demo_states.size(); ++i) {
-    const msgs::DemoState& demo_state = demo_states[i];
-    if (demo_state.left_hand.current_action != msgs::HandState::NONE) {
-      msgs::ObjectState held_object =
-          GetObjectState(demo_state, demo_state.left_hand.object_name);
-      CheckContacts(held_object, demo_state.object_states);
+std::vector<ProgramSegment> ProgramGenerator::Segment(
+    const std::vector<msgs::DemoState>& demo_states,
+    const ObjectStateIndex& initial_objects) {
+  msgs::DemoState prev_state;
+  std::vector<ProgramSegment> segments;
+  ProgramSegment clean_l_traj_segment;
+  clean_l_traj_segment.arm_name = msgs::Step::LEFT;
+  clean_l_traj_segment.type = msgs::Step::FOLLOW_TRAJECTORY;
+  ProgramSegment clean_r_traj_segment;
+  clean_r_traj_segment.arm_name = msgs::Step::RIGHT;
+  clean_r_traj_segment.type = msgs::Step::FOLLOW_TRAJECTORY;
+  ProgramSegment l_traj_segment = clean_l_traj_segment;
+  ProgramSegment r_traj_segment = clean_r_traj_segment;
+  BOOST_FOREACH (const msgs::DemoState& state, demo_states) {
+    // Check if we should add grasp or ungrasp events.
+    // Left hand
+    optional<ProgramSegment> l_grasp_segment =
+        SegmentGrasp(state, prev_state, msgs::Step::LEFT);
+    if (l_grasp_segment) {
+      segments.push_back(*l_grasp_segment);
     }
-    if (demo_state.right_hand.current_action != msgs::HandState::NONE) {
-      msgs::ObjectState held_object =
-          GetObjectState(demo_state, demo_state.right_hand.object_name);
-      CheckContacts(held_object, demo_state.object_states);
-    }
-  }
-}
 
-void ProgramGenerator::CheckContacts(
-    const task_perception_msgs::ObjectState& object,
-    const std::vector<task_perception_msgs::ObjectState>& other_objects) {
-  const double kInflationSize = 0.05;  // Add 0.025 all around
-  LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
-                                 object.pose);
-  held_obj_model.set_object_model_cache(&model_cache_);
-  const geometry_msgs::Pose& held_obj_pose = held_obj_model.pose();
-  geometry_msgs::Vector3 held_obj_scale =
-      InflateScale(held_obj_model.scale(), kInflationSize);
-  BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
-    if (other.name == object.name) {
-      continue;
+    optional<ProgramSegment> l_ungrasp_segment =
+        SegmentUngrasp(state, prev_state, msgs::Step::LEFT);
+    if (l_ungrasp_segment) {
+      segments.push_back(*l_ungrasp_segment);
+      if (l_traj_segment.demo_states.size() > 0) {
+        segments.push_back(l_traj_segment);
+      }
+      l_traj_segment = clean_l_traj_segment;
     }
-    LazyObjectModel other_model(other.mesh_name, planning_frame_, other.pose);
-    other_model.set_object_model_cache(&model_cache_);
-    if (rapid::AreObbsInCollision(
-            held_obj_pose, held_obj_scale, other_model.pose(),
-            InflateScale(other_model.scale(), kInflationSize))) {
-      ROS_INFO("%s is colliding with %s", object.name.c_str(),
-               other.name.c_str());
+
+    // Right hand
+    optional<ProgramSegment> r_grasp_segment =
+        SegmentGrasp(state, prev_state, msgs::Step::RIGHT);
+    if (r_grasp_segment) {
+      segments.push_back(*r_grasp_segment);
     }
+
+    optional<ProgramSegment> r_ungrasp_segment =
+        SegmentUngrasp(state, prev_state, msgs::Step::RIGHT);
+    if (r_ungrasp_segment) {
+      segments.push_back(*r_ungrasp_segment);
+      if (r_traj_segment.demo_states.size() > 0) {
+        segments.push_back(r_traj_segment);
+      }
+      r_traj_segment = clean_r_traj_segment;
+    }
+
+    bool is_left_grasping =
+        state.left_hand.current_action == msgs::HandState::GRASPING;
+    bool is_right_grasping =
+        state.right_hand.current_action == msgs::HandState::GRASPING;
+    if (is_left_grasping || is_right_grasping) {
+      // First, check if both hands are holding objects and the two objects are
+      // colliding.
+      msgs::ObjectState left_obj =
+          GetObjectState(state, state.left_hand.object_name);
+      std::string left_target = CheckCollisions(left_obj, state.object_states);
+      // Check if we are colliding with the object held by the other hand.
+      // If so, determine which one is the "target".
+      // If we are actually the target, then set the target to "", meaning that
+      // we do not record the motion of this hand.
+      if (is_right_grasping && left_target == state.right_hand.object_name) {
+        // TODO: fill this out
+      } else {
+        // Otherwise, the target is whichever object is not being held.
+        if (is_left_grasping) {
+          if (left_target == l_traj_segment.target_object) {
+            l_traj_segment.demo_states.push_back(state);
+          } else {
+            // Either the left_target is a different object, or it is the empty
+            // string, indicating that we are no longer in collision. In either
+            // case, commit the trajectory and start a new one with
+            // target_object = left_target.
+            if (l_traj_segment.demo_states.size() > 0) {
+              segments.push_back(l_traj_segment);
+            }
+            l_traj_segment = clean_l_traj_segment;
+            l_traj_segment.target_object = left_target;
+            l_traj_segment.demo_states.push_back(state);
+          }
+        }
+        if (is_right_grasping) {
+          msgs::ObjectState right_obj =
+              GetObjectState(state, state.right_hand.object_name);
+          std::string right_target =
+              CheckCollisions(right_obj, state.object_states);
+
+          // We already checked if the two held objects are colliding above.
+          // At this point, we know that the right held object, if it is
+          // colliding, is not colliding with the object held in the left hand.
+          ROS_ASSERT(right_target != state.left_hand.object_name);
+
+          if (right_target == r_traj_segment.target_object) {
+            r_traj_segment.demo_states.push_back(state);
+          } else {
+            if (r_traj_segment.demo_states.size() > 0) {
+              segments.push_back(r_traj_segment);
+            }
+            r_traj_segment = clean_r_traj_segment;
+            r_traj_segment.target_object = right_target;
+            r_traj_segment.demo_states.push_back(state);
+          }
+        }
+      }
+    }
+
+    prev_state = state;
   }
+  return segments;
 }
 
 void ProgramGenerator::Step(const msgs::DemoState& state,
-                            const ObjectStateIndex& object_states) {
-  ProcessStep(state, object_states, msgs::Step::LEFT);
-  ProcessStep(state, object_states, msgs::Step::RIGHT);
+                            const ObjectStateIndex& initial_objects) {
+  ProcessStep(state, initial_objects, msgs::Step::LEFT);
+  ProcessStep(state, initial_objects, msgs::Step::RIGHT);
   prev_state_ = state;
 }
 
 void ProgramGenerator::ProcessStep(const msgs::DemoState& state,
-                                   const ObjectStateIndex& object_states,
+                                   const ObjectStateIndex& initial_objects,
                                    const std::string& arm_name) {
   msgs::HandState hand;
+  msgs::HandState other_hand;
   msgs::HandState prev_hand;
   if (arm_name == msgs::Step::LEFT) {
     hand = state.left_hand;
+    other_hand = state.right_hand;
     prev_hand = prev_state_.left_hand;
   } else if (arm_name == msgs::Step::RIGHT) {
     hand = state.right_hand;
+    other_hand = state.left_hand;
     prev_hand = prev_state_.right_hand;
   }
 
@@ -115,24 +190,24 @@ void ProgramGenerator::ProcessStep(const msgs::DemoState& state,
   if (hand.current_action == msgs::HandState::GRASPING &&
       (prev_hand.current_action == "" ||
        prev_hand.current_action == msgs::HandState::NONE)) {
-    AddGraspStep(state, object_states, arm_name);
+    AddGraspStep(state, initial_objects, arm_name);
   }
 
   // If we are continuing a contact, then create/append to the trajectory
   else if (hand.current_action == msgs::HandState::GRASPING &&
            prev_hand.current_action == msgs::HandState::GRASPING) {
-    AddOrAppendToTrajectoryStep(state, object_states, arm_name);
+    AddOrAppendToTrajectoryStep(state, initial_objects, arm_name);
   }
 
   // If we are ending a contact, then end the trajectory
   else if (hand.current_action == msgs::HandState::NONE &&
            prev_hand.current_action == msgs::HandState::GRASPING) {
-    AddUngraspStep(state, object_states, arm_name);
+    AddUngraspStep(state, initial_objects, arm_name);
   }
 }
 
 void ProgramGenerator::AddGraspStep(const msgs::DemoState& state,
-                                    const ObjectStateIndex& object_states,
+                                    const ObjectStateIndex& initial_objects,
                                     const std::string& arm_name) {
   if (program_.steps.size() == 0) {
     start_time_ = state.stamp;
@@ -168,7 +243,7 @@ void ProgramGenerator::AddGraspStep(const msgs::DemoState& state,
 
   // Plan grasp
   tg::Graph graph;
-  const Pose& current_obj_pose = object_states.at(object_name).pose;
+  const Pose& current_obj_pose = initial_objects.at(object_name).pose;
   graph.Add("object", tg::RefFrame("planning"), current_obj_pose);
   tg::Transform wrist_in_planning;
   graph.DescribePose(hand.wrist_pose, tg::Source("object"),
@@ -188,7 +263,7 @@ void ProgramGenerator::AddGraspStep(const msgs::DemoState& state,
 }
 
 void ProgramGenerator::AddOrAppendToTrajectoryStep(
-    const msgs::DemoState& state, const ObjectStateIndex& object_states,
+    const msgs::DemoState& state, const ObjectStateIndex& initial_objects,
     const std::string& arm_name) {
   msgs::HandState hand;
   msgs::HandState prev_hand;
@@ -253,7 +328,7 @@ void ProgramGenerator::AddOrAppendToTrajectoryStep(
 }
 
 void ProgramGenerator::AddUngraspStep(const msgs::DemoState& state,
-                                      const ObjectStateIndex& object_states,
+                                      const ObjectStateIndex& initial_objects,
                                       const std::string& arm_name) {
   int prev_step_i = GetMostRecentStep(arm_name);
   ROS_ASSERT(prev_step_i != -1);
@@ -267,6 +342,34 @@ void ProgramGenerator::AddUngraspStep(const msgs::DemoState& state,
   ungrasp_step.arm = arm_name;
   ungrasp_step.type = msgs::Step::UNGRASP;
   program_.steps.push_back(ungrasp_step);
+}
+
+std::string ProgramGenerator::CheckCollisions(
+    const task_perception_msgs::ObjectState& object,
+    const std::vector<task_perception_msgs::ObjectState>& other_objects) {
+  const double kInflationSize =
+      rapid::GetDoubleParamOrThrow("object_inflation_size");
+  LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
+                                 object.pose);
+  held_obj_model.set_object_model_cache(&model_cache_);
+  const geometry_msgs::Pose& held_obj_pose = held_obj_model.pose();
+  geometry_msgs::Vector3 held_obj_scale =
+      InflateScale(held_obj_model.scale(), kInflationSize);
+  BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
+    if (other.name == object.name) {
+      continue;
+    }
+    LazyObjectModel other_model(other.mesh_name, planning_frame_, other.pose);
+    other_model.set_object_model_cache(&model_cache_);
+    if (rapid::AreObbsInCollision(
+            held_obj_pose, held_obj_scale, other_model.pose(),
+            InflateScale(other_model.scale(), kInflationSize))) {
+      ROS_INFO("%s is colliding with %s", object.name.c_str(),
+               other.name.c_str());
+      return other.name;
+    }
+  }
+  return "";
 }
 
 int ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
