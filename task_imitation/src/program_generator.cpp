@@ -7,7 +7,7 @@
 #include "geometry_msgs/Vector3.h"
 #include "rapid_collision/collision_checks.h"
 #include "rapid_ros/params.h"
-#include "rapid_utils/vector3_traits.hpp"
+#include "rapid_utils/vector3.hpp"
 #include "ros/ros.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception/pcl_typedefs.h"
