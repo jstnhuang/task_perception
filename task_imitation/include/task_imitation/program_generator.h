@@ -28,6 +28,60 @@ struct ProgramSegment {
   std::string target_object;
 };
 
+// Collision checking class with an object model cache.
+class CollisionChecker {
+ public:
+  CollisionChecker(const std::string& planning_frame);
+  std::string Check(const task_perception_msgs::ObjectState& object,
+                    const std::vector<task_perception_msgs::ObjectState>&
+                        other_objects) const;
+  bool Check(const task_perception_msgs::ObjectState& obj1,
+             const task_perception_msgs::ObjectState& obj2) const;
+
+ private:
+  std::string planning_frame_;
+  mutable LazyObjectModel::ObjectModelCache model_cache_;
+};
+
+// State machine for segmenting a demonstration.
+// This is designed to be run interleaved with a state machine for the other
+// hand.
+class HandStateMachine {
+ public:
+  HandStateMachine(
+      const std::vector<task_perception_msgs::DemoState>& demo_states,
+      const std::string& arm_name, const CollisionChecker& collision_checker,
+      std::vector<ProgramSegment>* segments);
+  bool Step();
+
+ private:
+  enum State { NONE, FREE_GRASP, STATIONARY_COLLISION, DOUBLE_COLLISION };
+  void NoneState(const task_perception_msgs::DemoState& demo_state);
+  void FreeGraspState(const task_perception_msgs::DemoState& demo_state);
+  void StationaryCollisionState(
+      const task_perception_msgs::DemoState& demo_state);
+  void DoubleCollisionState(const task_perception_msgs::DemoState& demo_state);
+
+  task_perception_msgs::HandState GetHand(
+      const task_perception_msgs::DemoState& demo_state);
+  task_perception_msgs::HandState GetOtherHand(
+      const task_perception_msgs::DemoState& demo_state);
+
+  ProgramSegment NewGraspSegment();
+  ProgramSegment NewUngraspSegment();
+  ProgramSegment NewMoveToSegment();
+  ProgramSegment NewTrajSegment();
+
+  const std::vector<task_perception_msgs::DemoState>& demo_states_;
+  std::string arm_name_;
+  const CollisionChecker& collision_checker_;
+  std::vector<ProgramSegment>* segments_;
+
+  State state_;
+  int index_;
+  ProgramSegment working_traj_;
+};
+
 // Generates an executable robot program given a sequence of states extracted
 // from a demonstration.
 class ProgramGenerator {
@@ -70,9 +124,6 @@ class ProgramGenerator {
   void AddUngraspStep(const task_perception_msgs::DemoState& state,
                       const ObjectStateIndex& initial_objects,
                       const std::string& arm_name);
-  std::string CheckCollisions(
-      const task_perception_msgs::ObjectState& object,
-      const std::vector<task_perception_msgs::ObjectState>& other_objects);
 
   // Gets the most recently created step for the given arm.
   // Returns a pointer to the most recent step, or NULL if there was none.
@@ -95,7 +146,7 @@ class ProgramGenerator {
   moveit::planning_interface::MoveGroup& right_group_;
   std::string planning_frame_;
 
-  LazyObjectModel::ObjectModelCache model_cache_;
+  CollisionChecker collision_checker_;
 };
 
 // Add a constant to a vector3.
@@ -106,10 +157,12 @@ task_perception_msgs::ObjectState GetObjectState(
     const task_perception_msgs::DemoState& state,
     const std::string& object_name);
 
-// Returns true if two objects are colliding.
-bool AreObjectsColliding(const task_perception_msgs::ObjectState& obj1,
-                         const task_perception_msgs::ObjectState& obj2);
-
+// Precondition: the demo state is of a double collision (the two hands are
+// holding objects and the objects are colliding).
+// Computes which one has the longest path.
+std::string InferDoubleCollisionTarget(
+    const std::vector<task_perception_msgs::DemoState>& demo_states,
+    int start_index, const CollisionChecker& collision_checker);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_GENERATOR_H_
