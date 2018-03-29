@@ -3,11 +3,8 @@
 #include "task_imitation/program_generator.h"
 
 #include "boost/foreach.hpp"
-#include "boost/optional.hpp"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
-#include "pcl/point_cloud.h"
-#include "pcl/point_types.h"
 #include "rapid_collision/collision_checks.h"
 #include "rapid_ros/params.h"
 #include "rapid_utils/vector3_traits.hpp"
@@ -23,7 +20,6 @@
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
-using boost::optional;
 using geometry_msgs::Pose;
 
 namespace pbi {
@@ -39,10 +35,12 @@ std::string CollisionChecker::Check(
   LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
                                  object.pose);
   held_obj_model.set_object_model_cache(&model_cache_);
-  const geometry_msgs::Pose& held_obj_pose = held_obj_model.pose();
+  const Pose& held_obj_pose = held_obj_model.pose();
   Eigen::Vector3d held_obj_vec = rapid::AsVector3d(held_obj_pose.position);
   geometry_msgs::Vector3 held_obj_scale =
       InflateScale(held_obj_model.scale(), kInflationSize);
+  double closest_sq_distance = std::numeric_limits<double>::max();
+  std::string closest_collidee("");
   BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
     if (other.name == object.name) {
       continue;
@@ -54,12 +52,16 @@ std::string CollisionChecker::Check(
             InflateScale(other_model.scale(), kInflationSize))) {
       Eigen::Vector3d other_vec =
           rapid::AsVector3d(other_model.pose().position);
-      ROS_INFO("%s is colliding with %s, dist=%f", object.name.c_str(),
-               other.name.c_str(), (held_obj_vec - other_vec).norm());
-      return other.name;
+      double sq_distance = (held_obj_vec - other_vec).squaredNorm();
+      if (sq_distance < closest_sq_distance) {
+        closest_sq_distance = sq_distance;
+        closest_collidee = other.name;
+      }
+      // ROS_INFO("%s is colliding with %s, dist=%f", object.name.c_str(),
+      //         other.name.c_str(), (held_obj_vec - other_vec).norm());
     }
   }
-  return "";
+  return closest_collidee;
 }
 
 bool CollisionChecker::Check(const msgs::ObjectState& obj1,
@@ -100,6 +102,8 @@ bool HandStateMachine::Step() {
       StationaryCollisionState(demo_state);
     } else if (state_ == DOUBLE_COLLISION) {
       DoubleCollisionState(demo_state);
+    } else {
+      ROS_ASSERT(false);
     }
     ++index_;
     return true;
@@ -113,7 +117,9 @@ void HandStateMachine::NoneState(const msgs::DemoState& demo_state) {
 
   if (hand.current_action == msgs::HandState::GRASPING) {
     ProgramSegment segment = NewGraspSegment();
+    segment.target_object = hand.object_name;
     segment.demo_states.push_back(demo_state);
+    segments_->push_back(segment);
 
     const msgs::ObjectState object =
         GetObjectState(demo_state, hand.object_name);
@@ -121,12 +127,16 @@ void HandStateMachine::NoneState(const msgs::DemoState& demo_state) {
         collision_checker_.Check(object, demo_state.object_states));
     if (collidee == "") {
       state_ = FREE_GRASP;
-    } else if (other_hand.current_action == msgs::HandState::GRASPING ||
-               collidee != other_hand.object_name) {
-      state_ = STATIONARY_COLLISION;
     } else if (other_hand.current_action == msgs::HandState::GRASPING &&
                collidee == other_hand.object_name) {
+      working_traj_ = NewTrajSegment();
+      working_traj_.target_object =
+          InferDoubleCollisionTarget(demo_states_, index_, collision_checker_);
       state_ = DOUBLE_COLLISION;
+    } else {
+      working_traj_ = NewTrajSegment();
+      working_traj_.target_object = collidee;
+      state_ = STATIONARY_COLLISION;
     }
   }
 }
@@ -362,66 +372,28 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
   std::vector<ProgramSegment> segments;
   HandStateMachine left(demo_states, msgs::Step::LEFT, collision_checker_,
                         &segments);
-  HandStateMachine right(demo_states, msgs::Step::LEFT, collision_checker_,
+  HandStateMachine right(demo_states, msgs::Step::RIGHT, collision_checker_,
                          &segments);
-  bool continue_left = false;
-  bool continue_right = false;
-  do {
+  bool continue_left = true;
+  bool continue_right = true;
+  while (continue_left && continue_right) {
     continue_left = left.Step();
     continue_right = right.Step();
     ROS_ASSERT(continue_left == continue_right);
-  } while (continue_left && continue_right);
+  }
+
+  ROS_INFO("Segmented program.");
+  for (size_t i = 0; i < segments.size(); ++i) {
+    const ProgramSegment& segment = segments[i];
+    if (segment.type != msgs::Step::UNGRASP) {
+      ROS_INFO("Segment %ld: %s %s relative to %s", i, segment.arm_name.c_str(),
+               segment.type.c_str(), segment.target_object.c_str());
+    } else {
+      ROS_INFO("Segment %ld: %s %s", i, segment.arm_name.c_str(),
+               segment.type.c_str());
+    }
+  }
   return segments;
-}
-
-boost::optional<ProgramSegment> ProgramGenerator::SegmentGrasp(
-    const task_perception_msgs::DemoState& state,
-    const task_perception_msgs::DemoState& prev_state,
-    const std::string& arm_name) {
-  msgs::HandState hand;
-  msgs::HandState prev_hand;
-  if (arm_name == msgs::Step::LEFT) {
-    hand = state.left_hand;
-    prev_hand = prev_state.left_hand;
-  } else if (arm_name == msgs::Step::RIGHT) {
-    hand = state.right_hand;
-    prev_hand = prev_state.right_hand;
-  }
-  if (hand.current_action == msgs::HandState::GRASPING &&
-      prev_hand.current_action == msgs::HandState::NONE) {
-    ProgramSegment segment;
-    segment.arm_name = arm_name;
-    segment.type = msgs::Step::GRASP;
-    segment.demo_states.push_back(state);
-    return segment;
-  } else {
-    return boost::none;
-  }
-}
-
-boost::optional<ProgramSegment> ProgramGenerator::SegmentUngrasp(
-    const task_perception_msgs::DemoState& state,
-    const task_perception_msgs::DemoState& prev_state,
-    const std::string& arm_name) {
-  msgs::HandState hand;
-  msgs::HandState prev_hand;
-  if (arm_name == msgs::Step::LEFT) {
-    hand = state.left_hand;
-    prev_hand = prev_state.left_hand;
-  } else if (arm_name == msgs::Step::RIGHT) {
-    hand = state.right_hand;
-    prev_hand = prev_state.right_hand;
-  }
-  if (hand.current_action == msgs::HandState::NONE &&
-      prev_hand.current_action == msgs::HandState::GRASPING) {
-    ProgramSegment segment;
-    segment.arm_name = arm_name;
-    segment.type = msgs::Step::UNGRASP;
-    segment.demo_states.push_back(state);
-    return segment;
-  } else {
-    return boost::none;
-  }
 }
 
 void ProgramGenerator::Step(const msgs::DemoState& state,

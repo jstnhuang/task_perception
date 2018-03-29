@@ -4,7 +4,6 @@
 #include <map>
 #include <string>
 
-#include "boost/optional.hpp"
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
@@ -102,14 +101,6 @@ class ProgramGenerator {
   std::vector<ProgramSegment> Segment(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
       const ObjectStateIndex& initial_objects);
-  boost::optional<ProgramSegment> SegmentGrasp(
-      const task_perception_msgs::DemoState& state,
-      const task_perception_msgs::DemoState& prev_state,
-      const std::string& arm_name);
-  boost::optional<ProgramSegment> SegmentUngrasp(
-      const task_perception_msgs::DemoState& state,
-      const task_perception_msgs::DemoState& prev_state,
-      const std::string& arm_name);
   void Step(const task_perception_msgs::DemoState& state,
             const ObjectStateIndex& initial_objects);
   void ProcessStep(const task_perception_msgs::DemoState& state,
