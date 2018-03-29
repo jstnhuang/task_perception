@@ -148,8 +148,7 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
   if (hand.current_action == msgs::HandState::NONE) {
     ProgramSegment move_segment = NewMoveToSegment();
     move_segment.demo_states.push_back(demo_state);
-    // TODO: handle initial vs. current object poses
-    move_segment.target_object = "initial " + hand.object_name;
+    move_segment.target_object = hand.object_name;
 
     ProgramSegment ungrasp_segment = NewUngraspSegment();
     segments_->push_back(move_segment);
@@ -170,7 +169,7 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
     if (collidee != "") {
       ProgramSegment move_segment = NewMoveToSegment();
       move_segment.demo_states.push_back(demo_state);
-      move_segment.target_object = "current " + collidee;
+      move_segment.target_object = collidee;
       segments_->push_back(move_segment);
 
       if (other_hand.current_action == msgs::HandState::GRASPING &&
