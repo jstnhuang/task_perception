@@ -22,6 +22,8 @@ namespace pbi {
 struct ProgramSegment {
   std::string arm_name;
   std::string type;
+  // If MoveTo, then demo_state[0] is the state that the MoveTo started and
+  // demo_state[1] is state when the MoveTo ended.
   std::vector<task_perception_msgs::DemoState> demo_states;
   // In case of a trajectory, this indicates which object is the target object.
   std::string target_object;
@@ -78,6 +80,7 @@ class HandStateMachine {
 
   State state_;
   int index_;
+  ProgramSegment working_move_;
   ProgramSegment working_traj_;
 };
 

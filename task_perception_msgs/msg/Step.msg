@@ -34,7 +34,7 @@ string type
 # If action_type == MOVE_TO_POSE:
 # - object_state: the object to move relative to
 # - ee_trajectory: the first element is the pose of the grasp relative to the pose given in object_state
-# - times_from_start: unused
+# - times_from_start: the first element is the estimated time to move to this pose
 
 task_perception_msgs/ObjectState object_state
 

@@ -9,6 +9,7 @@
 #include "rapid_ros/params.h"
 #include "rapid_utils/vector3.hpp"
 #include "ros/ros.h"
+#include "std_msgs/Bool.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception_msgs/HandState.h"
@@ -126,6 +127,8 @@ void HandStateMachine::NoneState(const msgs::DemoState& demo_state) {
     std::string collidee(
         collision_checker_.Check(object, demo_state.object_states));
     if (collidee == "") {
+      working_move_ = NewMoveToSegment();
+      working_move_.demo_states.push_back(demo_state);
       state_ = FREE_GRASP;
     } else if (other_hand.current_action == msgs::HandState::GRASPING &&
                collidee == other_hand.object_name) {
@@ -146,13 +149,13 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
   msgs::HandState other_hand = GetOtherHand(demo_state);
   // Handle ungrasp
   if (hand.current_action == msgs::HandState::NONE) {
-    ProgramSegment move_segment = NewMoveToSegment();
-    move_segment.demo_states.push_back(demo_state);
-    move_segment.target_object = hand.object_name;
+    working_move_.demo_states.push_back(demo_state);
+    working_move_.target_object = hand.object_name;
+    segments_->push_back(working_move_);
+    working_move_ = NewMoveToSegment();
 
     ProgramSegment ungrasp_segment = NewUngraspSegment();
     ungrasp_segment.demo_states.push_back(demo_state);
-    segments_->push_back(move_segment);
     segments_->push_back(ungrasp_segment);
 
     state_ = NONE;
@@ -168,10 +171,10 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
     std::string collidee(
         collision_checker_.Check(object, demo_state.object_states));
     if (collidee != "") {
-      ProgramSegment move_segment = NewMoveToSegment();
-      move_segment.demo_states.push_back(demo_state);
-      move_segment.target_object = collidee;
-      segments_->push_back(move_segment);
+      working_move_.demo_states.push_back(demo_state);
+      working_move_.target_object = collidee;
+      segments_->push_back(working_move_);
+      working_move_ = NewMoveToSegment();
 
       if (other_hand.current_action == msgs::HandState::GRASPING &&
           collidee == other_hand.object_name) {
@@ -226,6 +229,8 @@ void HandStateMachine::StationaryCollisionState(
   if (collidee == "") {
     segments_->push_back(working_traj_);
     working_traj_ = NewTrajSegment();
+    working_move_ = NewMoveToSegment();
+    working_move_.demo_states.push_back(demo_state);
     state_ = FREE_GRASP;
   }
   // Staying in collision with the same object
@@ -257,28 +262,34 @@ void HandStateMachine::StationaryCollisionState(
 }
 
 void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
-  // Either: One gripper ungrasps (e.g., stabilized stacking) or we are no
-  // longer in double collision (e.g., stabilized unstacking).
+  // Either:
+  // 1. and 2. One gripper ungrasps (e.g., stabilized stacking)
+  // 3. We are no longer in double collision (e.g., stabilized unstacking).
+  // 4. We stay in double collision
   msgs::HandState hand = GetHand(demo_state);
   msgs::HandState other_hand = GetOtherHand(demo_state);
   if (hand.current_action == msgs::HandState::NONE) {
     // If this hand is the master (i.e., not the target), then save the
     // trajectory relative to the target.
-    if (hand.object_name != working_traj_.target_object) {
+    bool is_master = hand.object_name != working_traj_.target_object;
+    if (is_master) {
       if (working_traj_.demo_states.size() > 0) {
         segments_->push_back(working_traj_);
       }
+      working_traj_ = NewTrajSegment();
+      ProgramSegment ungrasp_segment = NewUngraspSegment();
+      ungrasp_segment.demo_states.push_back(demo_state);
+      segments_->push_back(ungrasp_segment);
     }
-    working_traj_ = NewTrajSegment();
-    ProgramSegment ungrasp_segment = NewUngraspSegment();
-    ungrasp_segment.demo_states.push_back(demo_state);
-    segments_->push_back(ungrasp_segment);
+    // Regardless of whether this hand is the master or the target, set state to
+    // NONE since we ungrasped.
     state_ = NONE;
   } else if (other_hand.current_action == msgs::HandState::NONE) {
     // If this hand is the master, then continue the trajectory relative to the
-    // other object (but transition to STATIONARY COLLISION after). The hand
-    // holding the target object just throws away its trajectory.
-    if (hand.object_name != working_traj_.target_object) {
+    // other object (but transition to STATIONARY COLLISION after). If this hand
+    // is the target, then just do nothing.
+    bool is_master = hand.object_name != working_traj_.target_object;
+    if (is_master) {
       working_traj_.demo_states.push_back(demo_state);
     } else {
       working_traj_ = NewTrajSegment();
@@ -286,9 +297,35 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
     // If the other hand ungrasps, then transition to STATIONARY COLLISION
     state_ = STATIONARY_COLLISION;
   } else {
-    // Update trajectory of master object.
-    if (hand.object_name != working_traj_.target_object) {
+    // Both hands are still grasping, check if they are still in collision or
+    // not.
+    const msgs::ObjectState object =
+        GetObjectState(demo_state, hand.object_name);
+    std::string collidee(
+        collision_checker_.Check(object, demo_state.object_states));
+
+    if (collidee == "") {
+      // Free grasping
+      segments_->push_back(working_traj_);
+      working_traj_ = NewTrajSegment();
+      working_move_ = NewMoveToSegment();
+      working_move_.demo_states.push_back(demo_state);
+      state_ = FREE_GRASP;
+    } else if (collidee == other_hand.object_name) {
+      // Stay in double collision
+      // Update trajectory of master object.
+      ROS_ASSERT(other_hand.object_name == working_traj_.target_object);
+      bool is_master = hand.object_name != working_traj_.target_object;
+      if (is_master) {
+        working_traj_.demo_states.push_back(demo_state);
+      }
+    } else {
+      // Stationary collision
+      segments_->push_back(working_traj_);
+      working_traj_ = NewTrajSegment();
+      working_traj_.target_object = collidee;
       working_traj_.demo_states.push_back(demo_state);
+      state_ = STATIONARY_COLLISION;
     }
   }
 }
@@ -362,7 +399,10 @@ msgs::Program ProgramGenerator::Generate(
     const ObjectStateIndex& initial_objects) {
   std::vector<ProgramSegment> segments = Segment(demo_states);
 
-  ros::Time earliest(std::numeric_limits<double>::max());
+  ros::Time earliest;
+  if (!segments.empty()) {
+    earliest = segments[0].demo_states[0].stamp;
+  }
   for (size_t i = 0; i < segments.size(); ++i) {
     const ros::Time& time = segments[i].demo_states[0].stamp;
     if (time < earliest) {
@@ -374,6 +414,10 @@ msgs::Program ProgramGenerator::Generate(
   for (size_t i = 0; i < segments.size(); ++i) {
     ProcessSegment(segments[i], initial_objects);
   }
+
+  ROS_INFO("Generated program");
+  ROS_INFO_STREAM(program_);
+  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   return program_;
 }
 
@@ -615,6 +659,12 @@ ros::Duration ProgramGenerator::GetEndTime(
     return step.start_time + ros::Duration(kGraspDuration);
   } else if (step.type == msgs::Step::UNGRASP) {
     return step.start_time + ros::Duration(kUngraspDuration);
+  } else if (step.type == msgs::Step::MOVE_TO_POSE) {
+    if (step.times_from_start.size() > 0) {
+      return step.start_time + step.times_from_start.back();
+    } else {
+      return step.start_time;
+    }
   } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
     if (step.times_from_start.size() > 0) {
       return step.start_time + step.times_from_start.back();
