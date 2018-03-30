@@ -351,7 +351,6 @@ ProgramGenerator::ProgramGenerator(
     moveit::planning_interface::MoveGroup& left_group,
     moveit::planning_interface::MoveGroup& right_group)
     : program_(),
-      prev_state_(),
       start_time_(0),
       left_group_(left_group),
       right_group_(right_group),
@@ -361,42 +360,25 @@ ProgramGenerator::ProgramGenerator(
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
     const ObjectStateIndex& initial_objects) {
-  std::vector<ProgramSegment> segments = Segment(demo_states, initial_objects);
-  std::vector<ProgramSegment> left_segments;
-  std::vector<ProgramSegment> right_segments;
+  std::vector<ProgramSegment> segments = Segment(demo_states);
+
+  ros::Time earliest(std::numeric_limits<double>::max());
+  for (size_t i = 0; i < segments.size(); ++i) {
+    const ros::Time& time = segments[i].demo_states[0].stamp;
+    if (time < earliest) {
+      earliest = time;
+    }
+  }
+  start_time_ = earliest;
 
   for (size_t i = 0; i < segments.size(); ++i) {
-    const ProgramSegment& segment = segments[i];
-    if (segment.arm_name == msgs::Step::LEFT) {
-      left_segments.push_back(segment);
-    } else if (segment.arm_name == msgs::Step::RIGHT) {
-      right_segments.push_back(segment);
-    } else {
-      ROS_ASSERT(false);
-    }
-  }
-
-  size_t l_seg_i = 0;
-  size_t r_seg_i = 0;
-  while (ros::ok()) {
-    if (l_seg_i >= left_segments.size() && r_seg_i >= right_segments.size()) {
-      break;
-    }
-    if (l_seg_i < left_segments.size()) {
-      const ProgramSegment& segment = left_segments[l_seg_i];
-      ProcessSegment(segment);
-    }
-  }
-
-  for (size_t i = 0; i < demo_states.size(); ++i) {
-    Step(demo_states[i], initial_objects);
+    ProcessSegment(segments[i], initial_objects);
   }
   return program_;
 }
 
 std::vector<ProgramSegment> ProgramGenerator::Segment(
-    const std::vector<msgs::DemoState>& demo_states,
-    const ObjectStateIndex& initial_objects) {
+    const std::vector<msgs::DemoState>& demo_states) {
   std::vector<ProgramSegment> segments;
   HandStateMachine left(demo_states, msgs::Step::LEFT, collision_checker_,
                         &segments);
@@ -430,44 +412,36 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
   return segments;
 }
 
-void ProgramGenerator::ProcessSegment(const ProgramSegment& segment) {
-  if (segment.type != msgs::Step::UNGRASP) {
-    ROS_INFO("Segment: %s %s relative to %s", segment.arm_name.c_str(),
-             segment.type.c_str(), segment.target_object.c_str());
+void ProgramGenerator::ProcessSegment(const ProgramSegment& segment,
+                                      const ObjectStateIndex& initial_objects) {
+  // msgs::HandState hand;
+  // msgs::HandState other_hand;
+  // msgs::HandState prev_hand;
+  // if (segment.arm_name == msgs::Step::LEFT) {
+  //  hand = state.left_hand;
+  //  other_hand = state.right_hand;
+  //  prev_hand = prev_state_.left_hand;
+  //} else if (segment.arm_name == msgs::Step::RIGHT) {
+  //  hand = state.right_hand;
+  //  other_hand = state.left_hand;
+  //  prev_hand = prev_state_.right_hand;
+  //}
+  if (segment.type == msgs::Step::GRASP) {
+    AddGraspStep(segment, initial_objects);
+  } else if (segment.type == msgs::Step::UNGRASP) {
+    AddUngraspStep(segment);
+  } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
+  } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
   } else {
-    ROS_INFO("Segment: %s %s", segment.arm_name.c_str(), segment.type.c_str());
-  }
-}
-
-void ProgramGenerator::Step(const msgs::DemoState& state,
-                            const ObjectStateIndex& initial_objects) {
-  ProcessStep(state, initial_objects, msgs::Step::LEFT);
-  ProcessStep(state, initial_objects, msgs::Step::RIGHT);
-  prev_state_ = state;
-}
-
-void ProgramGenerator::ProcessStep(const msgs::DemoState& state,
-                                   const ObjectStateIndex& initial_objects,
-                                   const std::string& arm_name) {
-  msgs::HandState hand;
-  msgs::HandState other_hand;
-  msgs::HandState prev_hand;
-  if (arm_name == msgs::Step::LEFT) {
-    hand = state.left_hand;
-    other_hand = state.right_hand;
-    prev_hand = prev_state_.left_hand;
-  } else if (arm_name == msgs::Step::RIGHT) {
-    hand = state.right_hand;
-    other_hand = state.left_hand;
-    prev_hand = prev_state_.right_hand;
+    ROS_ASSERT(false);
   }
 
   // If we start a contact, then add a grasp step to the program
-  if (hand.current_action == msgs::HandState::GRASPING &&
-      (prev_hand.current_action == "" ||
-       prev_hand.current_action == msgs::HandState::NONE)) {
-    AddGraspStep(state, initial_objects, arm_name);
-  }
+  // if (hand.current_action == msgs::HandState::GRASPING &&
+  //    (prev_hand.current_action == "" ||
+  //     prev_hand.current_action == msgs::HandState::NONE)) {
+  //  AddGraspStep(state, initial_objects, arm_name);
+  //}
 
   // If we are continuing a contact, then create/append to the trajectory
   else if (hand.current_action == msgs::HandState::GRASPING &&
@@ -476,43 +450,37 @@ void ProgramGenerator::ProcessStep(const msgs::DemoState& state,
   }
 
   // If we are ending a contact, then end the trajectory
-  else if (hand.current_action == msgs::HandState::NONE &&
-           prev_hand.current_action == msgs::HandState::GRASPING) {
-    AddUngraspStep(state, initial_objects, arm_name);
-  }
+  // else if (hand.current_action == msgs::HandState::NONE &&
+  //         prev_hand.current_action == msgs::HandState::GRASPING) {
+  //  AddUngraspStep(state, initial_objects, arm_name);
+  //}
 }
 
-void ProgramGenerator::AddGraspStep(const msgs::DemoState& state,
-                                    const ObjectStateIndex& initial_objects,
-                                    const std::string& arm_name) {
-  if (program_.steps.size() == 0) {
-    start_time_ = state.stamp;
-  }
+void ProgramGenerator::AddGraspStep(const ProgramSegment& segment,
+                                    const ObjectStateIndex& initial_objects) {
+  const msgs::DemoState& state = segment.demo_states[0];
 
   msgs::HandState hand;
-  msgs::HandState prev_hand;
-  if (arm_name == msgs::Step::LEFT) {
+  if (segment.arm_name == msgs::Step::LEFT) {
     hand = state.left_hand;
-    prev_hand = prev_state_.left_hand;
-  } else if (arm_name == msgs::Step::RIGHT) {
+  } else if (segment.arm_name == msgs::Step::RIGHT) {
     hand = state.right_hand;
-    prev_hand = prev_state_.right_hand;
   }
 
   msgs::Step grasp_step;
 
   // Compute start time
-  int prev_step_index = GetMostRecentStep(arm_name);
-  grasp_step.start_time = state.stamp - start_time_;
+  int prev_step_index = GetMostRecentStep(segment.arm_name);
   if (prev_step_index != -1) {
     ros::Duration prev_end = GetEndTime(program_.steps[prev_step_index]);
     if (prev_end > grasp_step.start_time) {
-      ros::Duration dt = state.stamp - prev_state_.stamp;
-      grasp_step.start_time = prev_end + dt;
+      grasp_step.start_time = prev_end + ros::Duration(0.03);
     }
+  } else {
+    grasp_step.start_time = state.stamp - start_time_;
   }
 
-  grasp_step.arm = arm_name;
+  grasp_step.arm = segment.arm_name;
   grasp_step.type = msgs::Step::GRASP;
   grasp_step.object_state = GetObjectState(state, hand.object_name);
   const std::string object_name = grasp_step.object_state.name;
@@ -603,19 +571,16 @@ void ProgramGenerator::AddOrAppendToTrajectoryStep(
   program_.steps[traj_step_i] = traj_step;
 }
 
-void ProgramGenerator::AddUngraspStep(const msgs::DemoState& state,
-                                      const ObjectStateIndex& initial_objects,
-                                      const std::string& arm_name) {
-  int prev_step_i = GetMostRecentStep(arm_name);
+void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
+  int prev_step_i = GetMostRecentStep(segment.arm_name);
   ROS_ASSERT(prev_step_i != -1);
   const msgs::Step& prev_step = program_.steps[prev_step_i];
   ROS_ASSERT(prev_step.type == msgs::Step::GRASP ||
              prev_step.type == msgs::Step::FOLLOW_TRAJECTORY);
 
-  ros::Duration dt = state.stamp - prev_state_.stamp;
   msgs::Step ungrasp_step;
-  ungrasp_step.start_time = GetEndTime(prev_step) + dt;
-  ungrasp_step.arm = arm_name;
+  ungrasp_step.start_time = GetEndTime(prev_step) + ros::Duration(0.03);
+  ungrasp_step.arm = segment.arm_name;
   ungrasp_step.type = msgs::Step::UNGRASP;
   program_.steps.push_back(ungrasp_step);
 }
