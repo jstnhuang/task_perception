@@ -104,24 +104,19 @@ class ProgramGenerator {
                       const ObjectStateIndex& initial_objects);
   void AddGraspStep(const ProgramSegment& segment,
                     const ObjectStateIndex& initial_objects);
-  void AddOrAppendToTrajectoryStep(const task_perception_msgs::DemoState& state,
-                                   const ObjectStateIndex& initial_objects,
-                                   const std::string& arm_name);
   void AddUngraspStep(const ProgramSegment& segment);
+  void AddMoveToStep(const ProgramSegment& segment,
+                     const ObjectStateIndex& initial_objects);
+  void AddTrajectoryStep(const ProgramSegment& segment,
+                         const ObjectStateIndex& initial_objects);
 
   // Gets the most recently created step for the given arm.
   // Returns a pointer to the most recent step, or NULL if there was none.
   int GetMostRecentStep(const std::string& arm_name);
-  task_perception_msgs::Step GetMostRecentGraspStep(
-      const std::string& arm_name);
-
-  geometry_msgs::Pose ComputeRelativePose(
-      const task_perception_msgs::DemoState&);
-
+  int GetMostRecentGraspStep(const std::string& arm_name);
   ros::Duration GetEndTime(const task_perception_msgs::Step& step);
 
   task_perception_msgs::Program program_;
-  // task_perception_msgs::DemoState prev_state_;
 
   // The real-world timestamp of first step we take.
   ros::Time start_time_;
