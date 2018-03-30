@@ -1,4 +1,5 @@
 <launch>
   <include file="$(find pr2_gazebo)/launch/pr2_empty_world.launch" />
   <include file="$(find pr2_moveit_config)/launch/move_group.launch" />
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
 </launch>
