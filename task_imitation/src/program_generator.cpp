@@ -151,6 +151,7 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
     move_segment.target_object = hand.object_name;
 
     ProgramSegment ungrasp_segment = NewUngraspSegment();
+    ungrasp_segment.demo_states.push_back(demo_state);
     segments_->push_back(move_segment);
     segments_->push_back(ungrasp_segment);
 
@@ -207,6 +208,7 @@ void HandStateMachine::StationaryCollisionState(
     working_traj_ = NewTrajSegment();
 
     ProgramSegment ungrasp_segment = NewUngraspSegment();
+    ungrasp_segment.demo_states.push_back(demo_state);
     segments_->push_back(ungrasp_segment);
     state_ = NONE;
     return;
@@ -269,6 +271,7 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
     }
     working_traj_ = NewTrajSegment();
     ProgramSegment ungrasp_segment = NewUngraspSegment();
+    ungrasp_segment.demo_states.push_back(demo_state);
     segments_->push_back(ungrasp_segment);
     state_ = NONE;
   } else if (other_hand.current_action == msgs::HandState::NONE) {
@@ -359,6 +362,32 @@ msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
     const ObjectStateIndex& initial_objects) {
   std::vector<ProgramSegment> segments = Segment(demo_states, initial_objects);
+  std::vector<ProgramSegment> left_segments;
+  std::vector<ProgramSegment> right_segments;
+
+  for (size_t i = 0; i < segments.size(); ++i) {
+    const ProgramSegment& segment = segments[i];
+    if (segment.arm_name == msgs::Step::LEFT) {
+      left_segments.push_back(segment);
+    } else if (segment.arm_name == msgs::Step::RIGHT) {
+      right_segments.push_back(segment);
+    } else {
+      ROS_ASSERT(false);
+    }
+  }
+
+  size_t l_seg_i = 0;
+  size_t r_seg_i = 0;
+  while (ros::ok()) {
+    if (l_seg_i >= left_segments.size() && r_seg_i >= right_segments.size()) {
+      break;
+    }
+    if (l_seg_i < left_segments.size()) {
+      const ProgramSegment& segment = left_segments[l_seg_i];
+      ProcessSegment(segment);
+    }
+  }
+
   for (size_t i = 0; i < demo_states.size(); ++i) {
     Step(demo_states[i], initial_objects);
   }
@@ -382,17 +411,32 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
   }
 
   ROS_INFO("Segmented program.");
+  double first_time = 0;
   for (size_t i = 0; i < segments.size(); ++i) {
     const ProgramSegment& segment = segments[i];
+    if (i == 0) {
+      first_time = segment.demo_states[0].stamp.toSec();
+    }
+    double time = segment.demo_states[0].stamp.toSec() - first_time;
     if (segment.type != msgs::Step::UNGRASP) {
-      ROS_INFO("Segment %ld: %s %s relative to %s", i, segment.arm_name.c_str(),
-               segment.type.c_str(), segment.target_object.c_str());
+      ROS_INFO("%f Segment %ld: %s %s relative to %s", time, i,
+               segment.arm_name.c_str(), segment.type.c_str(),
+               segment.target_object.c_str());
     } else {
-      ROS_INFO("Segment %ld: %s %s", i, segment.arm_name.c_str(),
+      ROS_INFO("%f Segment %ld: %s %s", time, i, segment.arm_name.c_str(),
                segment.type.c_str());
     }
   }
   return segments;
+}
+
+void ProgramGenerator::ProcessSegment(const ProgramSegment& segment) {
+  if (segment.type != msgs::Step::UNGRASP) {
+    ROS_INFO("Segment: %s %s relative to %s", segment.arm_name.c_str(),
+             segment.type.c_str(), segment.target_object.c_str());
+  } else {
+    ROS_INFO("Segment: %s %s", segment.arm_name.c_str(), segment.type.c_str());
+  }
 }
 
 void ProgramGenerator::Step(const msgs::DemoState& state,

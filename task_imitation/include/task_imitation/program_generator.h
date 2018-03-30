@@ -101,6 +101,7 @@ class ProgramGenerator {
   std::vector<ProgramSegment> Segment(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
       const ObjectStateIndex& initial_objects);
+  void ProcessSegment(const ProgramSegment& segment);
   void Step(const task_perception_msgs::DemoState& state,
             const ObjectStateIndex& initial_objects);
   void ProcessStep(const task_perception_msgs::DemoState& state,
