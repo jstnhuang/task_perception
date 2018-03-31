@@ -538,24 +538,26 @@ void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
 
 void ProgramGenerator::AddMoveToStep(const ProgramSegment& segment,
                                      const ObjectStateIndex& initial_objects) {
+  // Get grasp pose
   int prev_grasp_i = GetMostRecentGraspStep(segment.arm_name);
   ROS_ASSERT(prev_grasp_i != -1);
   const msgs::Step prev_grasp = program_.steps[prev_grasp_i];
-
-  // Add grasp pose
   tg::Graph graph;
   graph.Add("gripper", tg::RefFrame("grasped object"),
             prev_grasp.ee_trajectory[0]);
 
   // Add transform of grasped object relative to target object
-  const msgs::DemoState state = segment.demo_states[0];
+  ROS_ASSERT(segment.demo_states.size() == 2);
+  const ros::Time start_time(segment.demo_states[0].stamp);
+  const msgs::DemoState end_state(segment.demo_states[1]);
   msgs::HandState hand;
   if (segment.arm_name == msgs::Step::LEFT) {
-    hand = state.left_hand;
+    hand = end_state.left_hand;
   } else if (segment.arm_name == msgs::Step::RIGHT) {
-    hand = state.right_hand;
+    hand = end_state.right_hand;
   }
-  const msgs::ObjectState grasped_obj = GetObjectState(state, hand.object_name);
+  const msgs::ObjectState grasped_obj =
+      GetObjectState(end_state, hand.object_name);
   const msgs::ObjectState target_obj =
       initial_objects.at(segment.target_object);
   graph.Add("grasped object", tg::RefFrame("camera"), grasped_obj.pose);
@@ -574,6 +576,7 @@ void ProgramGenerator::AddMoveToStep(const ProgramSegment& segment,
   move_step.type = msgs::Step::MOVE_TO_POSE;
   move_step.object_state = target_obj;
   move_step.ee_trajectory.push_back(ee_in_target.pose());
+  move_step.times_from_start.push_back(end_state.stamp - start_time);
   program_.steps.push_back(move_step);
 }
 
@@ -663,12 +666,14 @@ ros::Duration ProgramGenerator::GetEndTime(
     if (step.times_from_start.size() > 0) {
       return step.start_time + step.times_from_start.back();
     } else {
+      ROS_ASSERT(false);
       return step.start_time;
     }
   } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
     if (step.times_from_start.size() > 0) {
       return step.start_time + step.times_from_start.back();
     } else {
+      ROS_ASSERT(false);
       return step.start_time;
     }
   }
