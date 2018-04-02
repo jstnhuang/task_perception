@@ -276,6 +276,12 @@ std::vector<Slice> SliceProgram(const msgs::Program& program) {
       }
       current_slice.grasp = step;
       it->Advance();
+    } else if (step.type == msgs::Step::UNGRASP) {
+      current_slice.ungrasp = step;
+      current_slice.FixTrajectories();
+      slices.push_back(current_slice);
+      current_slice.Reset();
+      it->Advance();
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       // Initialize trajectory message if needed.
       if (traj_step->ee_trajectory.size() == 0) {
@@ -289,12 +295,9 @@ std::vector<Slice> SliceProgram(const msgs::Program& program) {
       traj_step->ee_trajectory.push_back(pt->first);
       traj_step->times_from_start.push_back(pt->second);
       it->Advance();
-    } else if (step.type == msgs::Step::UNGRASP) {
-      current_slice.ungrasp = step;
-      current_slice.FixTrajectories();
-      slices.push_back(current_slice);
-      current_slice.Reset();
-      it->Advance();
+    } else if (step.type == msgs::Step::MOVE_TO_POSE) {
+    } else {
+      ROS_ASSERT_MSG(false, "Unsupported step type: \"%s\"", step.type.c_str());
     }
   }
 
