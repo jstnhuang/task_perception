@@ -248,7 +248,7 @@ std::vector<Slice> SliceProgram(const msgs::Program& program) {
   right_it.Begin();
   std::vector<Slice> slices;
   Slice current_slice;
-  while (!left_it.IsDone() || !right_it.IsDone()) {
+  while (ros::ok() && (!left_it.IsDone() || !right_it.IsDone())) {
     // Walk through the left and right steps in order of time.
     ProgramIterator* it;
     msgs::Step* traj_step;
