@@ -29,6 +29,8 @@ void ProgramIterator::Advance() {
   const msgs::Step& current = step();
   if (current.type == msgs::Step::GRASP) {
     ++step_i_;
+  } else if (current.type == msgs::Step::UNGRASP) {
+    ++step_i_;
   } else if (current.type == msgs::Step::FOLLOW_TRAJECTORY) {
     if (traj_i_ < current.ee_trajectory.size() - 1) {
       ++traj_i_;
@@ -36,8 +38,11 @@ void ProgramIterator::Advance() {
       traj_i_ = 0;
       ++step_i_;
     }
-  } else if (current.type == msgs::Step::UNGRASP) {
+  } else if (current.type == msgs::Step::MOVE_TO_POSE) {
     ++step_i_;
+  } else {
+    ROS_ASSERT_MSG(false, "Unsupported action type \"%s\"",
+                   current.type.c_str());
   }
 }
 
@@ -49,9 +54,11 @@ ros::Duration ProgramIterator::time() {
   const msgs::Step& current = step();
   if (current.type == msgs::Step::GRASP) {
     return current.start_time;
+  } else if (current.type == msgs::Step::UNGRASP) {
+    return current.start_time;
   } else if (current.type == msgs::Step::FOLLOW_TRAJECTORY) {
     return current.start_time + current.times_from_start[traj_i_];
-  } else if (current.type == msgs::Step::UNGRASP) {
+  } else if (current.type == msgs::Step::MOVE_TO_POSE) {
     return current.start_time;
   } else {
     ROS_ASSERT_MSG(false, "Unsupported action type \"%s\"",
