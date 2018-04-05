@@ -36,6 +36,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(PCL REQUIRED)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
