@@ -1,7 +1,8 @@
 #ifndef _PBI_PROGRAM_SLICE_H_
 #define _PBI_PROGRAM_SLICE_H_
 
-#include "task_perception_msgs/Step.h"
+#include "ros/duration.h"
+#include "trajectory_msgs/JointTrajectory.h"
 
 namespace pbi {
 // A Slice represents part of a program.
@@ -38,12 +39,31 @@ class Slice {
   // TODO: Hard-coded 0.03s start time assumes trajectory data is recorded at
   // 30Hz. We lose this information in the slicing. To regain this information,
   // we need the previous slice.
-  void FixTrajectories();
+  // void FixTrajectories();
 
-  task_perception_msgs::Step grasp;
-  task_perception_msgs::Step left_traj;
-  task_perception_msgs::Step right_traj;
-  task_perception_msgs::Step ungrasp;
+  bool IsEmpty() const;
+
+  trajectory_msgs::JointTrajectory left_traj;
+  trajectory_msgs::JointTrajectory right_traj;
+  bool is_left_closing;
+  bool is_left_opening;
+  bool is_right_closing;
+  bool is_right_opening;
+};
+
+// A PlannedStep is a Step that has been planned out into a trajectory.
+// Arm movements will be stored in traj.
+// Gripper movements will be represented as an empty trajectory with either
+// is_closing or is_opening set to true.
+class PlannedStep {
+ public:
+  PlannedStep();
+  trajectory_msgs::JointTrajectory GetTraj(const ros::Time& start_time,
+                                           const ros::Time& end_time);
+
+  trajectory_msgs::JointTrajectory traj;
+  bool is_closing;
+  bool is_opening;
 };
 }  // namespace pbi
 

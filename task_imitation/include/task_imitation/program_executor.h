@@ -11,6 +11,7 @@
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
 #include "tf/transform_listener.h"
+#include "trajectory_msgs/JointTrajectory.h"
 
 #include "task_imitation/grasp_planner.h"
 #include "task_imitation/program_slice.h"
@@ -46,10 +47,10 @@ class ProgramExecutor {
   ros::Publisher gripper_pub_;
 
   tf::TransformListener tf_listener_;
-  GraspPlanner grasp_planner_;
 };
 
-std::vector<Slice> SliceProgram(const task_perception_msgs::Program& program);
+std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
+                                const std::vector<PlannedStep>& right_steps);
 
 // Given an object-relative grasp and an object trajectory, computes the
 // trajectory of the grasp.
@@ -64,6 +65,49 @@ std::vector<geometry_msgs::Pose> ComputeGraspTrajectory(
 
 std::vector<geometry_msgs::Pose> SampleTrajectory(
     const std::vector<geometry_msgs::Pose>& traj);
+
+ros::Duration ComputeTrajectoryTime(
+    const trajectory_msgs::JointTrajectory& traj);
+
+// Plan trajectories for each step
+// GRASP steps will have added steps to move to a pre-grasp and grasp pose.
+// UNGRASP steps will have an added step to move to a post-grasp pose.
+// MOVE_TO_POSE steps will be scaled to match the demonstration time.
+std::vector<PlannedStep> PlanSteps(
+    const std::vector<task_perception_msgs::Step>& steps,
+    const std::map<std::string, task_perception_msgs::ObjectState>&
+        object_states,
+    moveit::planning_interface::MoveGroup& group);
+
+// step, object_states, group, and start_time are input parameters.
+// start_state is both an input and an output. As as input, it specifies the
+// start state before the step. As an output, it specifies what the updated
+// state is after the step.
+std::vector<PlannedStep> PlanGraspStep(
+    const task_perception_msgs::Step& step,
+    const std::map<std::string, task_perception_msgs::ObjectState>&
+        object_states,
+    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
+    robot_state::RobotStatePtr start_state);
+
+std::vector<PlannedStep> PlanUngraspStep(
+    const task_perception_msgs::Step& step,
+    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
+    robot_state::RobotStatePtr start_state);
+
+PlannedStep PlanFollowTrajectoryStep(
+    const task_perception_msgs::Step& step,
+    const std::map<std::string, task_perception_msgs::ObjectState>&
+        object_states,
+    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
+    robot_state::RobotStatePtr start_state);
+
+PlannedStep PlanMoveToPoseStep(
+    const task_perception_msgs::Step& step,
+    const std::map<std::string, task_perception_msgs::ObjectState>&
+        object_states,
+    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
+    robot_state::RobotStatePtr start_state);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_

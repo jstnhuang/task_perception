@@ -4,17 +4,16 @@
 #include <vector>
 
 #include "boost/optional.hpp"
-#include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
-#include "task_perception_msgs/Step.h"
+#include "trajectory_msgs/JointTrajectoryPoint.h"
+
+#include "task_imitation/program_slice.h"
 
 namespace pbi {
-// Iterates through events in a list of steps. An event is either a grasp, an
-// ungrasp, or a trajectory point.
+// Iterates through events in a list of steps.
 class ProgramIterator {
  public:
-  explicit ProgramIterator(
-      const std::vector<task_perception_msgs::Step>& steps);
+  explicit ProgramIterator(const std::vector<PlannedStep>& steps);
 
   // This must be called to initialize the iterator.
   void Begin();
@@ -30,21 +29,22 @@ class ProgramIterator {
   // time_from_start of the point.
   //
   // Do not call if IsDone() is true.
-  ros::Duration time();
+  ros::Time time();
 
   // Gets the current step the iterator is pointing to.
   //
   // Do not call if IsDone() is true.
-  task_perception_msgs::Step step();
+  PlannedStep step();
 
   // Gets the trajectory point the iterator is pointing to, if any.
   //
   // Do not call if IsDone() is true.
-  boost::optional<std::pair<geometry_msgs::Pose, ros::Duration> >
+  boost::optional<
+      std::pair<trajectory_msgs::JointTrajectoryPoint, ros::Duration> >
   trajectory_point();
 
  private:
-  const std::vector<task_perception_msgs::Step>& steps_;
+  const std::vector<PlannedStep>& steps_;
   size_t step_i_;
   size_t traj_i_;
 };
