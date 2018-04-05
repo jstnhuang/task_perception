@@ -12,7 +12,6 @@
 
 #include "task_imitation/bimanual_manipulation.h"
 #include "task_imitation/program_constants.h"
-//#include "task_imitation/program_iterator.h"
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
@@ -326,68 +325,6 @@ std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
     }
     prev_time = current_time;
   }
-
-  // Iterate through left and right actions.
-  /*
-  ProgramIterator left_it(left_steps);
-  ProgramIterator right_it(right_steps);
-  left_it.Begin();
-  right_it.Begin();
-  std::vector<Slice> slices;
-  Slice current_slice;
-  while (ros::ok() && (!left_it.IsDone() || !right_it.IsDone())) {
-    // Walk through the left and right steps in order of time.
-    ProgramIterator* it;
-    msgs::Step* traj_step;
-    if (left_it.IsDone()) {
-      it = &right_it;
-      traj_step = &current_slice.right_traj;
-    } else if (right_it.IsDone()) {
-      it = &left_it;
-      traj_step = &current_slice.left_traj;
-    } else if (left_it.time() < right_it.time()) {
-      it = &left_it;
-      traj_step = &current_slice.left_traj;
-    } else {
-      it = &right_it;
-      traj_step = &current_slice.right_traj;
-    }
-
-    const msgs::Step& step = it->step();
-    if (step.type == msgs::Step::GRASP) {
-      // If this slice already has a grasp, then submit the slice and reset.
-      if (current_slice.grasp.type != "") {
-        current_slice.FixTrajectories();
-        slices.push_back(current_slice);
-        current_slice.Reset();
-      }
-      current_slice.grasp = step;
-      it->Advance();
-    } else if (step.type == msgs::Step::UNGRASP) {
-      current_slice.ungrasp = step;
-      current_slice.FixTrajectories();
-      slices.push_back(current_slice);
-      current_slice.Reset();
-      it->Advance();
-    } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
-      // Initialize trajectory message if needed.
-      if (traj_step->ee_trajectory.size() == 0) {
-        traj_step->start_time = step.start_time;
-        traj_step->arm = step.arm;
-        traj_step->type = step.type;
-        traj_step->object_state = step.object_state;
-      }
-      optional<std::pair<Pose, ros::Duration> > pt = it->trajectory_point();
-      ROS_ASSERT(pt);
-      traj_step->ee_trajectory.push_back(pt->first);
-      traj_step->times_from_start.push_back(pt->second);
-      it->Advance();
-    } else if (step.type == msgs::Step::MOVE_TO_POSE) {
-    } else {
-      ROS_ASSERT_MSG(false, "Unsupported step type: \"%s\"", step.type.c_str());
-    }
-  }*/
-
   return slices;
 }
 
