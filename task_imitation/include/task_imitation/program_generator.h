@@ -13,6 +13,8 @@
 #include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/Step.h"
 
+#include "task_imitation/program_constants.h"
+
 namespace pbi {
 
 // A ProgramSegment is either:
@@ -96,9 +98,6 @@ class ProgramGenerator {
   task_perception_msgs::Program Generate(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
       const ObjectStateIndex& initial_objects);
-
-  const static double kGraspDuration;
-  const static double kUngraspDuration;
 
  private:
   std::vector<ProgramSegment> Segment(

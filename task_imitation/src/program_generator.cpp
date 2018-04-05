@@ -18,6 +18,7 @@
 
 #include "task_imitation/grasp_planner.h"
 #include "task_imitation/grasp_planning_context.h"
+#include "task_imitation/program_constants.h"
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
@@ -352,9 +353,6 @@ msgs::HandState HandStateMachine::GetOtherHand(
   msgs::HandState blank;
   return blank;
 }
-
-const double ProgramGenerator::kGraspDuration = 2;
-const double ProgramGenerator::kUngraspDuration = 2;
 
 ProgramSegment HandStateMachine::NewGraspSegment() {
   ProgramSegment segment;
