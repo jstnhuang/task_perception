@@ -15,7 +15,8 @@ trajectory_msgs::JointTrajectoryPoint StandardizePoint(
 // Return a trajectory consisting of just the start state.
 // This trajectory can be merged in MergeTrajectories to move just one arm.
 trajectory_msgs::JointTrajectory GetNonMovingTrajectory(
-    moveit::planning_interface::MoveGroup& group);
+    moveit::planning_interface::MoveGroup& group,
+    const ros::Duration& duration);
 
 // Merge trajectories for left and right arm into one trajectory that can be
 // executed by the arms group.

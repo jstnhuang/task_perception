@@ -42,11 +42,13 @@ JointTrajectoryPoint StandardizePoint(const JointTrajectoryPoint& pt) {
 }
 
 trajectory_msgs::JointTrajectory GetNonMovingTrajectory(
-    moveit::planning_interface::MoveGroup& group) {
+    moveit::planning_interface::MoveGroup& group,
+    const ros::Duration& duration) {
   trajectory_msgs::JointTrajectory result;
   robot_state::RobotStatePtr current = group.getCurrentState();
   result.joint_names = group.getJointNames();
   JointTrajectoryPoint pt;
+  pt.time_from_start = duration;
   for (size_t i = 0; i < result.joint_names.size(); ++i) {
     const std::string& joint_name = result.joint_names[i];
     pt.positions.push_back(*current->getJointPositions(joint_name));
