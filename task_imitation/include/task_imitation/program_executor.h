@@ -33,6 +33,8 @@ class ProgramExecutor {
   std::string planning_frame() const;
 
  private:
+  std::vector<Slice> RetimeSlices(const std::vector<Slice>& slices);
+
   ros::NodeHandle nh_;
 
   moveit::planning_interface::MoveGroup& left_group_;

@@ -2,6 +2,7 @@
 
 #include "boost/optional.hpp"
 #include "moveit/robot_state/conversions.h"
+#include "moveit/trajectory_processing/iterative_time_parameterization.h"
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
@@ -67,6 +68,8 @@ void ProgramExecutor::Execute(
 
   std::vector<Slice> slices = SliceProgram(left_steps, right_steps);
   ROS_INFO("Generated slices");
+
+  std::vector<Slice> retimed_slices = RetimeSlices(slices);
 
   // Execute each slice
   /*bool is_sim;
@@ -247,6 +250,39 @@ void ProgramExecutor::Execute(
 }
 
 std::string ProgramExecutor::planning_frame() const { return planning_frame_; }
+
+std::vector<Slice> ProgramExecutor::RetimeSlices(
+    const std::vector<Slice>& slices) {
+  std::vector<Slice> retimed_slices;
+  moveit::core::RobotStatePtr state = arms_group_.getCurrentState();
+  robot_model::RobotModelConstPtr robot_model = arms_group_.getRobotModel();
+
+  // MoveIt structures that are reused in the loop
+  trajectory_processing::IterativeParabolicTimeParameterization retimer;
+  robot_trajectory::RobotTrajectory left_traj(robot_model, "left_arm");
+  robot_trajectory::RobotTrajectory right_traj(robot_model, "right_arm");
+
+  for (size_t i = 0; i < slices.size(); ++i) {
+    const Slice& slice = slices[i];
+    Slice retimed_slice = slice;
+    if (slice.left_traj.points.size() > 0) {
+      left_traj.setRobotTrajectoryMsg(*state, slice.left_traj);
+      retimer.computeTimeStamps(left_traj);
+      moveit_msgs::RobotTrajectory msg;
+      left_traj.getRobotTrajectoryMsg(msg);
+      retimed_slice.left_traj = msg.joint_trajectory;
+    }
+    if (slice.right_traj.points.size() > 0) {
+      right_traj.setRobotTrajectoryMsg(*state, slice.right_traj);
+      retimer.computeTimeStamps(right_traj);
+      moveit_msgs::RobotTrajectory msg;
+      right_traj.getRobotTrajectoryMsg(msg);
+      retimed_slice.right_traj = msg.joint_trajectory;
+    }
+    retimed_slices.push_back(retimed_slice);
+  }
+  return retimed_slices;
+}
 
 std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
                                 const std::vector<PlannedStep>& right_steps) {
