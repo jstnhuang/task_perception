@@ -10,6 +10,7 @@
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 
 using moveit_msgs::RobotTrajectory;
+using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
 
 namespace pbi {
@@ -57,30 +58,27 @@ trajectory_msgs::JointTrajectory GetNonMovingTrajectory(
   return result;
 }
 
-RobotTrajectory MergeTrajectories(const RobotTrajectory& left_traj,
-                                  const RobotTrajectory& right_traj) {
-  RobotTrajectory result;
-  if (left_traj.joint_trajectory.points.size() == 0) {
+JointTrajectory MergeTrajectories(const JointTrajectory& left_traj,
+                                  const JointTrajectory& right_traj) {
+  JointTrajectory result;
+  if (left_traj.points.size() == 0) {
     ROS_ERROR("Left trajectory must have at least one point");
     return result;
-  } else if (right_traj.joint_trajectory.points.size() == 0) {
+  } else if (right_traj.points.size() == 0) {
     ROS_ERROR("Right trajectory must have at least one point");
     return result;
   }
 
-  result.joint_trajectory.joint_names = left_traj.joint_trajectory.joint_names;
-  result.joint_trajectory.joint_names.insert(
-      result.joint_trajectory.joint_names.end(),
-      right_traj.joint_trajectory.joint_names.begin(),
-      right_traj.joint_trajectory.joint_names.end());
+  result.joint_names = left_traj.joint_names;
+  result.joint_names.insert(result.joint_names.end(),
+                            right_traj.joint_names.begin(),
+                            right_traj.joint_names.end());
 
   // Walk through both trajectories in order of time.
   int left_i = -1;
   int right_i = -1;
-  const std::vector<JointTrajectoryPoint>& left_pts =
-      left_traj.joint_trajectory.points;
-  const std::vector<JointTrajectoryPoint>& right_pts =
-      right_traj.joint_trajectory.points;
+  const std::vector<JointTrajectoryPoint>& left_pts = left_traj.points;
+  const std::vector<JointTrajectoryPoint>& right_pts = right_traj.points;
   while (left_i < static_cast<int>(left_pts.size()) ||
          right_i < static_cast<int>(right_pts.size())) {
     int left_i_clamped = clamp(left_i, 0, left_pts.size() - 1);
@@ -130,7 +128,7 @@ RobotTrajectory MergeTrajectories(const RobotTrajectory& left_traj,
     pt.effort = left_pt.effort;
     pt.effort.insert(pt.effort.end(), right_pt.effort.begin(),
                      right_pt.effort.end());
-    result.joint_trajectory.points.push_back(pt);
+    result.points.push_back(pt);
   }
   return result;
 }

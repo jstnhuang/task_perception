@@ -26,9 +26,9 @@ trajectory_msgs::JointTrajectory GetNonMovingTrajectory(
 // If you only want to move one arm, call GetNonMovingTrajectory to get a
 // trajectory that holds the other arm still (or just use the MoveGroup client
 // for the moving arm).
-moveit_msgs::RobotTrajectory MergeTrajectories(
-    const moveit_msgs::RobotTrajectory& left_traj,
-    const moveit_msgs::RobotTrajectory& right_traj);
+trajectory_msgs::JointTrajectory MergeTrajectories(
+    const trajectory_msgs::JointTrajectory& left_traj,
+    const trajectory_msgs::JointTrajectory& right_traj);
 }  // namespace pbi
 
 #endif  // _PBI_BIMANUAL_MANIPULATION_H_
