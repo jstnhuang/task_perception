@@ -33,7 +33,10 @@ PlannedStep::PlannedStep() : traj(), is_closing(false), is_opening(false) {}
 
 JointTrajectory PlannedStep::GetTraj(const ros::Time& start_time,
                                      const ros::Time& end_time) {
-  if (start_time < traj.header.stamp) {
+  // A common case to reject early is when end_time is exactly equal to the
+  // start time of this trajectory. This is because we are always trying to
+  // extract trajectories from the next step.
+  if (end_time <= traj.header.stamp) {
     JointTrajectory blank;
     return blank;
   }
@@ -57,7 +60,9 @@ JointTrajectory PlannedStep::GetTraj(const ros::Time& start_time,
         result_pt_start = start_time;
       }
       pt.time_from_start = result_pt_end - result_pt_start;
-      result.points.push_back(pt);
+      if (!pt.time_from_start.isZero()) {
+        result.points.push_back(pt);
+      }
     }
     if (pt_start > end_time) {
       break;
