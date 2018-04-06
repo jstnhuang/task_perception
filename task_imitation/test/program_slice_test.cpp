@@ -103,6 +103,7 @@ TEST(ProgramSliceTest, PlannedStepGetTrajMultiplePoints) {
 
   JointTrajectory traj = step.GetTraj(ros::Time(1.5), ros::Time(4.5));
   ASSERT_EQ(3, traj.points.size());
+  EXPECT_EQ(1.5, traj.header.stamp.toSec());
   EXPECT_EQ(5, traj.points[0].positions[0]);
   EXPECT_EQ(4, traj.points[1].positions[0]);
   EXPECT_EQ(3, traj.points[2].positions[0]);
