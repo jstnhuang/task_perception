@@ -18,6 +18,8 @@ namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 using boost::optional;
 using geometry_msgs::Pose;
+using trajectory_msgs::JointTrajectory;
+using trajectory_msgs::JointTrajectoryPoint;
 
 namespace pbi {
 ProgramExecutor::ProgramExecutor(
@@ -74,7 +76,54 @@ void ProgramExecutor::Execute(
   ROS_INFO("Done retiming slices.");
 
   for (size_t i = 0; i < retimed_slices.size(); ++i) {
-    const Slice& slice = retimed_slices[i];
+    Slice& slice = retimed_slices[i];
+    if (slice.left_traj.points.size() == 0) {
+      ROS_ASSERT(slice.is_left_closing ^ slice.is_left_opening);
+      if (slice.is_left_closing) {
+        slice.left_traj =
+            GetNonMovingTrajectory(left_group_, ros::Duration(kGraspDuration));
+      } else {
+        slice.left_traj = GetNonMovingTrajectory(
+            left_group_, ros::Duration(kUngraspDuration));
+      }
+    }
+    if (slice.right_traj.points.size() == 0) {
+      ROS_ASSERT(slice.is_right_closing ^ slice.is_right_opening);
+      if (slice.is_right_closing) {
+        slice.right_traj =
+            GetNonMovingTrajectory(right_group_, ros::Duration(kGraspDuration));
+      } else {
+        slice.right_traj = GetNonMovingTrajectory(
+            right_group_, ros::Duration(kUngraspDuration));
+      }
+    }
+
+    moveit::planning_interface::MoveGroup::Plan plan;
+    plan.trajectory_.joint_trajectory =
+        MergeTrajectories(slice.left_traj, slice.right_traj);
+
+    // Execute slice
+    if (slice.is_left_closing) {
+      left_gripper_.StartClosing();
+    } else if (slice.is_left_opening) {
+      left_gripper_.StartOpening();
+    }
+    if (slice.is_right_closing) {
+      right_gripper_.StartClosing();
+    } else if (slice.is_right_opening) {
+      right_gripper_.StartOpening();
+    }
+    arms_group_.execute(plan);
+    if (slice.is_left_closing || slice.is_left_opening) {
+      while (ros::ok() && !left_gripper_.IsDone()) {
+        ros::spinOnce();
+      }
+    }
+    if (slice.is_right_closing || slice.is_right_opening) {
+      while (ros::ok() && !right_gripper_.IsDone()) {
+        ros::spinOnce();
+      }
+    }
   }
 }
 
@@ -229,8 +278,7 @@ std::vector<Pose> SampleTrajectory(const std::vector<Pose>& traj) {
   return sampled;
 }
 
-ros::Duration ComputeTrajectoryTime(
-    const trajectory_msgs::JointTrajectory& traj) {
+ros::Duration ComputeTrajectoryTime(const JointTrajectory& traj) {
   if (traj.points.size() > 0) {
     return traj.points.back().time_from_start;
   } else {
@@ -340,8 +388,7 @@ std::vector<PlannedStep> PlanGraspStep(
   grasp.traj.header.stamp =
       start_time + step.start_time - ros::Duration(kGraspDuration);
   grasp.traj.joint_names = move_to_grasp.traj.joint_names;
-  trajectory_msgs::JointTrajectoryPoint end_pt =
-      move_to_grasp.traj.points.back();
+  JointTrajectoryPoint end_pt = move_to_grasp.traj.points.back();
   end_pt.time_from_start = ros::Duration(kGraspDuration);
   grasp.traj.points.push_back(end_pt);
   // TODO: could scale the pre grasp trajectory in case we overrun into another
@@ -381,7 +428,7 @@ std::vector<PlannedStep> PlanUngraspStep(
   ungrasp.traj.header.stamp = start_time + step.start_time;
   ungrasp.traj.joint_names =
       post_grasp_plan.trajectory_.joint_trajectory.joint_names;
-  trajectory_msgs::JointTrajectoryPoint start_pt =
+  JointTrajectoryPoint start_pt =
       post_grasp_plan.trajectory_.joint_trajectory.points.front();
   start_pt.time_from_start = ros::Duration(kUngraspDuration);
   ungrasp.traj.points.push_back(start_pt);
