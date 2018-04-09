@@ -1,0 +1,35 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+
+<dom-module id="pbi-step">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h3>[[_displayIndex(index)]]) [[_capitalize(step.type)]]</h3>
+    <strong>Start time:</strong> [[step.start_time.secs]].[[step.start_time.nsecs]]<br />
+    <strong>Arm:</strong> [[step.arm]]<br />
+    <strong>Object: </strong> [[step.object_state.name]]<br />
+    <strong>Trajectory: </strong> [[step.ee_trajectory.length]] points<br />
+  </template>
+  <script>
+    class PbiStep extends Polymer.Element {
+      static get is() { return 'pbi-step'; }
+      static get properties() {
+        return {
+          ros: Object,
+        };
+      }
+
+      _capitalize(str) {
+        return str.substr(0, 1).toUpperCase() + str.substr(1, str.length);
+      }
+
+      _displayIndex(index) {
+        return index+1;
+      }
+    };
+    window.customElements.define(PbiStep.is, PbiStep);
+  </script>
+</dom-module>

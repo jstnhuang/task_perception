@@ -1,0 +1,86 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-image/iron-image.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/paper-slider/paper-slider.html">
+<link rel="import" href="../bower_components/ros-topic/ros-topic.html">
+<link rel="import" href="pbi-step.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-imitation">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+        height: 100%;
+      }
+      iron-image {
+        background-color: var(--paper-grey-300);
+        width: 100%;
+      }
+      .open {
+        background-color: var(--paper-green-500);
+        color: #fff;
+      }
+      .open:hover {
+        background-color: var(--paper-green-600);
+      }
+      .main {
+        height: 100%;
+      }
+      h3 {
+        border-bottom: 1px solid #ccc;
+      }
+      h4 {
+        margin-top: 0;
+        margin-bottom: 0;
+      }
+      paper-input + paper-input {
+        margin-left: 5px;
+      }
+      pbi-hand-state {
+        margin-right: 10px;
+      }
+    </style>
+    <ros-topic auto
+      last-message="{{program}}"
+      msg-type="task_perception_msgs/Program"
+      topic="pbi_imitation/program"
+      ros="[[ros]]"></ros-topic>
+    <ros-topic
+      id="triggerPub"
+      msg-type="std_msgs/Bool"
+      topic="trigger"
+      ros="[[ros]]"></ros-topic>
+    <div class="main layout vertical">
+      <h3>Actions:</h3>
+      <div class="layout horizontal center commands">
+        <paper-button on-tap="_handleStep">Step</paper-button>
+      </div>
+      <h3>Program:</h3>
+      <span hidden$="[[program.steps.length]]">None</span>
+      <template is="dom-repeat" items="[[program.steps]]" as="step">
+        <pbi-step index="[[index]]" step="[[step]]" ros="[[ros]]"></pbi-step>
+      </template>
+    </div>
+  </template>
+  <script>
+    class PbiImitation extends Polymer.Element {
+      static get is() { return 'pbi-imitation'; }
+      static get properties() {
+        return {
+          ros: Object,
+        };
+      }
+
+      _handleStep() {
+        var msg = {
+          data: true,
+        };
+        this.$.triggerPub.publish(msg);
+      }
+    };
+    window.customElements.define(PbiImitation.is, PbiImitation);
+  </script>
+</dom-module>

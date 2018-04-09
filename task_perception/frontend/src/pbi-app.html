@@ -8,6 +8,7 @@
 <link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
 <link rel="import" href="shared-styles.html">
 <link rel="lazy-import" href="pbi-annotator.html">
+<link rel="lazy-import" href="pbi-imitation.html">
 <link rel="lazy-import" href="pbi-recorder.html">
 
 <dom-module id="pbi-app">
@@ -28,6 +29,9 @@
       paper-dialog > div {
         text-align: right;
       }
+      .links a+a {
+        margin-left: 10px;
+      }
     </style>
     <ros-websocket id="websocket"
       auto url="{{websocketUrl}}" ros="{{ros}}"
@@ -44,9 +48,14 @@
       route="{{route}}"
       pattern="/:page"
       data="{{routeData}}"></app-route>
+    <div class="links">
+      <a href="/annotator">Annotation</a>
+      <a href="/imitation">Imitation</a>
+    </div>
     <iron-pages selected="[[routeData.page]]"
         attr-for-selected="name" fallback-selection="annotator">
       <pbi-annotator name="annotator" ros="[[ros]]"></pbi-annotator>
+      <pbi-imitation name="imitation" ros="[[ros]]"></pbi-imitation>
       <pbi-recorder name="recorder" ros="[[ros]]"></pbi-recorder>
     </iron-pages>
     <paper-dialog id="wsDialog" modal>
@@ -99,8 +108,10 @@
         var pageUrl = '';
         if (page === 'recorder') {
           pageUrl = this.resolveUrl('pbi-recorder.html');
-        } else { //if (page === 'annotator') {
+        } else if (page === 'annotator') {
           pageUrl = this.resolveUrl('pbi-annotator.html');
+        } else if (page === 'imitation') {
+          pageUrl = this.resolveUrl('pbi-imitation.html');
         }
         Polymer.importHref(pageUrl, null, null, true);
       }
