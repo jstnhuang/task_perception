@@ -415,7 +415,6 @@ msgs::Program ProgramGenerator::Generate(
 
   ROS_INFO("Generated program");
   ROS_INFO_STREAM(program_);
-  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   return program_;
 }
 
