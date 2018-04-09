@@ -41,6 +41,8 @@ class ProgramServer {
   moveit::planning_interface::MoveGroup right_group_;
 
   ProgramExecutor executor_;
+
+  ros::Publisher program_pub_;
 };
 }  // namespace pbi
 

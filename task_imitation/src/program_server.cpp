@@ -35,7 +35,9 @@ ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
       initialize_object_("initialize_object"),
       left_group_("left_arm"),
       right_group_("right_arm"),
-      executor_(left_group_, right_group_) {}
+      executor_(left_group_, right_group_),
+      program_pub_(
+          nh_.advertise<msgs::Program>("pbi_imitation/program", 1, true)) {}
 
 void ProgramServer::Start() {
   action_server_.start();
@@ -68,6 +70,7 @@ void ProgramServer::ExecuteImitation(
   ProgramGenerator generator(left_group_, right_group_);
   msgs::Program program =
       generator.Generate(demo_states.demo_states, object_states);
+  program_pub_.publish(program);
 
   executor_.Execute(program, object_states);
   msgs::ImitateDemoResult result;
