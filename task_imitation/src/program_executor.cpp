@@ -6,6 +6,7 @@
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
+#include "std_msgs/Bool.h"
 #include "task_perception_msgs/Step.h"
 #include "task_utils/pr2_gripper_viz.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
@@ -63,6 +64,7 @@ void ProgramExecutor::Execute(
     }
   }
 
+  ROS_INFO("Planning steps");
   std::vector<PlannedStep> left_steps =
       PlanSteps(left_steps_raw, object_states, left_group_);
   std::vector<PlannedStep> right_steps =
@@ -74,6 +76,9 @@ void ProgramExecutor::Execute(
   ROS_INFO("Retiming...");
   std::vector<Slice> retimed_slices = RetimeSlices(slices);
   ROS_INFO("Done retiming slices.");
+
+  ROS_INFO("Waiting for trigger to start execution...");
+  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
 
   for (size_t i = 0; i < retimed_slices.size(); ++i) {
     Slice& slice = retimed_slices[i];
@@ -522,6 +527,7 @@ PlannedStep PlanMoveToPoseStep(
 
   group.setStartState(*start_state);
   group.setPoseTarget(goal_in_planning.pose());
+
   moveit::planning_interface::MoveGroup::Plan plan;
   group.plan(plan);
   moveit::core::jointTrajPointToRobotState(
