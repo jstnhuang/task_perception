@@ -103,7 +103,6 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
   if (debug_) {
     VisualizeGripper("optimization", wrist_pose, context.planning_frame_id());
     ros::Duration(0.2).sleep();
-    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
 
   PublishPointCloud(object_pub_, *context.object_cloud());
@@ -113,7 +112,6 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
   if (debug_) {
     VisualizeGripper("optimization", initial_pose, context.planning_frame_id());
     ros::Duration(0.2).sleep();
-    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
 
   Pose to_wrist_pose = OrientTowardsWrist(gripper_model, context);
@@ -122,7 +120,6 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
     VisualizeGripper("optimization", to_wrist_pose,
                      context.planning_frame_id());
     ros::Duration(0.2).sleep();
-    // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
 
   return Plan(to_wrist_pose, context);
@@ -163,7 +160,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       VisualizeGripper("optimization", rotated_pose,
                        context.planning_frame_id());
       ros::Duration(0.20).sleep();
-      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     next_pose = rotated_pose;
@@ -400,7 +396,6 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
           ros::Duration(0.01).sleep();
           // ROS_INFO("%f %f: %s", yaw_angle, roll_angle,
           //         grasp_eval.ToString().c_str());
-          // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
         }
       } else {
         if (debug_) {
@@ -439,7 +434,6 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       VisualizeGripper("optimization", rotated_pose,
                        context.planning_frame_id());
       ros::Duration(0.025).sleep();
-      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     double score = grasp_eval.score();
