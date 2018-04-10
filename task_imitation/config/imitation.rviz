@@ -7,9 +7,6 @@ Panels:
         - /Global Options1
         - /Status1
         - /DepthCloud1/Auto Size1
-        - /Runtime point cloud1
-        - /Imitation visualizations1
-        - /Surface segmentation1
       Splitter Ratio: 0.5
     Tree Height: 843
   - Class: rviz/Selection
@@ -30,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: Runtime point cloud
 Visualization Manager:
   Class: ""
   Displays:
@@ -1420,14 +1417,6 @@ Visualization Manager:
       Trail Step Size: 1
       Trajectory Topic: /program_executor/right_arm_traj
       Value: true
-    - Class: rviz/Marker
-      Enabled: false
-      Marker Topic: visualization_marker
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
     - Class: moveit_rviz_plugin/MotionPlanning
       Enabled: false
       Move Group Namespace: ""
@@ -2424,44 +2413,48 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /grasp_planner/grippers
-      Name: Grasp planning
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/MarkerArray
+          Enabled: false
+          Marker Topic: /grasp_planner/grippers
+          Name: Grasp planning
+          Namespaces:
+            {}
+          Queue Size: 100
+          Value: false
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: Intensity
+          Decay Time: 0
+          Enabled: false
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Grasp planning target object
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.01
+          Style: Flat Squares
+          Topic: /grasp_planner/object
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: false
       Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: Grasp planning target object
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.01
-      Style: Flat Squares
-      Topic: /grasp_planner/object
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
+      Name: Grasp planning
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -2497,18 +2490,19 @@ Visualization Manager:
       Marker Topic: /pbi_imitation/markers
       Name: Imitation visualizations
       Namespaces:
+        dest: true
         grasp: true
         pregrasp: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /pbi_imitation/surface_segmentation
       Name: Surface segmentation
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -2533,7 +2527,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.81314
+      Distance: 1.86226
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -2545,10 +2539,10 @@ Visualization Manager:
         Z: 1.08387
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.224798
+      Pitch: 0.259799
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.0922579
+      Yaw: 6.27544
     Saved: ~
 Window Geometry:
   Displays:
