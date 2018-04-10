@@ -354,6 +354,19 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
   } else if (step.type == msgs::Step::UNGRASP) {
   } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
   } else if (step.type == msgs::Step::MOVE_TO_POSE) {
+    msgs::ObjectState obj = object_states_[step.object_state.name];
+    tg::Graph graph;
+    graph.Add("obj", tg::RefFrame("planning"), obj.pose);
+    graph.Add("dest", tg::RefFrame("obj"), step.ee_trajectory[0]);
+
+    tg::Transform dest_in_planning;
+    graph.ComputeDescription("dest", tg::RefFrame("planning"),
+                             &dest_in_planning);
+    MarkerArray pregrasp_markers =
+        GripperMarkers("dest", dest_in_planning.pose(), planning_frame_);
+    marker_arr_.markers.insert(marker_arr_.markers.end(),
+                               pregrasp_markers.markers.begin(),
+                               pregrasp_markers.markers.end());
   }
   marker_pub_.publish(marker_arr_);
 }
