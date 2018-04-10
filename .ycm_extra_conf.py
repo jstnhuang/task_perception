@@ -80,6 +80,8 @@ flags = [
 '-I',
 '../rapid/rapid_pr2/include',
 '-I',
+'../rapid/rapid_robot/include',
+'-I',
 '../rapid/rapid_ros/include',
 '-I',
 '../rapid/rapid_utils/include',
