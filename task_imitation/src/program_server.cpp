@@ -10,6 +10,7 @@
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
+#include "moveit_msgs/DisplayTrajectory.h"
 #include "pcl/filters/crop_box.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "pcl_ros/transforms.h"
@@ -69,9 +70,9 @@ ProgramServer::ProgramServer(
       program_(),
       object_states_(),
       marker_arr_(),
+      kGripperMarkers(),
       marker_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
-          "pbi_imitation/markers", 100)),
-      gripper_markers_() {}
+          "pbi_imitation/markers", 100)) {}
 
 void ProgramServer::Start() {
   urdf::Model model;
@@ -93,22 +94,22 @@ void ProgramServer::Start() {
   gripper_links.insert("l_gripper_r_finger_link");
   gripper_links.insert("l_gripper_r_finger_tip_link");
 
-  builder.Build(gripper_links, &gripper_markers_);
+  builder.Build(gripper_links, &kGripperMarkers);
 
   // Shift palm to origin / identity orientation.
   geometry_msgs::Pose root_pose;
-  for (size_t i = 0; i < gripper_markers_.markers.size(); ++i) {
-    if (gripper_markers_.markers[i].mesh_resource.find("palm") !=
+  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
+    if (kGripperMarkers.markers[i].mesh_resource.find("palm") !=
         std::string::npos) {
-      root_pose = gripper_markers_.markers[i].pose;
+      root_pose = kGripperMarkers.markers[i].pose;
       break;
     }
   }
   Eigen::Affine3d gripper_pose;
   tf::poseMsgToEigen(root_pose, gripper_pose);
 
-  for (size_t i = 0; i < gripper_markers_.markers.size(); ++i) {
-    visualization_msgs::Marker& marker = gripper_markers_.markers[i];
+  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
+    visualization_msgs::Marker& marker = kGripperMarkers.markers[i];
     Eigen::Affine3d marker_pose;
     tf::poseMsgToEigen(marker.pose, marker_pose);
     Eigen::Affine3d shifted_pose = gripper_pose.inverse() * marker_pose;
@@ -377,8 +378,8 @@ MarkerArray ProgramServer::GripperMarkers(const std::string& ns,
   MarkerArray result;
   Eigen::Affine3d pose_transform;
   tf::poseMsgToEigen(pose, pose_transform);
-  for (size_t i = 0; i < gripper_markers_.markers.size(); ++i) {
-    visualization_msgs::Marker marker = gripper_markers_.markers[i];
+  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
+    visualization_msgs::Marker marker = kGripperMarkers.markers[i];
     marker.header.frame_id = frame_id;
     marker.ns = ns;
 

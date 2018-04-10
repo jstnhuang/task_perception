@@ -82,8 +82,8 @@ class ProgramServer {
 
   // Program visualizers
   visualization_msgs::MarkerArray marker_arr_;
+  visualization_msgs::MarkerArray kGripperMarkers;
   ros::Publisher marker_pub_;
-  visualization_msgs::MarkerArray gripper_markers_;
 };
 
 // Find which object in surface_objects best matches the object whose scale is
