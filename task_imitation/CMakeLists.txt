@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   rapid_collision
   rapid_pr2
+  rapid_robot
   rapid_ros
   rapid_utils
   robot_markers
@@ -145,6 +146,7 @@ catkin_package(
     pcl_conversions
     rapid_collision
     rapid_pr2
+    rapid_robot
     rapid_ros
     rapid_utils
     robot_markers

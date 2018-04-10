@@ -9,6 +9,7 @@
 #include "actionlib/server/simple_action_server.h"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "moveit/move_group_interface/move_group.h"
+#include "rapid_robot/camera_interface.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/GetDemoStates.h"
@@ -20,7 +21,8 @@
 namespace pbi {
 class ProgramServer {
  public:
-  ProgramServer(const ros::ServiceClient& db_client);
+  ProgramServer(const ros::ServiceClient& db_client,
+                const rapid::PointCloudCameraInterface& cam_interface);
   void Start();
   void ExecuteImitation(
       const task_perception_msgs::ImitateDemoGoalConstPtr& goal);
@@ -30,6 +32,7 @@ class ProgramServer {
       const task_perception_msgs::DemoStates& demo_states);
 
   ros::ServiceClient db_client_;
+  const rapid::PointCloudCameraInterface& cam_interface_;
 
   ros::NodeHandle nh_;
   actionlib::SimpleActionServer<task_perception_msgs::ImitateDemoAction>

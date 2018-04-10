@@ -26,8 +26,11 @@ using boost::optional;
 using geometry_msgs::Pose;
 
 namespace pbi {
-ProgramServer::ProgramServer(const ros::ServiceClient& db_client)
+ProgramServer::ProgramServer(
+    const ros::ServiceClient& db_client,
+    const rapid::PointCloudCameraInterface& cam_interface)
     : db_client_(db_client),
+      cam_interface_(cam_interface),
       nh_(),
       action_server_(
           nh_, "imitate_demo",
