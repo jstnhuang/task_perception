@@ -1,4 +1,5 @@
-# Generates and executes a program given a sequence of demo states (stored in DB and referenced by bag_path).
+# Similar to ImitateDemo, except that it only generates the program without executing it.
+# This is useful for visualizing the program.
 
 # The path to the bag file containing the demonstration. The file name is used as an ID for the demonstration in the database.
 string bag_path

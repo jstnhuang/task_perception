@@ -17,6 +17,7 @@
 #include "surface_perception/visualization.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoStates.h"
+#include "task_perception_msgs/GenerateProgramAction.h"
 #include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/Program.h"
@@ -31,8 +32,15 @@ class ProgramServer {
   void Start();
   void ExecuteImitation(
       const task_perception_msgs::ImitateDemoGoalConstPtr& goal);
+  void GenerateProgram(
+      const task_perception_msgs::GenerateProgramGoalConstPtr& goal);
 
  private:
+  // Returns error message or ""
+  std::string GenerateProgramInternal(
+      const std::string& bag_path, task_perception_msgs::Program* program,
+      std::map<std::string, task_perception_msgs::ObjectState>* object_states);
+
   std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
       const task_perception_msgs::DemoStates& demo_states);
 
@@ -40,8 +48,10 @@ class ProgramServer {
   const rapid::PointCloudCameraInterface& cam_interface_;
 
   ros::NodeHandle nh_;
+  actionlib::SimpleActionServer<task_perception_msgs::GenerateProgramAction>
+      generate_program_server_;
   actionlib::SimpleActionServer<task_perception_msgs::ImitateDemoAction>
-      action_server_;
+      imitate_demo_server_;
   actionlib::SimpleActionClient<dbot_ros_msgs::InitializeObjectAction>
       initialize_object_;
 

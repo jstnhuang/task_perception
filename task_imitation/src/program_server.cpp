@@ -20,6 +20,7 @@
 #include "surface_perception/visualization.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoStates.h"
+#include "task_perception_msgs/GenerateProgramAction.h"
 #include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/Program.h"
@@ -42,7 +43,10 @@ ProgramServer::ProgramServer(
     : db_client_(db_client),
       cam_interface_(cam_interface),
       nh_(),
-      action_server_(
+      generate_program_server_(
+          nh_, "generate_program",
+          boost::bind(&pbi::ProgramServer::GenerateProgram, this, _1), false),
+      imitate_demo_server_(
           nh_, "imitate_demo",
           boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
       initialize_object_("initialize_object"),
@@ -60,43 +64,73 @@ ProgramServer::ProgramServer(
       planning_frame_(left_group_.getPlanningFrame()) {}
 
 void ProgramServer::Start() {
-  action_server_.start();
+  generate_program_server_.start();
+  imitate_demo_server_.start();
   while (ros::ok() && !initialize_object_.waitForServer(ros::Duration(2.0))) {
     ROS_WARN("Waiting for object initializer action.");
   }
   executor_.Init();
 }
 
+void ProgramServer::GenerateProgram(
+    const msgs::GenerateProgramGoalConstPtr& goal) {
+  msgs::Program program;
+  std::map<std::string, msgs::ObjectState> object_states;
+  std::string error =
+      GenerateProgramInternal(goal->bag_path, &program, &object_states);
+  if (error != "") {
+    ROS_ERROR("%s", error.c_str());
+    msgs::GenerateProgramResult result;
+    result.error = error;
+    generate_program_server_.setAborted(result, error);
+    return;
+  }
+
+  msgs::GenerateProgramResult result;
+  generate_program_server_.setSucceeded(result);
+  segmentation_viz_.Hide();
+}
+
 void ProgramServer::ExecuteImitation(
     const msgs::ImitateDemoGoalConstPtr& goal) {
+  msgs::Program program;
+  std::map<std::string, msgs::ObjectState> object_states;
+  std::string error =
+      GenerateProgramInternal(goal->bag_path, &program, &object_states);
+  if (error != "") {
+    ROS_ERROR("%s", error.c_str());
+    msgs::ImitateDemoResult result;
+    result.error = error;
+    imitate_demo_server_.setAborted(result, error);
+    return;
+  }
+
+  executor_.Execute(program, object_states);
+  msgs::ImitateDemoResult result;
+  imitate_demo_server_.setSucceeded(result);
+  segmentation_viz_.Hide();
+}
+
+std::string ProgramServer::GenerateProgramInternal(
+    const std::string& bag_path, msgs::Program* program,
+    std::map<std::string, msgs::ObjectState>* object_states) {
   msgs::GetDemoStatesRequest get_states_req;
-  get_states_req.name = GetNameFromBagPath(goal->bag_path);
+  get_states_req.name = GetNameFromBagPath(bag_path);
   msgs::GetDemoStatesResponse get_states_res;
   db_client_.call(get_states_req, get_states_res);
   if (get_states_res.error != "") {
-    ROS_ERROR("%s", get_states_res.error.c_str());
-    msgs::ImitateDemoResult result;
-    result.error = get_states_res.error;
-    action_server_.setAborted(result, get_states_res.error);
-    return;
+    return get_states_res.error;
   }
 
   // Generate program and slices
   const msgs::DemoStates& demo_states = get_states_res.demo_states;
-  std::map<std::string, msgs::ObjectState> object_states =
-      GetObjectPoses(demo_states);
+  *object_states = GetObjectPoses(demo_states);
   ROS_INFO("All object states initialized.");
 
   ProgramGenerator generator(left_group_, right_group_);
-  msgs::Program program =
-      generator.Generate(demo_states.demo_states, object_states);
-  program_pub_.publish(program);
-
-  executor_.Execute(program, object_states);
-  msgs::ImitateDemoResult result;
-  action_server_.setSucceeded(result);
-
-  segmentation_viz_.Hide();
+  *program = generator.Generate(demo_states.demo_states, *object_states);
+  program_pub_.publish(*program);
+  return "";
 }
 
 std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
