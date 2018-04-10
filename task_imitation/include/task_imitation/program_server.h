@@ -12,6 +12,7 @@
 #include "geometry_msgs/Vector3.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "rapid_robot/camera_interface.h"
+#include "robot_markers/builder.h"
 #include "ros/ros.h"
 #include "surface_perception/surface_objects.h"
 #include "surface_perception/visualization.h"
@@ -20,7 +21,10 @@
 #include "task_perception_msgs/GenerateProgramAction.h"
 #include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
+#include "task_perception_msgs/ImitationEvent.h"
 #include "task_perception_msgs/Program.h"
+#include "urdf/model.h"
+#include "visualization_msgs/MarkerArray.h"
 
 #include "task_imitation/program_executor.h"
 
@@ -30,10 +34,11 @@ class ProgramServer {
   ProgramServer(const ros::ServiceClient& db_client,
                 const rapid::PointCloudCameraInterface& cam_interface);
   void Start();
-  void ExecuteImitation(
-      const task_perception_msgs::ImitateDemoGoalConstPtr& goal);
   void GenerateProgram(
       const task_perception_msgs::GenerateProgramGoalConstPtr& goal);
+  void ExecuteImitation(
+      const task_perception_msgs::ImitateDemoGoalConstPtr& goal);
+  void HandleEvent(const task_perception_msgs::ImitationEvent& event);
 
  private:
   // Returns error message or ""
@@ -43,6 +48,10 @@ class ProgramServer {
 
   std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
       const task_perception_msgs::DemoStates& demo_states);
+  void VisualizeStep(const task_perception_msgs::Step& step);
+  visualization_msgs::MarkerArray GripperMarkers(
+      const std::string& ns, const geometry_msgs::Pose& pose,
+      const std::string& frame_id);
 
   ros::ServiceClient db_client_;
   const rapid::PointCloudCameraInterface& cam_interface_;
@@ -66,6 +75,15 @@ class ProgramServer {
   surface_perception::SurfaceViz segmentation_viz_;
   LazyObjectModel::ObjectModelCache model_cache_;
   std::string planning_frame_;
+
+  // Most recent program and object states, used for visualization
+  task_perception_msgs::Program program_;
+  std::map<std::string, task_perception_msgs::ObjectState> object_states_;
+
+  // Program visualizers
+  visualization_msgs::MarkerArray marker_arr_;
+  ros::Publisher marker_pub_;
+  visualization_msgs::MarkerArray gripper_markers_;
 };
 
 // Find which object in surface_objects best matches the object whose scale is

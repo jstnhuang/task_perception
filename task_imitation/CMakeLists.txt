@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   rapid_robot
   rapid_ros
   rapid_utils
+  rapid_viz
   robot_markers
   roscpp
   surface_perception
@@ -150,6 +151,7 @@ catkin_package(
     rapid_robot
     rapid_ros
     rapid_utils
+    rapid_viz
     robot_markers
     roscpp
     surface_perception

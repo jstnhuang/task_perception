@@ -62,6 +62,7 @@
   <depend>rapid_robot</depend>
   <depend>rapid_ros</depend>
   <depend>rapid_utils</depend>
+  <depend>rapid_viz</depend>
   <depend>robot_markers</depend>
   <depend>roscpp</depend>
   <depend>surface_perception</depend>

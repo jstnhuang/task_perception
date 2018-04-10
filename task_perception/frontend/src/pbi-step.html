@@ -1,4 +1,5 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
 
 <dom-module id="pbi-step">
   <template>
@@ -7,19 +8,34 @@
         display: block;
       }
     </style>
+    <ros-topic
+      id="eventPub"
+      msg-type="task_perception_msgs/ImitationEvent"
+      topic="pbi_imitation/events"
+      ros="[[ros]]"></ros-topic>
     <h3>[[_displayIndex(index)]]) [[_capitalize(step.type)]]</h3>
     <strong>Start time:</strong> [[step.start_time.secs]].[[step.start_time.nsecs]]<br />
     <strong>Arm:</strong> [[step.arm]]<br />
     <strong>Object: </strong> [[step.object_state.name]]<br />
     <strong>Trajectory: </strong> [[step.ee_trajectory.length]] points<br />
+    <paper-button on-tap="visualize">Visualize</paper-button>
   </template>
   <script>
     class PbiStep extends Polymer.Element {
       static get is() { return 'pbi-step'; }
       static get properties() {
         return {
+          step: Object,
           ros: Object,
         };
+      }
+
+      visualize() {
+        var msg = {
+          type: 'visualize',
+          step: this.step
+        };
+        this.$.eventPub.publish(msg);
       }
 
       _capitalize(str) {

@@ -15,6 +15,7 @@
 #include "pcl_ros/transforms.h"
 #include "rapid_ros/params.h"
 #include "rapid_utils/pcl_typedefs.h"
+#include "robot_markers/builder.h"
 #include "ros/ros.h"
 #include "surface_perception/segmentation.h"
 #include "surface_perception/visualization.h"
@@ -23,6 +24,7 @@
 #include "task_perception_msgs/GenerateProgramAction.h"
 #include "task_perception_msgs/GetDemoStates.h"
 #include "task_perception_msgs/ImitateDemoAction.h"
+#include "task_perception_msgs/ImitationEvent.h"
 #include "task_perception_msgs/Program.h"
 #include "task_utils/bag_utils.h"
 #include "transform_graph/graph.h"
@@ -35,6 +37,8 @@ namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 using boost::optional;
 using geometry_msgs::Pose;
+using visualization_msgs::Marker;
+using visualization_msgs::MarkerArray;
 
 namespace pbi {
 ProgramServer::ProgramServer(
@@ -61,9 +65,56 @@ ProgramServer::ProgramServer(
           "pbi_imitation/surface_segmentation", 10)),
       segmentation_viz_(segmentation_pub_),
       model_cache_(),
-      planning_frame_(left_group_.getPlanningFrame()) {}
+      planning_frame_(left_group_.getPlanningFrame()),
+      program_(),
+      object_states_(),
+      marker_arr_(),
+      marker_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
+          "pbi_imitation/markers", 100)),
+      gripper_markers_() {}
 
 void ProgramServer::Start() {
+  urdf::Model model;
+  model.initParam("robot_description");
+  robot_markers::Builder builder(model);
+  builder.Init();
+  std::map<std::string, double> joint_positions;
+  joint_positions["l_gripper_joint"] = 0.088;
+  joint_positions["l_gripper_l_finger_joint"] = 0.514;
+  joint_positions["l_gripper_l_finger_tip_joint"] = 0.514;
+  joint_positions["l_gripper_r_finger_joint"] = 0.514;
+  joint_positions["l_gripper_r_finger_tip_joint"] = 0.514;
+  builder.SetJointPositions(joint_positions);
+
+  std::set<std::string> gripper_links;
+  gripper_links.insert("l_gripper_palm_link");
+  gripper_links.insert("l_gripper_l_finger_link");
+  gripper_links.insert("l_gripper_l_finger_tip_link");
+  gripper_links.insert("l_gripper_r_finger_link");
+  gripper_links.insert("l_gripper_r_finger_tip_link");
+
+  builder.Build(gripper_links, &gripper_markers_);
+
+  // Shift palm to origin / identity orientation.
+  geometry_msgs::Pose root_pose;
+  for (size_t i = 0; i < gripper_markers_.markers.size(); ++i) {
+    if (gripper_markers_.markers[i].mesh_resource.find("palm") !=
+        std::string::npos) {
+      root_pose = gripper_markers_.markers[i].pose;
+      break;
+    }
+  }
+  Eigen::Affine3d gripper_pose;
+  tf::poseMsgToEigen(root_pose, gripper_pose);
+
+  for (size_t i = 0; i < gripper_markers_.markers.size(); ++i) {
+    visualization_msgs::Marker& marker = gripper_markers_.markers[i];
+    Eigen::Affine3d marker_pose;
+    tf::poseMsgToEigen(marker.pose, marker_pose);
+    Eigen::Affine3d shifted_pose = gripper_pose.inverse() * marker_pose;
+    tf::poseEigenToMsg(shifted_pose, marker.pose);
+  }
+
   generate_program_server_.start();
   imitate_demo_server_.start();
   while (ros::ok() && !initialize_object_.waitForServer(ros::Duration(2.0))) {
@@ -74,10 +125,8 @@ void ProgramServer::Start() {
 
 void ProgramServer::GenerateProgram(
     const msgs::GenerateProgramGoalConstPtr& goal) {
-  msgs::Program program;
-  std::map<std::string, msgs::ObjectState> object_states;
   std::string error =
-      GenerateProgramInternal(goal->bag_path, &program, &object_states);
+      GenerateProgramInternal(goal->bag_path, &program_, &object_states_);
   if (error != "") {
     ROS_ERROR("%s", error.c_str());
     msgs::GenerateProgramResult result;
@@ -93,10 +142,8 @@ void ProgramServer::GenerateProgram(
 
 void ProgramServer::ExecuteImitation(
     const msgs::ImitateDemoGoalConstPtr& goal) {
-  msgs::Program program;
-  std::map<std::string, msgs::ObjectState> object_states;
   std::string error =
-      GenerateProgramInternal(goal->bag_path, &program, &object_states);
+      GenerateProgramInternal(goal->bag_path, &program_, &object_states_);
   if (error != "") {
     ROS_ERROR("%s", error.c_str());
     msgs::ImitateDemoResult result;
@@ -105,10 +152,18 @@ void ProgramServer::ExecuteImitation(
     return;
   }
 
-  executor_.Execute(program, object_states);
+  executor_.Execute(program_, object_states_);
   msgs::ImitateDemoResult result;
   imitate_demo_server_.setSucceeded(result);
   segmentation_viz_.Hide();
+}
+
+void ProgramServer::HandleEvent(const msgs::ImitationEvent& event) {
+  if (event.type == msgs::ImitationEvent::VISUALIZE) {
+    VisualizeStep(event.step);
+  } else {
+    ROS_ERROR("Unknown imitation event: \"%s\"", event.type.c_str());
+  }
 }
 
 std::string ProgramServer::GenerateProgramInternal(
@@ -258,6 +313,69 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
   }
 
   return object_states;
+}
+
+void ProgramServer::VisualizeStep(const msgs::Step& step) {
+  // Clear previous visualization
+  visualization_msgs::MarkerArray deleters;
+  for (size_t i = 0; i < marker_arr_.markers.size(); ++i) {
+    visualization_msgs::Marker marker = marker_arr_.markers[i];
+    marker.action = visualization_msgs::Marker::DELETE;
+    deleters.markers.push_back(marker);
+  }
+  marker_pub_.publish(deleters);
+  marker_arr_.markers.clear();
+
+  if (step.type == msgs::Step::GRASP) {
+    msgs::ObjectState obj = object_states_[step.object_state.name];
+    tg::Graph graph;
+    graph.Add("obj", tg::RefFrame("planning"), obj.pose);
+    graph.Add("grasp", tg::RefFrame("obj"), step.ee_trajectory[0]);
+    graph.Add("pregrasp", tg::RefFrame("grasp"),
+              tg::Transform(tg::Position(-0.1, 0, 0), tg::Orientation()));
+
+    tg::Transform pregrasp_in_planning;
+    graph.ComputeDescription("pregrasp", tg::RefFrame("planning"),
+                             &pregrasp_in_planning);
+    MarkerArray pregrasp_markers = GripperMarkers(
+        "pregrasp", pregrasp_in_planning.pose(), planning_frame_);
+    marker_arr_.markers.insert(marker_arr_.markers.end(),
+                               pregrasp_markers.markers.begin(),
+                               pregrasp_markers.markers.end());
+
+    tg::Transform grasp_in_planning;
+    graph.ComputeDescription("grasp", tg::RefFrame("planning"),
+                             &grasp_in_planning);
+    MarkerArray grasp_markers =
+        GripperMarkers("grasp", grasp_in_planning.pose(), planning_frame_);
+    marker_arr_.markers.insert(marker_arr_.markers.end(),
+                               grasp_markers.markers.begin(),
+                               grasp_markers.markers.end());
+  } else if (step.type == msgs::Step::UNGRASP) {
+  } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
+  } else if (step.type == msgs::Step::MOVE_TO_POSE) {
+  }
+  marker_pub_.publish(marker_arr_);
+}
+
+MarkerArray ProgramServer::GripperMarkers(const std::string& ns,
+                                          const geometry_msgs::Pose& pose,
+                                          const std::string& frame_id) {
+  MarkerArray result;
+  Eigen::Affine3d pose_transform;
+  tf::poseMsgToEigen(pose, pose_transform);
+  for (size_t i = 0; i < gripper_markers_.markers.size(); ++i) {
+    visualization_msgs::Marker marker = gripper_markers_.markers[i];
+    marker.header.frame_id = frame_id;
+    marker.ns = ns;
+
+    Eigen::Affine3d marker_pose;
+    tf::poseMsgToEigen(marker.pose, marker_pose);
+    Eigen::Affine3d shifted_pose = pose_transform * marker_pose;
+    tf::poseEigenToMsg(shifted_pose, marker.pose);
+    result.markers.push_back(marker);
+  }
+  return result;
 }
 
 bool MatchObject(

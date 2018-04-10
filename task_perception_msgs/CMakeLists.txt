@@ -57,6 +57,7 @@ add_message_files(
   Demonstration.msg
   Event.msg
   HandState.msg
+  ImitationEvent.msg
   ObjectState.msg
   Program.msg
   Step.msg

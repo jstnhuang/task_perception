@@ -30,6 +30,9 @@ int main(int argc, char** argv) {
   }
 
   pbi::ProgramServer program_server(db_client, *cam_interface);
+  ros::Subscriber event_sub =
+      nh.subscribe("pbi_imitation/events", 5, &pbi::ProgramServer::HandleEvent,
+                   &program_server);
   program_server.Start();
 
   ROS_INFO("Task imitation server ready.");
