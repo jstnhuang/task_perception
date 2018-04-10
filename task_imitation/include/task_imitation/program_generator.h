@@ -107,8 +107,7 @@ class ProgramGenerator {
   void AddGraspStep(const ProgramSegment& segment,
                     const ObjectStateIndex& initial_objects);
   void AddUngraspStep(const ProgramSegment& segment);
-  void AddMoveToStep(const ProgramSegment& segment,
-                     const ObjectStateIndex& initial_objects);
+  void AddMoveToStep(const ProgramSegment& segment);
   void AddTrajectoryStep(const ProgramSegment& segment,
                          const ObjectStateIndex& initial_objects);
 

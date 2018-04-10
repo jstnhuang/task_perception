@@ -533,8 +533,7 @@ void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
   program_.steps.push_back(ungrasp_step);
 }
 
-void ProgramGenerator::AddMoveToStep(const ProgramSegment& segment,
-                                     const ObjectStateIndex& initial_objects) {
+void ProgramGenerator::AddMoveToStep(const ProgramSegment& segment) {
   // Get grasp pose
   int prev_grasp_i = GetMostRecentGraspStep(segment.arm_name);
   ROS_ASSERT(prev_grasp_i != -1);
@@ -556,12 +555,12 @@ void ProgramGenerator::AddMoveToStep(const ProgramSegment& segment,
   const msgs::ObjectState grasped_obj =
       GetObjectState(end_state, hand.object_name);
   const msgs::ObjectState target_obj =
-      initial_objects.at(segment.target_object);
+      GetObjectState(end_state, segment.target_object);
   graph.Add("grasped object", tg::RefFrame("camera"), grasped_obj.pose);
   graph.Add("target object", tg::RefFrame("camera"), target_obj.pose);
   tg::Transform ee_in_target;
-  graph.ComputeDescription(tg::LocalFrame("gripper"),
-                           tg::RefFrame("target object"), &ee_in_target);
+  graph.ComputeDescription("gripper", tg::RefFrame("target object"),
+                           &ee_in_target);
 
   int prev_step_i = GetMostRecentStep(segment.arm_name);
   ROS_ASSERT(prev_step_i != -1);
