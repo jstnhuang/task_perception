@@ -1,5 +1,6 @@
 <launch>
   <arg name="debug" default="false" />
+  <arg name="bag" default="" />
 
   <param name="mongodb_use_daemon" value="true" />
   <param name="mongodb_host" value="localhost" />
@@ -10,7 +11,8 @@
 
   <rosparam command="load" file="$(find task_imitation)/config/grasp_planner.yaml" />
   <rosparam command="load" file="$(find task_imitation)/config/imitation.yaml" />
+  <rosparam command="load" file="$(find task_imitation)/config/surface_segmentation.yaml" />
 
-  <node if="$(arg debug)" pkg="task_imitation" type="program_server" name="program_server" launch-prefix="xterm -e gdb --args" required="true" output="screen" />
-  <node unless="$(arg debug)" pkg="task_imitation" type="program_server" name="program_server" required="true" output="screen" />
+  <node if="$(arg debug)" pkg="task_imitation" type="program_server" name="program_server" args="$(arg bag)" launch-prefix="xterm -e gdb --args" required="true" output="screen" />
+  <node unless="$(arg debug)" pkg="task_imitation" type="program_server" name="program_server" args="$(arg bag)" required="true" output="screen" />
 </launch>

@@ -64,6 +64,7 @@
   <depend>rapid_utils</depend>
   <depend>robot_markers</depend>
   <depend>roscpp</depend>
+  <depend>surface_perception</depend>
   <depend>task_db</depend>
   <depend>task_perception</depend>
   <depend>task_perception_msgs</depend>

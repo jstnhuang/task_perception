@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   rapid_utils
   robot_markers
   roscpp
+  surface_perception
   task_db
   task_perception
   task_perception_msgs
@@ -151,6 +152,7 @@ catkin_package(
     rapid_utils
     robot_markers
     roscpp
+    surface_perception
     task_db
     task_perception
     task_perception_msgs

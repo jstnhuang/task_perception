@@ -68,58 +68,58 @@ def main():
     arrange_cheezit = '/home/jstn/data/demonstrations/arrange_cheezit.bag'
     bag_path = arrange_cheezit
 
-    pose = Pose()
-    start_poses = {
-        move_two: [('pringles_1k.obj', Pose(
-            position=Point(0.718, -0.36, 0.76),
-            orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
-                position=Point(0.668, 0.322, 0.77),
-                orientation=Quaternion(0, 0, 0, 1)))],
-        stack: [('pringles_1k.obj', Pose(
-            position=Point(0.67, -0.133, 0.76),
-            orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
-                position=Point(0.485, 0.203, 0.76),
-                orientation=Quaternion(0, 0, 0, 1)))],
-        arrange_cheezit: [('cheezit_1k.obj', Pose(
-            position=Point(0.718, -0.36, 0.76),
-            orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
-                position=Point(0.668, 0.322, 0.77),
-                orientation=Quaternion(0, 0, 0, 1)))]
-    }
+    #pose = Pose()
+    #start_poses = {
+    #    move_two: [('pringles_1k.obj', Pose(
+    #        position=Point(0.718, -0.36, 0.76),
+    #        orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
+    #            position=Point(0.668, 0.322, 0.77),
+    #            orientation=Quaternion(0, 0, 0, 1)))],
+    #    stack: [('pringles_1k.obj', Pose(
+    #        position=Point(0.67, -0.133, 0.76),
+    #        orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
+    #            position=Point(0.485, 0.203, 0.76),
+    #            orientation=Quaternion(0, 0, 0, 1)))],
+    #    arrange_cheezit: [('cheezit_1k.obj', Pose(
+    #        position=Point(0.718, -0.36, 0.76),
+    #        orientation=Quaternion(0, 0, 0, 1))), ('cheezit_1k.obj', Pose(
+    #            position=Point(0.668, 0.322, 0.77),
+    #            orientation=Quaternion(0, 0, 0, 1)))]
+    #}
 
-    info_pub = rospy.Publisher(
-        'demonstration_image/camera_info', CameraInfo, queue_size=1, latch=True)
-    rgb_pub = rospy.Publisher(
-        'demonstration_image/rgb', Image, queue_size=1, latch=True)
-    depth_pub = rospy.Publisher(
-        'demonstration_image/depth', Image, queue_size=1, latch=True)
-    bag = rosbag.Bag(bag_path)
-    now = rospy.Time.now()
-    rgb_published = False
-    depth_published = False
-    for topic, msg, t in bag.read_messages():
-        if topic == 'rgb_image' and not rgb_published:
-            msg.header.stamp = now
-            rgb_pub.publish(msg)
-            rgb_published = True
-        if topic == 'depth_image' and not depth_published:
-            msg.header.stamp = now
-            depth_pub.publish(msg)
-            depth_published = True
-        if topic == 'camera_info':
-            msg.header.stamp = now
-            info_pub.publish(msg)
-    bag.close()
+    #info_pub = rospy.Publisher(
+    #    'demonstration_image/camera_info', CameraInfo, queue_size=1, latch=True)
+    #rgb_pub = rospy.Publisher(
+    #    'demonstration_image/rgb', Image, queue_size=1, latch=True)
+    #depth_pub = rospy.Publisher(
+    #    'demonstration_image/depth', Image, queue_size=1, latch=True)
+    #bag = rosbag.Bag(bag_path)
+    #now = rospy.Time.now()
+    #rgb_published = False
+    #depth_published = False
+    #for topic, msg, t in bag.read_messages():
+    #    if topic == 'rgb_image' and not rgb_published:
+    #        msg.header.stamp = now
+    #        rgb_pub.publish(msg)
+    #        rgb_published = True
+    #    if topic == 'depth_image' and not depth_published:
+    #        msg.header.stamp = now
+    #        depth_pub.publish(msg)
+    #        depth_published = True
+    #    if topic == 'camera_info':
+    #        msg.header.stamp = now
+    #        info_pub.publish(msg)
+    #bag.close()
 
-    publisher = rospy.Publisher(
-        'visualization_marker', Marker, queue_size=10, latch=True)
-    for i in range(5):
-        if rospy.is_shutdown() or publisher.get_num_connections() > 0:
-            break
-        rospy.logwarn_throttle(1, 'Waiting for Rviz...')
-        rospy.sleep(1)
-    publisher.publish(table_marker())
-    publish_start_poses(publisher, start_poses[bag_path])
+    #publisher = rospy.Publisher(
+    #    'visualization_marker', Marker, queue_size=10, latch=True)
+    #for i in range(5):
+    #    if rospy.is_shutdown() or publisher.get_num_connections() > 0:
+    #        break
+    #    rospy.logwarn_throttle(1, 'Waiting for Rviz...')
+    #    rospy.sleep(1)
+    #publisher.publish(table_marker())
+    #publish_start_poses(publisher, start_poses[bag_path])
 
     client = actionlib.SimpleActionClient('imitate_demo', ImitateDemoAction)
     while not client.wait_for_server(rospy.Duration(1.0)):
