@@ -91,7 +91,7 @@ GraspPlanner::GraspPlanner()
       object_pub_(nh_.advertise<sensor_msgs::PointCloud2>(
           "grasp_planner/object", 1, true)),
       kGripperMarkers(),
-      debug_(true) {
+      debug_(false) {
   InitGripperMarkers();
 }
 
