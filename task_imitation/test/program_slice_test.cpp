@@ -25,13 +25,13 @@ TEST(ProgramSliceTest, PlannedStepGetTrajSinglePoint) {
   traj = step.GetTraj(ros::Time(0), ros::Time(1.5));
   ASSERT_EQ(1, traj.points.size());
   EXPECT_EQ(5, traj.points[0].positions[0]);
-  EXPECT_EQ(0.5, traj.points[0].time_from_start.toSec());
+  EXPECT_EQ(1.5, traj.points[0].time_from_start.toSec());
 
   // Request starts before the point, ends after the point
   traj = step.GetTraj(ros::Time(0), ros::Time(4));
   ASSERT_EQ(1, traj.points.size());
   EXPECT_EQ(5, traj.points[0].positions[0]);
-  EXPECT_EQ(2, traj.points[0].time_from_start.toSec());
+  EXPECT_EQ(3, traj.points[0].time_from_start.toSec());
 
   // Request starts in the middle of the point, ends in the middle of the point
   traj = step.GetTraj(ros::Time(2), ros::Time(2.5));
@@ -108,8 +108,8 @@ TEST(ProgramSliceTest, PlannedStepGetTrajMultiplePoints) {
   EXPECT_EQ(4, traj.points[1].positions[0]);
   EXPECT_EQ(3, traj.points[2].positions[0]);
   EXPECT_EQ(1.5, traj.points[0].time_from_start.toSec());
-  EXPECT_EQ(1, traj.points[1].time_from_start.toSec());
-  EXPECT_EQ(0.5, traj.points[2].time_from_start.toSec());
+  EXPECT_EQ(2.5, traj.points[1].time_from_start.toSec());
+  EXPECT_EQ(3, traj.points[2].time_from_start.toSec());
 }
 }  // namespace pbi
 
