@@ -18,7 +18,7 @@
     <strong>Arm:</strong> [[step.arm]]<br />
     <strong>Object: </strong> [[step.object_state.name]]<br />
     <strong>Trajectory: </strong> [[step.ee_trajectory.length]] points<br />
-    <paper-button on-tap="visualize">Visualize</paper-button>
+    <paper-button on-tap="visualize" hidden$="[[!_hasVisualization(step.type)]]">Visualize</paper-button>
   </template>
   <script>
     class PbiStep extends Polymer.Element {
@@ -44,6 +44,14 @@
 
       _displayIndex(index) {
         return index+1;
+      }
+
+      _hasVisualization(stepType) {
+        if (stepType === "ungrasp") {
+          return false;
+        } else {
+          return true;
+        }
       }
     };
     window.customElements.define(PbiStep.is, PbiStep);
