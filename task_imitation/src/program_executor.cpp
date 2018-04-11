@@ -75,10 +75,44 @@ void ProgramExecutor::Execute(
   std::vector<PlannedStep> right_steps =
       PlanSteps(right_steps_raw, object_states, right_group_);
 
+  // DEBUG
+  bool is_valid = true;
+  for (size_t i = 0; i < left_steps.size(); ++i) {
+    const PlannedStep& step = left_steps[i];
+    if (!IsValidTrajectory(step.traj)) {
+      ROS_ERROR("Step %zu has invalid trajectory!", i);
+      is_valid = false;
+    }
+  }
+  if (is_valid) {
+    ROS_INFO("Validated planned steps.");
+  } else {
+    ROS_ERROR("Planned steps invalid.");
+  }
+
   msgs::ProgramSlices slices;
   slices.slices = SliceProgram(left_steps, right_steps);
   slice_pub_.publish(slices);
   ROS_INFO("Generated slices");
+
+  // DEBUG
+  is_valid = true;
+  for (size_t i = 0; i < slices.slices.size(); ++i) {
+    const msgs::ProgramSlice& slice = slices.slices[i];
+    if (!IsValidTrajectory(slice.left_traj)) {
+      ROS_ERROR("Slice %zu: left traj is invalid!", i);
+      is_valid = false;
+    }
+    if (!IsValidTrajectory(slice.right_traj)) {
+      ROS_ERROR("Slice %zu: right traj is invalid!", i);
+      is_valid = false;
+    }
+  }
+  if (is_valid) {
+    ROS_INFO("Validated initial slices");
+  } else {
+    ROS_ERROR("Initial slices are invalid!");
+  }
 
   ROS_INFO("Waiting for trigger to retime slices...");
   ros::topic::waitForMessage<std_msgs::Bool>("trigger");
@@ -232,17 +266,28 @@ std::vector<ProgramSlice> SliceProgram(
     current_time = best_time;
 
     if (!prev_time.isZero() && !current_time.isZero()) {
+      ROS_INFO("Slicing from %f to %f in left step %zu and right step %zu",
+               prev_time.toSec(), current_time.toSec(), left_i, right_i);
       // Get left slice from prev_time to current_time
       if (left_step) {
         current_slice.is_left_closing = left_step->is_closing;
         current_slice.is_left_opening = left_step->is_opening;
         current_slice.left_traj = left_step->GetTraj(prev_time, current_time);
+        ROS_INFO("Validating left half of slice (from step %zu)", left_i);
+        if (!IsValidTrajectory(current_slice.left_traj)) {
+          ROS_ERROR("left slice is invalid");
+        }
       }
       // Get right slice from prev_time to current_time
       if (right_step) {
         current_slice.is_right_closing = right_step->is_closing;
         current_slice.is_right_opening = right_step->is_opening;
         current_slice.right_traj = right_step->GetTraj(prev_time, current_time);
+
+        ROS_INFO("Validating right half of slice (from step %zu)", right_i);
+        if (!IsValidTrajectory(current_slice.right_traj)) {
+          ROS_ERROR("right slice is invalid");
+        }
       }
 
       if (!IsSliceEmpty(current_slice)) {
@@ -571,5 +616,18 @@ PlannedStep PlanMoveToPoseStep(
   result.traj = plan.trajectory_.joint_trajectory;
   result.traj.header.stamp = start_time + step.start_time;
   return result;
+}
+
+bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj) {
+  for (size_t i = 0; i < traj.points.size() - 1; ++i) {
+    const trajectory_msgs::JointTrajectoryPoint& pt = traj.points[i];
+    const trajectory_msgs::JointTrajectoryPoint& next_pt = traj.points[i + 1];
+    ROS_INFO("%f <= %f?", pt.time_from_start.toSec(),
+             next_pt.time_from_start.toSec());
+    if (next_pt.time_from_start < pt.time_from_start) {
+      return false;
+    }
+  }
+  return true;
 }
 }  // namespace pbi

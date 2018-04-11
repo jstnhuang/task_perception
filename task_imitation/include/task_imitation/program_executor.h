@@ -114,6 +114,10 @@ PlannedStep PlanMoveToPoseStep(
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
     robot_state::RobotStatePtr start_state);
+
+// Checks the validity of a trajectory message.
+// Currently, only checks that the time_from_starts are monotonically increasing
+bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_
