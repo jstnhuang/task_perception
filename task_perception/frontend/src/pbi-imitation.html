@@ -5,6 +5,7 @@
 <link rel="import" href="../bower_components/paper-slider/paper-slider.html">
 <link rel="import" href="../bower_components/ros-action-client/ros-action-client.html">
 <link rel="import" href="../bower_components/ros-topic/ros-topic.html">
+<link rel="import" href="pbi-slice.html">
 <link rel="import" href="pbi-step.html">
 <link rel="import" href="shared-styles.html">
 
@@ -49,6 +50,11 @@
       msg-type="task_perception_msgs/Program"
       topic="pbi_imitation/program"
       ros="[[ros]]"></ros-topic>
+    <ros-topic auto
+      last-message="{{slices}}"
+      msg-type="task_perception_msgs/ProgramSlices"
+      topic="program_executor/slices"
+      ros="[[ros]]"></ros-topic>
     <ros-topic
       id="triggerPub"
       msg-type="std_msgs/Bool"
@@ -79,6 +85,11 @@
       <span hidden$="[[program.steps.length]]">None</span>
       <template is="dom-repeat" items="[[program.steps]]" as="step">
         <pbi-step index="[[index]]" step="[[step]]" ros="[[ros]]"></pbi-step>
+      </template>
+      <h3>Slices:</h3>
+      <span hidden$="[[slices]]">Not generated yet</span>
+      <template is="dom-repeat" items="[[slices.slices]]" as="slice">
+        <pbi-slice index="[[index]]" slice="[[slice]]" ros="[[ros]]"></pbi-slice>
       </template>
     </div>
   </template>

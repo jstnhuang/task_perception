@@ -49,6 +49,7 @@ class ProgramExecutor {
   ros::Publisher left_traj_pub_;
   ros::Publisher right_traj_pub_;
   ros::Publisher gripper_pub_;
+  ros::Publisher slice_pub_;
 
   tf::TransformListener tf_listener_;
 };

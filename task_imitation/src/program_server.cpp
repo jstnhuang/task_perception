@@ -10,6 +10,7 @@
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
+#include "moveit/robot_state/conversions.h"
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "pcl/filters/crop_box.h"
 #include "pcl_conversions/pcl_conversions.h"
@@ -27,6 +28,7 @@
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/ImitationEvent.h"
 #include "task_perception_msgs/Program.h"
+#include "task_perception_msgs/ProgramSlice.h"
 #include "task_utils/bag_utils.h"
 #include "transform_graph/graph.h"
 #include "visualization_msgs/Marker.h"
@@ -72,7 +74,9 @@ ProgramServer::ProgramServer(
       marker_arr_(),
       kGripperMarkers(),
       marker_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
-          "pbi_imitation/markers", 100)) {}
+          "pbi_imitation/markers", 100)),
+      traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
+          "pbi_imitation/display_traj", 1)) {}
 
 void ProgramServer::Start() {
   urdf::Model model;
@@ -162,6 +166,8 @@ void ProgramServer::ExecuteImitation(
 void ProgramServer::HandleEvent(const msgs::ImitationEvent& event) {
   if (event.type == msgs::ImitationEvent::VISUALIZE) {
     VisualizeStep(event.step);
+  } else if (event.type == msgs::ImitationEvent::VISUALIZE_SLICE) {
+    VisualizeSlice(event.slice);
   } else {
     ROS_ERROR("Unknown imitation event: \"%s\"", event.type.c_str());
   }
@@ -352,6 +358,7 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
     marker_arr_.markers.insert(marker_arr_.markers.end(),
                                grasp_markers.markers.begin(),
                                grasp_markers.markers.end());
+    marker_pub_.publish(marker_arr_);
   } else if (step.type == msgs::Step::UNGRASP) {
   } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
     msgs::ObjectState obj = object_states_[step.object_state.name];
@@ -384,8 +391,24 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
     marker_arr_.markers.insert(marker_arr_.markers.end(),
                                pregrasp_markers.markers.begin(),
                                pregrasp_markers.markers.end());
+    marker_pub_.publish(marker_arr_);
   }
-  marker_pub_.publish(marker_arr_);
+}
+
+// Visualizes left and right parts of the slice independently.
+void ProgramServer::VisualizeSlice(
+    const task_perception_msgs::ProgramSlice& slice) {
+  robot_state::RobotStatePtr robot_state = left_group_.getCurrentState();
+  moveit_msgs::DisplayTrajectory display_traj;
+  moveit::core::robotStateToRobotStateMsg(*robot_state,
+                                          display_traj.trajectory_start);
+  moveit_msgs::RobotTrajectory left_traj;
+  left_traj.joint_trajectory = slice.right_traj;
+  display_traj.trajectory.push_back(left_traj);
+  moveit_msgs::RobotTrajectory right_traj;
+  right_traj.joint_trajectory = slice.right_traj;
+  display_traj.trajectory.push_back(right_traj);
+  traj_pub_.publish(display_traj);
 }
 
 MarkerArray ProgramServer::GripperMarkers(const std::string& ns,

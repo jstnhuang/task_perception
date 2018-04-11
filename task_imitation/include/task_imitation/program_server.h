@@ -49,6 +49,7 @@ class ProgramServer {
   std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
       const task_perception_msgs::DemoStates& demo_states);
   void VisualizeStep(const task_perception_msgs::Step& step);
+  void VisualizeSlice(const task_perception_msgs::ProgramSlice& slice);
   visualization_msgs::MarkerArray GripperMarkers(
       const std::string& ns, const geometry_msgs::Pose& pose,
       const std::string& frame_id);
@@ -84,6 +85,7 @@ class ProgramServer {
   visualization_msgs::MarkerArray marker_arr_;
   visualization_msgs::MarkerArray kGripperMarkers;
   ros::Publisher marker_pub_;
+  ros::Publisher traj_pub_;
 };
 
 // Find which object in surface_objects best matches the object whose scale is

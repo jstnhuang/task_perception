@@ -8,6 +8,7 @@
 #include "moveit_msgs/RobotTrajectory.h"
 #include "std_msgs/Bool.h"
 #include "task_perception_msgs/ProgramSlice.h"
+#include "task_perception_msgs/ProgramSlices.h"
 #include "task_perception_msgs/Step.h"
 #include "task_utils/pr2_gripper_viz.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
@@ -41,6 +42,8 @@ ProgramExecutor::ProgramExecutor(
           "program_executor/right_arm_traj", 1, true)),
       gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "program_executor/grippers", 10)),
+      slice_pub_(nh_.advertise<msgs::ProgramSlices>("program_executor/slices",
+                                                    1, true)),
       tf_listener_() {}
 
 void ProgramExecutor::Init() {
@@ -72,18 +75,25 @@ void ProgramExecutor::Execute(
   std::vector<PlannedStep> right_steps =
       PlanSteps(right_steps_raw, object_states, right_group_);
 
-  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
+  msgs::ProgramSlices slices;
+  slices.slices = SliceProgram(left_steps, right_steps);
+  slice_pub_.publish(slices);
   ROS_INFO("Generated slices");
 
+  ROS_INFO("Waiting for trigger to retime slices...");
+  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+
   ROS_INFO("Retiming...");
-  std::vector<ProgramSlice> retimed_slices = RetimeSlices(slices);
+  msgs::ProgramSlices retimed_slices;
+  retimed_slices.slices = RetimeSlices(slices.slices);
+  slice_pub_.publish(retimed_slices);
   ROS_INFO("Done retiming slices.");
 
   ROS_INFO("Waiting for trigger to start execution...");
   ros::topic::waitForMessage<std_msgs::Bool>("trigger");
 
-  for (size_t i = 0; i < retimed_slices.size(); ++i) {
-    ProgramSlice& slice = retimed_slices[i];
+  for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
+    ProgramSlice& slice = retimed_slices.slices[i];
     if (slice.left_traj.points.size() == 0) {
       ROS_ASSERT(slice.is_left_closing ^ slice.is_left_opening);
       if (slice.is_left_closing) {

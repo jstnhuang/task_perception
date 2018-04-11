@@ -1,0 +1,63 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/ros-topic/ros-topic.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-slice">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+        margin-bottom: 10px;
+      }
+      .half {
+        width: 50%;
+        box-sizing: inline-block;
+      }
+    </style>
+    <ros-topic
+      id="eventPub"
+      msg-type="task_perception_msgs/ImitationEvent"
+      topic="pbi_imitation/events"
+      ros="[[ros]]"></ros-topic>
+    <div class="layout vertical">
+      <strong>Slice [[_displayIndex(index)]]</strong>
+      <div class="layout horizontal">
+        <div class="half">
+          <strong>Start time:</strong> [[slice.left_traj.header.stamp.secs]].[[slice.left_traj.header.stamp.nsecs]]<br />
+          <strong>Left traj:</strong> [[slice.left_traj.points.length]] points
+        </div>
+        <div class="half">
+          <strong>Start time:</strong> [[slice.right_traj.header.stamp.secs]].[[slice.right_traj.header.stamp.nsecs]]<br />
+          <strong>Right traj:</strong> [[slice.right_traj.points.length]] points
+        </div>
+      </div>
+    </div>
+    <paper-button on-tap="visualize">Visualize</paper-button>
+  </template>
+  <script>
+    class PbiSlice extends Polymer.Element {
+      static get is() { return 'pbi-slice'; }
+      static get properties() {
+        return {
+          slice: Object,
+          ros: Object,
+        };
+      }
+
+      visualize() {
+        var msg = {
+          type: 'visualize slice',
+          slice: this.slice
+        };
+        this.$.eventPub.publish(msg);
+      }
+
+      _displayIndex(index) {
+        return index+1;
+      }
+    };
+    window.customElements.define(PbiSlice.is, PbiSlice);
+  </script>
+</dom-module>
