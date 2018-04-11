@@ -266,14 +266,11 @@ std::vector<ProgramSlice> SliceProgram(
     current_time = best_time;
 
     if (!prev_time.isZero() && !current_time.isZero()) {
-      ROS_INFO("Slicing from %f to %f in left step %zu and right step %zu",
-               prev_time.toSec(), current_time.toSec(), left_i, right_i);
       // Get left slice from prev_time to current_time
       if (left_step) {
         current_slice.is_left_closing = left_step->is_closing;
         current_slice.is_left_opening = left_step->is_opening;
         current_slice.left_traj = left_step->GetTraj(prev_time, current_time);
-        ROS_INFO("Validating left half of slice (from step %zu)", left_i);
         if (!IsValidTrajectory(current_slice.left_traj)) {
           ROS_ERROR("left slice is invalid");
         }
@@ -283,8 +280,6 @@ std::vector<ProgramSlice> SliceProgram(
         current_slice.is_right_closing = right_step->is_closing;
         current_slice.is_right_opening = right_step->is_opening;
         current_slice.right_traj = right_step->GetTraj(prev_time, current_time);
-
-        ROS_INFO("Validating right half of slice (from step %zu)", right_i);
         if (!IsValidTrajectory(current_slice.right_traj)) {
           ROS_ERROR("right slice is invalid");
         }
@@ -425,7 +420,7 @@ std::vector<PlannedStep> PlanGraspStep(
   moveit::planning_interface::MoveGroup::Plan grasp_plan;
   group.plan(grasp_plan);
   ros::Duration grasp_duration =
-      ComputeTrajectoryTime(pregrasp_plan.trajectory_.joint_trajectory);
+      ComputeTrajectoryTime(grasp_plan.trajectory_.joint_trajectory);
   moveit::core::jointTrajPointToRobotState(
       grasp_plan.trajectory_.joint_trajectory,
       grasp_plan.trajectory_.joint_trajectory.points.size() - 1, *robot_state);
@@ -434,23 +429,20 @@ std::vector<PlannedStep> PlanGraspStep(
   // Add pregrasp step
   PlannedStep pregrasp_step;
   pregrasp_step.traj = pregrasp_plan.trajectory_.joint_trajectory;
-  pregrasp_step.traj.header.stamp = start_time + step.start_time -
-                                    ros::Duration(kGraspDuration) -
-                                    grasp_duration - pregrasp_duration;
+  pregrasp_step.traj.header.stamp =
+      start_time + step.start_time - grasp_duration - pregrasp_duration;
   result.push_back(pregrasp_step);
 
   // Add move-to-grasp step
   PlannedStep move_to_grasp;
   move_to_grasp.traj = grasp_plan.trajectory_.joint_trajectory;
-  move_to_grasp.traj.header.stamp = start_time + step.start_time -
-                                    ros::Duration(kGraspDuration) -
-                                    grasp_duration;
+  move_to_grasp.traj.header.stamp =
+      start_time + step.start_time - grasp_duration;
   result.push_back(move_to_grasp);
 
   // Add grasp step (the trajectory is to hold still)
   PlannedStep grasp;
-  grasp.traj.header.stamp =
-      start_time + step.start_time - ros::Duration(kGraspDuration);
+  grasp.traj.header.stamp = start_time + step.start_time;
   grasp.traj.joint_names = move_to_grasp.traj.joint_names;
   JointTrajectoryPoint end_pt = move_to_grasp.traj.points.back();
   end_pt.time_from_start = ros::Duration(kGraspDuration);
@@ -619,11 +611,9 @@ PlannedStep PlanMoveToPoseStep(
 }
 
 bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj) {
-  for (size_t i = 0; i < traj.points.size() - 1; ++i) {
+  for (size_t i = 0; i + 1 < traj.points.size(); ++i) {
     const trajectory_msgs::JointTrajectoryPoint& pt = traj.points[i];
     const trajectory_msgs::JointTrajectoryPoint& next_pt = traj.points[i + 1];
-    ROS_INFO("%f <= %f?", pt.time_from_start.toSec(),
-             next_pt.time_from_start.toSec());
     if (next_pt.time_from_start < pt.time_from_start) {
       return false;
     }
