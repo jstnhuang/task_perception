@@ -414,7 +414,6 @@ msgs::Program ProgramGenerator::Generate(
   }
 
   ROS_INFO("Generated program");
-  ROS_INFO_STREAM(program_);
   return program_;
 }
 
