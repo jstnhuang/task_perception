@@ -77,6 +77,48 @@ TEST(ProgramExecutorTest, SliceProgramTwoStepsOneHand) {
   EXPECT_FLOAT_EQ(left_traj1.points[0].time_from_start.toSec(), 1);
 }
 
+TEST(ProgramExecutorTest, SliceProgramTwoStepsOneHandExactOverlap) {
+  // Two steps from [1-2] and [2-3]
+  PlannedStep pregrasp;
+  JointTrajectoryPoint pregrasp_pt;
+  pregrasp_pt.positions.push_back(7);
+  pregrasp_pt.time_from_start = ros::Duration(1);
+  pregrasp.traj.header.stamp = ros::Time(1);
+  pregrasp.traj.points.push_back(pregrasp_pt);
+
+  PlannedStep grasp;
+  JointTrajectoryPoint grasp_pt;
+  grasp_pt.positions.push_back(8);
+  grasp_pt.time_from_start = ros::Duration(1);
+  grasp.traj.header.stamp = ros::Time(2);
+  grasp.traj.points.push_back(grasp_pt);
+
+  std::vector<PlannedStep> left_steps;
+  left_steps.push_back(pregrasp);
+  left_steps.push_back(grasp);
+  std::vector<PlannedStep> right_steps;
+
+  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
+  ASSERT_EQ(slices.size(), 2);
+
+  // Right traj is empty for both slices
+  EXPECT_EQ(slices[0].right_traj.points.size(), 0);
+  EXPECT_EQ(slices[1].right_traj.points.size(), 0);
+
+  // Check left traj for first slice
+  const JointTrajectory& left_traj0 = slices[0].left_traj;
+  EXPECT_FLOAT_EQ(left_traj0.header.stamp.toSec(), 1);
+  ASSERT_EQ(left_traj0.points.size(), 1);
+  EXPECT_EQ(left_traj0.points[0].positions[0], 7);
+  EXPECT_FLOAT_EQ(left_traj0.points[0].time_from_start.toSec(), 1);
+
+  const JointTrajectory& left_traj1 = slices[1].left_traj;
+  EXPECT_FLOAT_EQ(left_traj1.header.stamp.toSec(), 2);
+  ASSERT_EQ(left_traj1.points.size(), 1);
+  EXPECT_EQ(left_traj1.points[0].positions[0], 8);
+  EXPECT_FLOAT_EQ(left_traj1.points[0].time_from_start.toSec(), 1);
+}
+
 TEST(ProgramExecutorTest, SliceProgramOneStepPerHandNoOverlap) {
   // Each hand has one step, but they don't overlap in time
   // Expect two slices, one for each step
