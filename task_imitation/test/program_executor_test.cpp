@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+#include "task_perception_msgs/ProgramSlice.h"
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 
@@ -10,6 +11,7 @@
 
 using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
+using task_perception_msgs::ProgramSlice;
 
 namespace pbi {
 TEST(ProgramExecutorTest, SliceProgramOneStepOneHand) {
@@ -24,7 +26,7 @@ TEST(ProgramExecutorTest, SliceProgramOneStepOneHand) {
   left_steps.push_back(pregrasp);
   std::vector<PlannedStep> right_steps;
 
-  std::vector<Slice> slices = SliceProgram(left_steps, right_steps);
+  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
   ASSERT_EQ(slices.size(), 1);
   EXPECT_EQ(slices[0].right_traj.points.size(), 0);
   // Check left traj exists from time 1-2
@@ -54,7 +56,7 @@ TEST(ProgramExecutorTest, SliceProgramTwoStepsOneHand) {
   left_steps.push_back(grasp);
   std::vector<PlannedStep> right_steps;
 
-  std::vector<Slice> slices = SliceProgram(left_steps, right_steps);
+  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
   ASSERT_EQ(slices.size(), 2);
 
   // Right traj is empty for both slices
@@ -100,7 +102,7 @@ TEST(ProgramExecutorTest, SliceProgramOneStepPerHandNoOverlap) {
   std::vector<PlannedStep> right_steps;
   right_steps.push_back(right_step);
 
-  std::vector<Slice> slices = SliceProgram(left_steps, right_steps);
+  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
   ASSERT_EQ(slices.size(), 2);
 
   // Check first slice
@@ -143,7 +145,7 @@ TEST(ProgramExecutorTest, SliceProgramOneStepPerHandWithOverlap) {
   std::vector<PlannedStep> right_steps;
   right_steps.push_back(right_step);
 
-  std::vector<Slice> slices = SliceProgram(left_steps, right_steps);
+  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
 
   // We expect three slices: 1-2, 2-3, and 3-4
   ASSERT_EQ(slices.size(), 3);
