@@ -460,7 +460,7 @@ void ProgramGenerator::ProcessSegment(const ProgramSegment& segment,
   } else if (segment.type == msgs::Step::UNGRASP) {
     AddUngraspStep(segment);
   } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
-    AddMoveToStep(segment, initial_objects);
+    AddMoveToStep(segment);
   } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
     AddTrajectoryStep(segment, initial_objects);
   } else {
