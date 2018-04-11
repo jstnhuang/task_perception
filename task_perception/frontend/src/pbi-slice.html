@@ -26,11 +26,15 @@
       <div class="layout horizontal">
         <div class="half">
           <strong>Start time:</strong> [[slice.left_traj.header.stamp.secs]].[[slice.left_traj.header.stamp.nsecs]]<br />
-          <strong>Left traj:</strong> [[slice.left_traj.points.length]] points
+          <strong>Left traj:</strong> [[slice.left_traj.points.length]] points<br />
+          <strong hidden$="[[!slice.is_left_closing]]">Left gripper closes</strong>
+          <strong hidden$="[[!slice.is_left_opening]]">Left gripper opens</strong>
         </div>
         <div class="half">
           <strong>Start time:</strong> [[slice.right_traj.header.stamp.secs]].[[slice.right_traj.header.stamp.nsecs]]<br />
-          <strong>Right traj:</strong> [[slice.right_traj.points.length]] points
+          <strong>Right traj:</strong> [[slice.right_traj.points.length]] points<br />
+          <strong hidden$="[[!slice.is_right_closing]]">Right gripper closes</strong>
+          <strong hidden$="[[!slice.is_right_opening]]">Right gripper opens</strong>
         </div>
       </div>
     </div>
