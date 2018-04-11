@@ -1,5 +1,6 @@
 #include "task_imitation/program_slice.h"
 
+#include "task_perception_msgs/ProgramSlice.h"
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 
@@ -7,26 +8,8 @@ using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
 
 namespace pbi {
-Slice::Slice()
-    : left_traj(),
-      right_traj(),
-      is_left_closing(false),
-      is_left_opening(false),
-      is_right_closing(false),
-      is_right_opening(false) {}
-
-void Slice::Reset() {
-  trajectory_msgs::JointTrajectory blank;
-  left_traj = blank;
-  right_traj = blank;
-  is_left_closing = false;
-  is_left_opening = false;
-  is_right_closing = false;
-  is_right_opening = false;
-}
-
-bool Slice::IsEmpty() const {
-  return left_traj.points.size() == 0 && right_traj.points.size() == 0;
+bool IsSliceEmpty(const task_perception_msgs::ProgramSlice& slice) {
+  return slice.left_traj.points.empty() && slice.right_traj.points.empty();
 }
 
 PlannedStep::PlannedStep() : traj(), is_closing(false), is_opening(false) {}

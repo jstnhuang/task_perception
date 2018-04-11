@@ -7,6 +7,7 @@
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
 #include "std_msgs/Bool.h"
+#include "task_perception_msgs/ProgramSlice.h"
 #include "task_perception_msgs/Step.h"
 #include "task_utils/pr2_gripper_viz.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
@@ -21,6 +22,7 @@ using boost::optional;
 using geometry_msgs::Pose;
 using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
+using task_perception_msgs::ProgramSlice;
 
 namespace pbi {
 ProgramExecutor::ProgramExecutor(
@@ -70,18 +72,18 @@ void ProgramExecutor::Execute(
   std::vector<PlannedStep> right_steps =
       PlanSteps(right_steps_raw, object_states, right_group_);
 
-  std::vector<Slice> slices = SliceProgram(left_steps, right_steps);
+  std::vector<ProgramSlice> slices = SliceProgram(left_steps, right_steps);
   ROS_INFO("Generated slices");
 
   ROS_INFO("Retiming...");
-  std::vector<Slice> retimed_slices = RetimeSlices(slices);
+  std::vector<ProgramSlice> retimed_slices = RetimeSlices(slices);
   ROS_INFO("Done retiming slices.");
 
   ROS_INFO("Waiting for trigger to start execution...");
   ros::topic::waitForMessage<std_msgs::Bool>("trigger");
 
   for (size_t i = 0; i < retimed_slices.size(); ++i) {
-    Slice& slice = retimed_slices[i];
+    ProgramSlice& slice = retimed_slices[i];
     if (slice.left_traj.points.size() == 0) {
       ROS_ASSERT(slice.is_left_closing ^ slice.is_left_opening);
       if (slice.is_left_closing) {
@@ -134,9 +136,9 @@ void ProgramExecutor::Execute(
 
 std::string ProgramExecutor::planning_frame() const { return planning_frame_; }
 
-std::vector<Slice> ProgramExecutor::RetimeSlices(
-    const std::vector<Slice>& slices) {
-  std::vector<Slice> retimed_slices;
+std::vector<ProgramSlice> ProgramExecutor::RetimeSlices(
+    const std::vector<ProgramSlice>& slices) {
+  std::vector<ProgramSlice> retimed_slices;
   moveit::core::RobotStatePtr state = arms_group_.getCurrentState();
   robot_model::RobotModelConstPtr robot_model = arms_group_.getRobotModel();
 
@@ -146,8 +148,8 @@ std::vector<Slice> ProgramExecutor::RetimeSlices(
   robot_trajectory::RobotTrajectory right_traj(robot_model, "right_arm");
 
   for (size_t i = 0; i < slices.size(); ++i) {
-    const Slice& slice = slices[i];
-    Slice retimed_slice = slice;
+    const ProgramSlice& slice = slices[i];
+    ProgramSlice retimed_slice = slice;
     if (slice.left_traj.points.size() > 0) {
       left_traj.setRobotTrajectoryMsg(*state, slice.left_traj);
       retimer.computeTimeStamps(left_traj);
@@ -167,9 +169,10 @@ std::vector<Slice> ProgramExecutor::RetimeSlices(
   return retimed_slices;
 }
 
-std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
-                                const std::vector<PlannedStep>& right_steps) {
-  std::vector<Slice> slices;
+std::vector<ProgramSlice> SliceProgram(
+    const std::vector<PlannedStep>& left_steps,
+    const std::vector<PlannedStep>& right_steps) {
+  std::vector<ProgramSlice> slices;
 
   size_t left_i = 0;
   size_t right_i = 0;
@@ -177,7 +180,8 @@ std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
   ros::Time prev_time(0);
   ros::Time current_time(0);
 
-  Slice current_slice;
+  const ProgramSlice kBlankSlice;
+  ProgramSlice current_slice;
   while (ros::ok() &&
          (left_i < left_steps.size() || right_i < right_steps.size())) {
     // Get start and end times
@@ -231,9 +235,9 @@ std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
         current_slice.right_traj = right_step->GetTraj(prev_time, current_time);
       }
 
-      if (!current_slice.IsEmpty()) {
+      if (!IsSliceEmpty(current_slice)) {
         slices.push_back(current_slice);
-        current_slice.Reset();
+        current_slice = kBlankSlice;
       }
     }
     if (current_time == left_end) {

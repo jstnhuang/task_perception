@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
   skin_segmentation_msgs
+  trajectory_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -60,6 +61,8 @@ add_message_files(
   ImitationEvent.msg
   ObjectState.msg
   Program.msg
+  ProgramSlice.msg
+  ProgramSlices.msg
   Step.msg
 )
 
@@ -83,6 +86,7 @@ generate_messages(
   actionlib_msgs
   geometry_msgs
   skin_segmentation_msgs
+  trajectory_msgs
 )
 
 ################################################
@@ -122,6 +126,7 @@ catkin_package(
     geometry_msgs
     message_runtime
     skin_segmentation_msgs
+    trajectory_msgs
 #  DEPENDS system_lib
 )
 

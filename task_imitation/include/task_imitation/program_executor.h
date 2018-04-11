@@ -10,6 +10,7 @@
 #include "rapid_pr2/gripper.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
+#include "task_perception_msgs/ProgramSlice.h"
 #include "tf/transform_listener.h"
 #include "trajectory_msgs/JointTrajectory.h"
 
@@ -33,7 +34,8 @@ class ProgramExecutor {
   std::string planning_frame() const;
 
  private:
-  std::vector<Slice> RetimeSlices(const std::vector<Slice>& slices);
+  std::vector<task_perception_msgs::ProgramSlice> RetimeSlices(
+      const std::vector<task_perception_msgs::ProgramSlice>& slices);
 
   ros::NodeHandle nh_;
 
@@ -51,8 +53,9 @@ class ProgramExecutor {
   tf::TransformListener tf_listener_;
 };
 
-std::vector<Slice> SliceProgram(const std::vector<PlannedStep>& left_steps,
-                                const std::vector<PlannedStep>& right_steps);
+std::vector<task_perception_msgs::ProgramSlice> SliceProgram(
+    const std::vector<PlannedStep>& left_steps,
+    const std::vector<PlannedStep>& right_steps);
 
 // Given an object-relative grasp and an object trajectory, computes the
 // trajectory of the grasp.

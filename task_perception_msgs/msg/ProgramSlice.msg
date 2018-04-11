@@ -1,0 +1,6 @@
+trajectory_msgs/JointTrajectory left_traj
+trajectory_msgs/JointTrajectory right_traj
+bool is_left_closing
+bool is_left_opening
+bool is_right_closing
+bool is_right_opening
