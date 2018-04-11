@@ -354,6 +354,22 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
                                grasp_markers.markers.end());
   } else if (step.type == msgs::Step::UNGRASP) {
   } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
+    msgs::ObjectState obj = object_states_[step.object_state.name];
+    tg::Graph graph;
+    graph.Add("obj", tg::RefFrame("planning"), obj.pose);
+    for (size_t i = 0; i < step.ee_trajectory.size(); ++i) {
+      const geometry_msgs::Pose& ee_in_obj = step.ee_trajectory[i];
+      graph.Add("ee", tg::RefFrame("obj"), ee_in_obj);
+      tg::Transform ee_in_planning;
+      graph.ComputeDescription("ee", tg::RefFrame("planning"), &ee_in_planning);
+      MarkerArray ee_markers =
+          GripperMarkers("traj", ee_in_planning.pose(), planning_frame_);
+      for (size_t j = 0; j < ee_markers.markers.size(); ++j) {
+        ee_markers.markers[j].lifetime = ros::Duration(0.05);
+      }
+      marker_pub_.publish(ee_markers);
+      ros::Duration(0.05).sleep();
+    }
   } else if (step.type == msgs::Step::MOVE_TO_POSE) {
     msgs::ObjectState obj = object_states_[step.object_state.name];
     tg::Graph graph;
