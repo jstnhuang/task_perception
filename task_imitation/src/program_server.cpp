@@ -398,16 +398,39 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
 // Visualizes left and right parts of the slice independently.
 void ProgramServer::VisualizeSlice(
     const task_perception_msgs::ProgramSlice& slice) {
-  robot_state::RobotStatePtr robot_state = left_group_.getCurrentState();
+  moveit_msgs::RobotTrajectory left_traj;
+  left_traj.joint_trajectory = slice.left_traj;
+  moveit_msgs::RobotTrajectory right_traj;
+  right_traj.joint_trajectory = slice.right_traj;
+
+  moveit::core::RobotStatePtr robot_state = left_group_.getCurrentState();
+  trajectory_msgs::JointTrajectory merged_traj;
+  trajectory_msgs::JointTrajectoryPoint merged_pt;
+  if (left_traj.joint_trajectory.points.size() > 0) {
+    trajectory_msgs::JointTrajectoryPoint pt =
+        left_traj.joint_trajectory.points[0];
+    merged_pt.positions = pt.positions;
+    merged_traj.joint_names = left_traj.joint_trajectory.joint_names;
+  }
+  if (right_traj.joint_trajectory.points.size() > 0) {
+    trajectory_msgs::JointTrajectoryPoint pt =
+        right_traj.joint_trajectory.points[0];
+    merged_pt.positions.insert(merged_pt.positions.end(), pt.positions.begin(),
+                               pt.positions.end());
+    merged_traj.joint_names.insert(
+        merged_traj.joint_names.end(),
+        right_traj.joint_trajectory.joint_names.begin(),
+        right_traj.joint_trajectory.joint_names.end());
+  }
+  merged_traj.points.push_back(merged_pt);
+  moveit::core::jointTrajPointToRobotState(merged_traj, 0, *robot_state);
+
   moveit_msgs::DisplayTrajectory display_traj;
   moveit::core::robotStateToRobotStateMsg(*robot_state,
                                           display_traj.trajectory_start);
-  moveit_msgs::RobotTrajectory left_traj;
-  left_traj.joint_trajectory = slice.right_traj;
   display_traj.trajectory.push_back(left_traj);
-  moveit_msgs::RobotTrajectory right_traj;
-  right_traj.joint_trajectory = slice.right_traj;
   display_traj.trajectory.push_back(right_traj);
+
   traj_pub_.publish(display_traj);
 }
 
