@@ -257,6 +257,13 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
   segmentation_viz_.set_surface_objects(surface_objects);
   segmentation_viz_.Show();
 
+  // Crude assumption: camera pose at demonstration time is approximately the
+  // same at imitation time. The proper way to do this would be to store the
+  // camera frame transform in the demonstration.
+  tg::Graph graph;
+  graph.Add("camera", tg::RefFrame("base"),
+            cam_interface_.camera_pose().transform);
+
   // This models the assumption that each demonstration only interacts with an
   // object once.We could / should allow the robot to interact with an object
   // more than once, but we need to continuosly track the objects in that
@@ -268,6 +275,7 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
       const msgs::ObjectState& os = state.object_states[j];
       if (object_states.find(os.name) == object_states.end()) {
         object_states[os.name] = os;
+        graph.Add(os.name, tg::RefFrame("camera"), os.pose);
       }
     }
   }
@@ -284,10 +292,15 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
     obj_model.set_object_model_cache(&model_cache_);
     geometry_msgs::Vector3 obj_scale = obj_model.scale();
 
+    std::string obj_name(it->first);
+    tg::Position obj_position;
+    graph.DescribePosition(obj_state.pose.position, tg::Source("camera"),
+                           tg::Target("base"), &obj_position);
+
     geometry_msgs::Pose obj_pose;
     geometry_msgs::Vector3 obj_scale_obs;
-    bool found =
-        MatchObject(obj_scale, surface_objects, &obj_pose, &obj_scale_obs);
+    bool found = MatchObject(obj_position.point(), obj_scale, surface_objects,
+                             &obj_pose, &obj_scale_obs);
     dbot_ros_msgs::InitializeObjectGoal init_goal;
     init_goal.frame_id = executor_.planning_frame();
     init_goal.mesh_name = it->second.mesh_name;
@@ -455,31 +468,38 @@ MarkerArray ProgramServer::GripperMarkers(const std::string& ns,
 }
 
 bool MatchObject(
+    const geometry_msgs::Point& initial_obj_position,
     const geometry_msgs::Vector3& obj_scale,
     const std::vector<surface_perception::SurfaceObjects>& surface_objects,
     geometry_msgs::Pose* pose, geometry_msgs::Vector3* scale) {
   double match_dim_tolerance;
   ros::param::param("match_dim_tolerance", match_dim_tolerance, 0.05);
-  double best_sq_norm = std::numeric_limits<double>::max();
+  double best_sq_dist = std::numeric_limits<double>::max();
   for (size_t i = 0; i < surface_objects.size(); ++i) {
     const surface_perception::SurfaceObjects& surface = surface_objects[i];
     for (size_t j = 0; j < surface.objects.size(); ++j) {
-      const surface_perception::Object& object = surface.objects[i];
+      const surface_perception::Object& object = surface.objects[j];
       double dim_dx = fabs(object.dimensions.x - obj_scale.x);
       double dim_dy = fabs(object.dimensions.y - obj_scale.y);
       double dim_dz = fabs(object.dimensions.z - obj_scale.z);
       if (dim_dx < match_dim_tolerance && dim_dy < match_dim_tolerance &&
           dim_dz < match_dim_tolerance) {
-        double sq_norm = dim_dx * dim_dx + dim_dy * dim_dy + dim_dz * dim_dz;
-        if (sq_norm < best_sq_norm) {
-          best_sq_norm = sq_norm;
+        double dx =
+            fabs(initial_obj_position.x - object.pose_stamped.pose.position.x);
+        double dy =
+            fabs(initial_obj_position.y - object.pose_stamped.pose.position.y);
+        double dz =
+            fabs(initial_obj_position.z - object.pose_stamped.pose.position.z);
+        double sq_dist = dx * dx + dy * dy + dz * dz;
+        if (sq_dist < best_sq_dist) {
+          best_sq_dist = sq_dist;
           *pose = object.pose_stamped.pose;
           *scale = object.dimensions;
         }
       }
     }
   }
-  return best_sq_norm != std::numeric_limits<double>::max();
+  return best_sq_dist != std::numeric_limits<double>::max();
 }
 
 }  // namespace pbi

@@ -95,6 +95,7 @@ class ProgramServer {
 // true if a "good enough" match was found, false otherwise. The pose and scale
 // of the best match will be output.
 bool MatchObject(
+    const geometry_msgs::Point& initial_obj_position,
     const geometry_msgs::Vector3& obj_scale,
     const std::vector<surface_perception::SurfaceObjects>& surface_objects,
     geometry_msgs::Pose* pose, geometry_msgs::Vector3* scale);
