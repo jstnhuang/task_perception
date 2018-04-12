@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
         ->LoadBag(bag_path);
   } else {
     cam_interface = new rapid::PointCloudCamera(
-        "/head_mount_kinect/depth_registered/points", "base_link");
+        "/head_mount_kinect/depth_registered/points", "base_footprint");
   }
 
   pbi::ProgramServer program_server(db_client, *cam_interface);
