@@ -611,10 +611,18 @@ PlannedStep PlanMoveToPoseStep(
 }
 
 bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj) {
+  // Verify timestamps are monotonically increasing
   for (size_t i = 0; i + 1 < traj.points.size(); ++i) {
     const trajectory_msgs::JointTrajectoryPoint& pt = traj.points[i];
     const trajectory_msgs::JointTrajectoryPoint& next_pt = traj.points[i + 1];
     if (next_pt.time_from_start < pt.time_from_start) {
+      return false;
+    }
+  }
+
+  // Verify joint_names matches positions in length
+  if (traj.points.size() > 0) {
+    if (traj.joint_names.size() != traj.points[0].positions.size()) {
       return false;
     }
   }
