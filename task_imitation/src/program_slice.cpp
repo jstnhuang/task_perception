@@ -26,6 +26,7 @@ JointTrajectory PlannedStep::GetTraj(const ros::Time& start_time,
 
   JointTrajectory result;
   result.header.stamp = start_time;
+  result.joint_names = traj.joint_names;
   ros::Time pt_start = traj.header.stamp;
   ros::Time pt_end(0);
   for (size_t i = 0; i < traj.points.size(); ++i) {
