@@ -6,6 +6,7 @@
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
+#include "rapid_ros/params.h"
 #include "std_msgs/Bool.h"
 #include "task_perception_msgs/ProgramSlice.h"
 #include "task_perception_msgs/ProgramSlices.h"
@@ -122,6 +123,9 @@ void ProgramExecutor::Execute(
   ROS_INFO("Waiting for trigger to start execution...");
   ros::topic::waitForMessage<std_msgs::Bool>("trigger");
 
+  bool is_sim = rapid::GetBoolParamOrThrow("use_sim_time");
+  const double kGraspForce = is_sim ? -1 : 50;
+
   for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
     ProgramSlice& slice = retimed_slices.slices[i];
     if (slice.left_traj.points.size() == 0) {
@@ -149,14 +153,22 @@ void ProgramExecutor::Execute(
     plan.trajectory_.joint_trajectory =
         MergeTrajectories(slice.left_traj, slice.right_traj);
 
+    // Remove all accelerations from the trajectory. This could possibly lead to
+    // smoother executions.
+    for (size_t i = 0; i < plan.trajectory_.joint_trajectory.points.size();
+         ++i) {
+      JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[i];
+      pt.accelerations.clear();
+    }
+
     // Execute slice
     if (slice.is_left_closing) {
-      left_gripper_.StartClosing();
+      left_gripper_.StartClosing(kGraspForce);
     } else if (slice.is_left_opening) {
       left_gripper_.StartOpening();
     }
     if (slice.is_right_closing) {
-      right_gripper_.StartClosing();
+      right_gripper_.StartClosing(kGraspForce);
     } else if (slice.is_right_opening) {
       right_gripper_.StartOpening();
     }
@@ -171,6 +183,9 @@ void ProgramExecutor::Execute(
         ros::spinOnce();
       }
     }
+    double pause_duration;
+    ros::param::param("pause_duration", pause_duration, 0.5);
+    ros::Duration(pause_duration).sleep();
   }
 }
 
