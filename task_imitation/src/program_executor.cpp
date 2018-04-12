@@ -75,11 +75,17 @@ std::string ProgramExecutor::Execute(
   std::vector<PlannedStep> left_steps =
       PlanSteps(left_steps_raw, object_states, left_group_, &error);
   if (error != "") {
+    std::stringstream ss;
+    ss << "Left arm " << error;
+    error = ss.str();
     return error;
   }
   std::vector<PlannedStep> right_steps =
       PlanSteps(right_steps_raw, object_states, right_group_, &error);
   if (error != "") {
+    std::stringstream ss;
+    ss << "Right arm " << error;
+    error = ss.str();
     return error;
   }
 
@@ -389,6 +395,12 @@ std::vector<PlannedStep> PlanSteps(
       result.push_back(planned_step);
     } else {
       ROS_ASSERT(false);
+    }
+    if (*error_out != "") {
+      std::stringstream ss;
+      ss << "step " << (i + 1) << ": " << *error_out;
+      *error_out = ss.str();
+      return result;
     }
   }
   return result;
