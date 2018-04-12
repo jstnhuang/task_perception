@@ -321,6 +321,7 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
       init_goal.initial_pose.position.x = 1;
       init_goal.initial_pose.position.z = 1;
     }
+    ROS_INFO("Initializing pose for object \"%s\"", it->first.c_str());
     initialize_object_.sendGoal(init_goal);
     while (ros::ok() && !initialize_object_.getState().isDone()) {
       ros::spinOnce();
