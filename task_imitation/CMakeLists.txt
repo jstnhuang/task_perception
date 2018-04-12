@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   pcl_conversions
   rapid_collision
+  rapid_manipulation
   rapid_pr2
   rapid_robot
   rapid_ros
@@ -147,6 +148,7 @@ catkin_package(
     moveit_ros_planning_interface
     pcl_conversions
     rapid_collision
+    rapid_manipulation
     rapid_pr2
     rapid_robot
     rapid_ros

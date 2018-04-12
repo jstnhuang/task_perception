@@ -78,6 +78,8 @@ flags = [
 '-I',
 '../rapid/rapid_collision/include',
 '-I',
+'../rapid/rapid_manipulation/include',
+'-I',
 '../rapid/rapid_pr2/include',
 '-I',
 '../rapid/rapid_robot/include',
