@@ -1,11 +1,14 @@
 #include "task_imitation/program_executor.h"
 
+#include <sstream>
+
 #include "boost/optional.hpp"
 #include "moveit/robot_state/conversions.h"
 #include "moveit/trajectory_processing/iterative_time_parameterization.h"
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
+#include "rapid_manipulation/moveit_error_code.h"
 #include "rapid_ros/params.h"
 #include "std_msgs/Bool.h"
 #include "task_perception_msgs/ProgramSlice.h"
@@ -22,6 +25,7 @@ namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 using boost::optional;
 using geometry_msgs::Pose;
+using moveit::planning_interface::MoveItErrorCode;
 using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
 using task_perception_msgs::ProgramSlice;
@@ -46,7 +50,7 @@ void ProgramExecutor::Init() {
   right_group_.setPlannerId("RRTConnectkConfigDefault");
 }
 
-void ProgramExecutor::Execute(
+std::string ProgramExecutor::Execute(
     const msgs::Program& program,
     const std::map<std::string, msgs::ObjectState>& object_states) {
   left_gripper_.StartOpening();
@@ -67,10 +71,17 @@ void ProgramExecutor::Execute(
   }
 
   ROS_INFO("Planning steps");
+  std::string error("");
   std::vector<PlannedStep> left_steps =
-      PlanSteps(left_steps_raw, object_states, left_group_);
+      PlanSteps(left_steps_raw, object_states, left_group_, &error);
+  if (error != "") {
+    return error;
+  }
   std::vector<PlannedStep> right_steps =
-      PlanSteps(right_steps_raw, object_states, right_group_);
+      PlanSteps(right_steps_raw, object_states, right_group_, &error);
+  if (error != "") {
+    return error;
+  }
 
   // DEBUG
   bool is_valid = true;
@@ -84,7 +95,8 @@ void ProgramExecutor::Execute(
   if (is_valid) {
     ROS_INFO("Validated planned steps.");
   } else {
-    ROS_ERROR("Planned steps invalid.");
+    ROS_ERROR("Planned steps were invalid.");
+    return "Planned steps were invalid.";
   }
 
   msgs::ProgramSlices slices;
@@ -109,6 +121,7 @@ void ProgramExecutor::Execute(
     ROS_INFO("Validated initial slices");
   } else {
     ROS_ERROR("Initial slices are invalid!");
+    return "Initial slices are invalid.";
   }
 
   msgs::ProgramSlices retimed_slices;
@@ -154,9 +167,9 @@ void ProgramExecutor::Execute(
 
     // Remove all accelerations from the trajectory. This could possibly lead to
     // smoother executions.
-    for (size_t i = 0; i < plan.trajectory_.joint_trajectory.points.size();
-         ++i) {
-      JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[i];
+    for (size_t j = 0; j < plan.trajectory_.joint_trajectory.points.size();
+         ++j) {
+      JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[j];
       pt.accelerations.clear();
     }
 
@@ -171,7 +184,13 @@ void ProgramExecutor::Execute(
     } else if (slice.is_right_opening) {
       right_gripper_.StartOpening();
     }
-    arms_group_.execute(plan);
+    bool success = arms_group_.execute(plan);
+    if (!success) {
+      std::stringstream ss;
+      ss << "Failed to execute slice " << (i + 1);
+      ROS_ERROR_STREAM(ss.str());
+      return ss.str();
+    }
     if (slice.is_left_closing || slice.is_left_opening) {
       while (ros::ok() && !left_gripper_.IsDone()) {
         ros::spinOnce();
@@ -186,6 +205,7 @@ void ProgramExecutor::Execute(
         rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
     ros::Duration(kPauseDuration).sleep();
   }
+  return "";
 }
 
 std::string ProgramExecutor::planning_frame() const { return planning_frame_; }
@@ -340,7 +360,7 @@ ros::Duration ComputeTrajectoryTime(const JointTrajectory& traj) {
 std::vector<PlannedStep> PlanSteps(
     const std::vector<msgs::Step>& steps,
     const std::map<std::string, msgs::ObjectState>& object_states,
-    moveit::planning_interface::MoveGroup& group) {
+    moveit::planning_interface::MoveGroup& group, std::string* error_out) {
   std::vector<PlannedStep> result;
   robot_model::RobotModelConstPtr robot_model = group.getRobotModel();
   group.setStartStateToCurrentState();
@@ -352,20 +372,20 @@ std::vector<PlannedStep> PlanSteps(
     const msgs::Step& step = steps[i];
     ros::Time prev_end(0);
     if (step.type == msgs::Step::GRASP) {
-      std::vector<PlannedStep> planned_steps =
-          PlanGraspStep(step, object_states, group, start_time, robot_state);
+      std::vector<PlannedStep> planned_steps = PlanGraspStep(
+          step, object_states, group, start_time, robot_state, error_out);
       result.insert(result.end(), planned_steps.begin(), planned_steps.end());
     } else if (step.type == msgs::Step::UNGRASP) {
       std::vector<PlannedStep> planned_steps =
-          PlanUngraspStep(step, group, start_time, robot_state);
+          PlanUngraspStep(step, group, start_time, robot_state, error_out);
       result.insert(result.end(), planned_steps.begin(), planned_steps.end());
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       PlannedStep planned_step = PlanFollowTrajectoryStep(
-          step, object_states, group, start_time, robot_state);
+          step, object_states, group, start_time, robot_state, error_out);
       result.push_back(planned_step);
     } else if (step.type == msgs::Step::MOVE_TO_POSE) {
-      PlannedStep planned_step = PlanMoveToPoseStep(step, object_states, group,
-                                                    start_time, robot_state);
+      PlannedStep planned_step = PlanMoveToPoseStep(
+          step, object_states, group, start_time, robot_state, error_out);
       result.push_back(planned_step);
     } else {
       ROS_ASSERT(false);
@@ -379,7 +399,9 @@ std::vector<PlannedStep> PlanGraspStep(
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr robot_state) {
+    robot_state::RobotStatePtr robot_state, std::string* error_out) {
+  std::vector<PlannedStep> result;
+
   // Plan pre-grasp
   tg::Graph graph;
   graph.Add("current object", tg::RefFrame("planning"),
@@ -395,7 +417,11 @@ std::vector<PlannedStep> PlanGraspStep(
   group.setStartState(*robot_state);
   group.setPoseTarget(pregrasp_in_planning.pose());
   moveit::planning_interface::MoveGroup::Plan pregrasp_plan;
-  group.plan(pregrasp_plan);
+  MoveItErrorCode error_code = group.plan(pregrasp_plan);
+  if (!rapid::IsSuccess(error_code)) {
+    *error_out = rapid::ErrorString(error_code);
+    return result;
+  }
   ros::Duration pregrasp_duration =
       ComputeTrajectoryTime(pregrasp_plan.trajectory_.joint_trajectory);
   moveit::core::jointTrajPointToRobotState(
@@ -410,14 +436,17 @@ std::vector<PlannedStep> PlanGraspStep(
   group.setStartState(*robot_state);
   group.setPoseTarget(grasp_in_planning.pose());
   moveit::planning_interface::MoveGroup::Plan grasp_plan;
-  group.plan(grasp_plan);
+  error_code = group.plan(grasp_plan);
+  if (!rapid::IsSuccess(error_code)) {
+    *error_out = rapid::ErrorString(error_code);
+    return result;
+  }
   ros::Duration grasp_duration =
       ComputeTrajectoryTime(grasp_plan.trajectory_.joint_trajectory);
   moveit::core::jointTrajPointToRobotState(
       grasp_plan.trajectory_.joint_trajectory,
       grasp_plan.trajectory_.joint_trajectory.points.size() - 1, *robot_state);
 
-  std::vector<PlannedStep> result;
   // Add pregrasp step
   PlannedStep pregrasp_step;
   pregrasp_step.traj = pregrasp_plan.trajectory_.joint_trajectory;
@@ -449,7 +478,9 @@ std::vector<PlannedStep> PlanGraspStep(
 std::vector<PlannedStep> PlanUngraspStep(
     const task_perception_msgs::Step& step,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state) {
+    robot_state::RobotStatePtr start_state, std::string* error_out) {
+  std::vector<PlannedStep> result;
+
   tg::Graph graph;
   graph.Add("current ee pose", tg::RefFrame("planning frame"),
             start_state->getGlobalLinkTransform(group.getEndEffectorLink()));
@@ -461,15 +492,17 @@ std::vector<PlannedStep> PlanUngraspStep(
   group.setStartState(*start_state);
   group.setPoseTarget(post_grasp_pose.pose());
   moveit::planning_interface::MoveGroup::Plan post_grasp_plan;
-  group.plan(post_grasp_plan);
+  MoveItErrorCode error = group.plan(post_grasp_plan);
+  if (!rapid::IsSuccess(error)) {
+    *error_out = rapid::ErrorString(error);
+    return result;
+  }
 
   // Update start state
   moveit::core::jointTrajPointToRobotState(
       post_grasp_plan.trajectory_.joint_trajectory,
       post_grasp_plan.trajectory_.joint_trajectory.points.size() - 1,
       *start_state);
-
-  std::vector<PlannedStep> result;
 
   // Add ungrasp
   PlannedStep ungrasp;
@@ -502,7 +535,7 @@ PlannedStep PlanFollowTrajectoryStep(
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state) {
+    robot_state::RobotStatePtr start_state, std::string* error_out) {
   PlannedStep result;
   moveit_msgs::MoveItErrorCodes error_code;
   moveit_msgs::RobotTrajectory planned_traj;
@@ -525,10 +558,14 @@ PlannedStep PlanFollowTrajectoryStep(
   double fraction =
       group.computeCartesianPath(pose_trajectory, 0.01, kJumpThreshold,
                                  planned_traj, kAvoidCollisions, &error_code);
-  if (error_code.val != moveit_msgs::MoveItErrorCodes::SUCCESS) {
-    ROS_ERROR("Failed to plan arm trajectory. MoveIt error %d", error_code.val);
+  if (!rapid::IsSuccess(error_code)) {
+    *error_out = rapid::ErrorString(error_code);
+    return result;
   } else if (step.ee_trajectory.size() > 0 && fraction < 1) {
-    ROS_ERROR("Planned %f%% of arm trajectory", fraction * 100);
+    std::stringstream ss;
+    ss << "Planned " << fraction * 100 << "%% of arm trajectory";
+    *error_out = ss.str();
+    return result;
   } else {
     ROS_INFO("Planned %f%% of arm trajectory", fraction * 100);
   }
@@ -559,7 +596,7 @@ PlannedStep PlanMoveToPoseStep(
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state) {
+    robot_state::RobotStatePtr start_state, std::string* error_out) {
   tg::Graph graph;
   graph.Add("current object", tg::RefFrame("planning"),
             object_states.at(step.object_state.name).pose);
@@ -571,8 +608,13 @@ PlannedStep PlanMoveToPoseStep(
   group.setStartState(*start_state);
   group.setPoseTarget(goal_in_planning.pose());
 
+  PlannedStep result;
   moveit::planning_interface::MoveGroup::Plan plan;
-  group.plan(plan);
+  MoveItErrorCode error = group.plan(plan);
+  if (!rapid::IsSuccess(error)) {
+    *error_out = rapid::ErrorString(error);
+    return result;
+  }
   moveit::core::jointTrajPointToRobotState(
       plan.trajectory_.joint_trajectory,
       plan.trajectory_.joint_trajectory.points.size() - 1, *start_state);
@@ -596,7 +638,6 @@ PlannedStep PlanMoveToPoseStep(
     plan.trajectory_.joint_trajectory.points[i].time_from_start *= scale_factor;
   }
 
-  PlannedStep result;
   result.traj = plan.trajectory_.joint_trajectory;
   result.traj.header.stamp = start_time + step.start_time;
   return result;

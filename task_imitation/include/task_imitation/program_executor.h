@@ -27,9 +27,11 @@ class ProgramExecutor {
   ProgramExecutor(moveit::planning_interface::MoveGroup& left_group,
                   moveit::planning_interface::MoveGroup& right_group);
   void Init();
-  void Execute(const task_perception_msgs::Program& program,
-               const std::map<std::string, task_perception_msgs::ObjectState>&
-                   object_states);
+  // Returns error message or "" on success.
+  std::string Execute(
+      const task_perception_msgs::Program& program,
+      const std::map<std::string, task_perception_msgs::ObjectState>&
+          object_states);
   std::string planning_frame() const;
 
  private:
@@ -74,7 +76,7 @@ std::vector<PlannedStep> PlanSteps(
     const std::vector<task_perception_msgs::Step>& steps,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group);
+    moveit::planning_interface::MoveGroup& group, std::string* error_out);
 
 // step, object_states, group, and start_time are input parameters.
 // start_state is both an input and an output. As as input, it specifies the
@@ -85,26 +87,26 @@ std::vector<PlannedStep> PlanGraspStep(
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state);
+    robot_state::RobotStatePtr start_state, std::string* error_out);
 
 std::vector<PlannedStep> PlanUngraspStep(
     const task_perception_msgs::Step& step,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state);
+    robot_state::RobotStatePtr start_state, std::string* error_out);
 
 PlannedStep PlanFollowTrajectoryStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state);
+    robot_state::RobotStatePtr start_state, std::string* error_out);
 
 PlannedStep PlanMoveToPoseStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
     moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state);
+    robot_state::RobotStatePtr start_state, std::string* error_out);
 
 // Checks the validity of a trajectory message.
 // Currently, only checks that the time_from_starts are monotonically increasing

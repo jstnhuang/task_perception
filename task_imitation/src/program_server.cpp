@@ -157,7 +157,14 @@ void ProgramServer::ExecuteImitation(
     return;
   }
 
-  executor_.Execute(program_, object_states_);
+  error = executor_.Execute(program_, object_states_);
+  if (error != "") {
+    ROS_ERROR("%s", error.c_str());
+    msgs::ImitateDemoResult result;
+    result.error = error;
+    imitate_demo_server_.setAborted(result, error);
+    return;
+  }
   msgs::ImitateDemoResult result;
   imitate_demo_server_.setSucceeded(result);
   segmentation_viz_.Hide();
