@@ -13,6 +13,7 @@
 #include "pcl/common/transforms.h"
 #include "pcl/kdtree/kdtree.h"
 #include "pcl_conversions/pcl_conversions.h"
+#include "rapid_ros/params.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
 #include "sensor_msgs/PointCloud2.h"
@@ -21,7 +22,6 @@
 #include "task_perception/pcl_utils.h"
 #include "task_perception/pr2_gripper_model.h"
 #include "task_perception_msgs/DemoState.h"
-#include "task_utils/ros_params.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
 #include "visualization_msgs/MarkerArray.h"
@@ -554,16 +554,16 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 }
 
 void GraspPlanner::UpdateParams() {
-  ros::param::get("grasp_planner/debug", debug_);
-  GetParam("grasp_planner/antipodal_grasp_weight",
-           &weights_.antipodal_grasp_weight);
-  GetParam("grasp_planner/non_antipodal_grasp_weight",
-           &weights_.non_antipodal_grasp_weight);
-  GetParam("grasp_planner/antipodal_collision_weight",
-           &weights_.antipodal_collision_weight);
-  GetParam("grasp_planner/non_antipodal_collision_weight",
-           &weights_.non_antipodal_collision_weight);
-  GetParam("grasp_planner/sq_wrist_distance_weight",
-           &weights_.sq_wrist_distance_weight);
+  debug_ = rapid::GetBoolParamOrThrow("grasp_planner/debug");
+  weights_.antipodal_grasp_weight =
+      rapid::GetDoubleParamOrThrow("grasp_planner/antipodal_grasp_weight");
+  weights_.non_antipodal_grasp_weight =
+      rapid::GetDoubleParamOrThrow("grasp_planner/non_antipodal_grasp_weight");
+  weights_.antipodal_collision_weight =
+      rapid::GetDoubleParamOrThrow("grasp_planner/antipodal_collision_weight");
+  weights_.non_antipodal_collision_weight = rapid::GetDoubleParamOrThrow(
+      "grasp_planner/non_antipodal_collision_weight");
+  weights_.sq_wrist_distance_weight =
+      rapid::GetDoubleParamOrThrow("grasp_planner/sq_wrist_distance_weight");
 }
 }  // namespace pbi
