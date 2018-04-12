@@ -183,9 +183,9 @@ void ProgramExecutor::Execute(
         ros::spinOnce();
       }
     }
-    double pause_duration;
-    ros::param::param("pause_duration", pause_duration, 0.5);
-    ros::Duration(pause_duration).sleep();
+    const double kPauseDuration =
+        rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
+    ros::Duration(kPauseDuration).sleep();
   }
 }
 
@@ -508,8 +508,8 @@ PlannedStep PlanFollowTrajectoryStep(
   moveit_msgs::MoveItErrorCodes error_code;
   moveit_msgs::RobotTrajectory planned_traj;
 
-  double jump_threshold;
-  ros::param::param("jump_threshold", jump_threshold, 1.6);
+  const double kJumpThreshold =
+      rapid::GetDoubleParamOrThrow("task_imitation/cart_path_jump_threshold");
   const bool kAvoidCollisions = true;
 
   if (step.ee_trajectory.size() == 0) {
@@ -524,7 +524,7 @@ PlannedStep PlanFollowTrajectoryStep(
   group.setStartState(*start_state);
 
   double fraction =
-      group.computeCartesianPath(pose_trajectory, 0.01, jump_threshold,
+      group.computeCartesianPath(pose_trajectory, 0.01, kJumpThreshold,
                                  planned_traj, kAvoidCollisions, &error_code);
   if (error_code.val != moveit_msgs::MoveItErrorCodes::SUCCESS) {
     ROS_ERROR("Failed to plan arm trajectory. MoveIt error %d", error_code.val);

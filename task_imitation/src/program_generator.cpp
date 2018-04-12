@@ -33,7 +33,7 @@ std::string CollisionChecker::Check(
     const task_perception_msgs::ObjectState& object,
     const std::vector<task_perception_msgs::ObjectState>& other_objects) const {
   const double kInflationSize =
-      rapid::GetDoubleParamOrThrow("object_inflation_size");
+      rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
   LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
                                  object.pose);
   held_obj_model.set_object_model_cache(&model_cache_);

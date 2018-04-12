@@ -69,9 +69,6 @@ std::vector<geometry_msgs::Pose> ComputeGraspTrajectory(
     const std::vector<geometry_msgs::Pose>& ee_trajectory,
     const geometry_msgs::Pose& current_obj_pose);
 
-std::vector<geometry_msgs::Pose> SampleTrajectory(
-    const std::vector<geometry_msgs::Pose>& traj);
-
 ros::Duration ComputeTrajectoryTime(
     const trajectory_msgs::JointTrajectory& traj);
 

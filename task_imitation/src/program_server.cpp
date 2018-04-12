@@ -473,8 +473,8 @@ bool MatchObject(
     const geometry_msgs::Vector3& obj_scale,
     const std::vector<surface_perception::SurfaceObjects>& surface_objects,
     geometry_msgs::Pose* pose, geometry_msgs::Vector3* scale) {
-  double match_dim_tolerance;
-  ros::param::param("match_dim_tolerance", match_dim_tolerance, 0.05);
+  double match_dim_tolerance =
+      rapid::GetDoubleParamOrThrow("task_imitation/match_dim_tolerance");
   double best_sq_dist = std::numeric_limits<double>::max();
   for (size_t i = 0; i < surface_objects.size(); ++i) {
     const surface_perception::SurfaceObjects& surface = surface_objects[i];
