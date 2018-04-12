@@ -44,9 +44,7 @@ JointTrajectory PlannedStep::GetTraj(const ros::Time& start_time,
         result_pt_start = start_time;
       }
       pt.time_from_start = result_pt_end - start_time;
-      if (!pt.time_from_start.isZero()) {
-        result.points.push_back(pt);
-      }
+      result.points.push_back(pt);
     }
     if (pt_start > end_time) {
       break;
