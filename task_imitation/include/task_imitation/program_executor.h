@@ -11,7 +11,6 @@
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/ProgramSlice.h"
-#include "tf/transform_listener.h"
 #include "trajectory_msgs/JointTrajectory.h"
 
 #include "task_imitation/grasp_planner.h"
@@ -46,12 +45,7 @@ class ProgramExecutor {
   rapid::pr2::Gripper left_gripper_;
   rapid::pr2::Gripper right_gripper_;
 
-  ros::Publisher left_traj_pub_;
-  ros::Publisher right_traj_pub_;
-  ros::Publisher gripper_pub_;
   ros::Publisher slice_pub_;
-
-  tf::TransformListener tf_listener_;
 };
 
 std::vector<task_perception_msgs::ProgramSlice> SliceProgram(

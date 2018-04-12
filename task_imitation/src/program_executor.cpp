@@ -37,15 +37,8 @@ ProgramExecutor::ProgramExecutor(
       planning_frame_(left_group_.getPlanningFrame()),
       left_gripper_(rapid::pr2::Gripper::Left()),
       right_gripper_(rapid::pr2::Gripper::Right()),
-      left_traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
-          "program_executor/left_arm_traj", 1, true)),
-      right_traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
-          "program_executor/right_arm_traj", 1, true)),
-      gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
-          "program_executor/grippers", 10)),
       slice_pub_(nh_.advertise<msgs::ProgramSlices>("program_executor/slices",
-                                                    1, true)),
-      tf_listener_() {}
+                                                    1, true)) {}
 
 void ProgramExecutor::Init() {
   ROS_INFO("Using planning frame: %s", planning_frame_.c_str());
@@ -56,6 +49,9 @@ void ProgramExecutor::Init() {
 void ProgramExecutor::Execute(
     const msgs::Program& program,
     const std::map<std::string, msgs::ObjectState>& object_states) {
+  left_gripper_.StartOpening();
+  right_gripper_.StartOpening();
+
   // Split into left and right steps
   std::vector<msgs::Step> left_steps_raw;
   std::vector<msgs::Step> right_steps_raw;
@@ -125,6 +121,9 @@ void ProgramExecutor::Execute(
 
   bool is_sim = rapid::GetBoolParamOrThrow("use_sim_time");
   const double kGraspForce = is_sim ? -1 : 50;
+  while (ros::ok() && (!left_gripper_.IsDone() || !right_gripper_.IsDone())) {
+    ros::spinOnce();
+  }
 
   for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
     ProgramSlice& slice = retimed_slices.slices[i];
