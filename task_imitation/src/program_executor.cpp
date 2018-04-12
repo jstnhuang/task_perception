@@ -114,10 +114,6 @@ void ProgramExecutor::Execute(
     ROS_ERROR("Initial slices are invalid!");
   }
 
-  ROS_INFO("Waiting for trigger to retime slices...");
-  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-
-  ROS_INFO("Retiming...");
   msgs::ProgramSlices retimed_slices;
   retimed_slices.slices = RetimeSlices(slices.slices);
   slice_pub_.publish(retimed_slices);
@@ -610,11 +606,11 @@ PlannedStep PlanMoveToPoseStep(
   return result;
 }
 
-bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj) {
+bool IsValidTrajectory(const JointTrajectory& traj) {
   // Verify timestamps are monotonically increasing
   for (size_t i = 0; i + 1 < traj.points.size(); ++i) {
-    const trajectory_msgs::JointTrajectoryPoint& pt = traj.points[i];
-    const trajectory_msgs::JointTrajectoryPoint& next_pt = traj.points[i + 1];
+    const JointTrajectoryPoint& pt = traj.points[i];
+    const JointTrajectoryPoint& next_pt = traj.points[i + 1];
     if (next_pt.time_from_start < pt.time_from_start) {
       return false;
     }
