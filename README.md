@@ -54,6 +54,8 @@ Save a point cloud in a real scene using: `rosrun rapid_perception save_cloud NA
   - If simulation: use MoveIt
   - If PR2: use Rapid PbD
 - [ ] Run dbot object initializer: `cd task_imitation/launch; setws dbot; roslaunch dbot.launch`
-- [ ] Program server: `roslaunch task_imitation task_imitation.launch bag:=/path/to/NAME.bag --screen`
+- [ ] Program server
+  - If simulation: `roslaunch task_imitation task_imitation.launch bag:=/path/to/NAME.bag --screen`
+  - If PR2: `roslaunch task_imitation task_imitation.launch --screen`
 - [ ] Start the frontend: `roscd task_perception/frontend; polymer serve`
 - [ ] Visit http://localhost:8081/imitation and enter the bag file of the demonstration to execute
