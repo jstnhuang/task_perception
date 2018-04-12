@@ -43,7 +43,7 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] Skeleton tracking frontend: `setws tracking; roscd skin_segmentation/frontend; polymer serve`
 
 ## Imitation procedure
-Save a point cloud in a real scene using: `rosrun rapid_perception save_cloud NAME`
+Save a point cloud in a real scene using: `rosrun rapid_perception save_cloud NAME base_footprint cloud_in:=/head_mount_kinect/depth_registered/points`
 
 - [ ] Start up robot
   - If simulation: start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
