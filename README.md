@@ -43,15 +43,17 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] Skeleton tracking frontend: `setws tracking; roscd skin_segmentation/frontend; polymer serve`
 
 ## Imitation procedure
+Save a point cloud in a real scene using: `rosrun rapid_perception save_cloud NAME`
+
 - [ ] Start up robot
   - If simulation: start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
   - If PR2: Start RWS and `rosrun rqt_console rqt_console`
-- [ ] Raise torso to 0.4 m
+- [ ] Raise torso to 0.4 m: `rosrun rapid_pr2 torso 0.4`
 - [ ] RViz: `rosrun rviz rviz -d task_imitation/config/imitation.rviz`
 - [ ] Move to start position
   - If simulation: use MoveIt
   - If PR2: use Rapid PbD
 - [ ] Run dbot object initializer: `cd task_imitation/launch; setws dbot; roslaunch dbot.launch`
-- [ ] Program server: `roslaunch task_imitation task_imitation.launch --screen`
-- [ ] Choose which task to imitate: `rosed task_imitation test_imitation.py`
-- [ ] Trigger processing/execution of a bag file: `rosrun task_imitation test_imitation.py`
+- [ ] Program server: `roslaunch task_imitation task_imitation.launch bag:=/path/to/NAME.bag --screen`
+- [ ] Start the frontend: `roscd task_perception/frontend; polymer serve`
+- [ ] Visit http://localhost:8081/imitation and enter the bag file of the demonstration to execute
