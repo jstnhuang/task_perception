@@ -330,24 +330,6 @@ std::vector<Pose> ComputeGraspTrajectory(const std::vector<Pose>& ee_trajectory,
   return gripper_traj;
 }
 
-std::vector<Pose> SampleTrajectory(const std::vector<Pose>& traj) {
-  std::vector<Pose> sampled;
-  if (traj.size() == 0) {
-    return traj;
-  }
-  sampled.push_back(traj[0]);
-
-  int sample_every;
-  ros::param::param("sample_every", sample_every, 9);
-  for (size_t i = sample_every; i < traj.size() - 1; i += sample_every) {
-    sampled.push_back(traj[i]);
-  }
-
-  sampled.push_back(traj.back());
-  ROS_INFO("Sampled %ld poses out of %ld", sampled.size(), traj.size());
-  return sampled;
-}
-
 ros::Duration ComputeTrajectoryTime(const JointTrajectory& traj) {
   if (traj.points.size() > 0) {
     return traj.points.back().time_from_start;
