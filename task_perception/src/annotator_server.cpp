@@ -140,17 +140,6 @@ void AnnotatorServer::HandleOpen(const std::string& bag_path) {
   state_.current_frame = -1;
 
   RunCurrentStep();
-  // While debugging, we may choose to skip ahead to a particular frame number
-  if (state_.bag_path == "/home/jstn/data/demonstrations/pringles_1.bag") {
-    while (state_.current_frame < 40) {
-      RunCurrentStep();
-    }
-  } else if (state_.bag_path ==
-             "/home/jstn/data/demonstrations/cheezit_1.bag") {
-    while (state_.current_frame < 10) {
-      RunCurrentStep();
-    }
-  }
 }
 
 void AnnotatorServer::HandleStep() {
