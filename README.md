@@ -15,6 +15,8 @@ Buid these in a separate workspace called **dbot**:
 - dbot_ros (modified)
 
 ## Demonstration procedure
+- [ ] `roscore`
+- [ ] RViz: `rosrun rviz rviz -d task_perception/config/record_demonstration.rviz`
 - [ ] Start up cameras
   - If tripod: `roslaunch task_perception xtion_tripod.launch`
   - If PR2: start up as usual
