@@ -37,7 +37,7 @@ All object meshes go in a ROS package called `object_meshes` and in a folder nam
 - [ ] `roscore`
 - [ ] Frontend: `cd frontend; polymer serve;`
 - [ ] Upload PR2 (only needed once): `roslaunch task_perception upload_pr2.launch`
-- [ ] Add an object tracker for each object in the demonstration: `rosed task_perception dbot_nerf.launch`
+- [ ] Add an object tracker for each object in the demonstration: `cd task_perception/launch; vim dbot_nerf.launch`
 - [ ] In dbot/nerf workspace, run skeleton/object tracking: `cd task_perception/launch; setws dbot; roslaunch dbot_nerf.launch`
 - [ ] Backend: `roslaunch task_perception task_perception.launch --screen`
 - [ ] RViz: `rosrun rviz rviz -d task_perception/config/task_perception.rviz`
