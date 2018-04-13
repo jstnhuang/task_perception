@@ -5,5 +5,5 @@
     <arg name="publish_tf" value="false" />
   </include>
   <include file="$(find rgbd_launch)/launch/kinect_frames.launch" />
-  <node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1.35 0 0.33 0 base_link camera_link 100" />
+  <node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1.33 0 0.33 0 base_link camera_link 100" />
 </launch>
