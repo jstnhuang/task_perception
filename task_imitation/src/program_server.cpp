@@ -309,7 +309,7 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
     geometry_msgs::Point initial_obj_position = obj_position.point();
     // Flip about y axis to account for mirroring.
     initial_obj_position.y *= -1;
-    bool found = MatchObject(obj_position.point(), obj_scale, surface_objects,
+    bool found = MatchObject(initial_obj_position, obj_scale, surface_objects,
                              &obj_pose, &obj_scale_obs);
     dbot_ros_msgs::InitializeObjectGoal init_goal;
     init_goal.frame_id = executor_.planning_frame();
