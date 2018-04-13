@@ -71,7 +71,7 @@ bool CollisionChecker::Check(const msgs::ObjectState& obj1,
   LazyObjectModel obj1_model(obj1.mesh_name, planning_frame_, obj1.pose);
   LazyObjectModel obj2_model(obj2.mesh_name, planning_frame_, obj2.pose);
   const double kInflationSize =
-      rapid::GetDoubleParamOrThrow("object_inflation_size");
+      rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
 
   geometry_msgs::Vector3 obj1_scale =
       InflateScale(obj1_model.scale(), kInflationSize);
