@@ -69,6 +69,7 @@ class HandStateMachine {
       const task_perception_msgs::DemoState& demo_state);
   task_perception_msgs::HandState GetOtherHand(
       const task_perception_msgs::DemoState& demo_state);
+  task_perception_msgs::HandState GetPrevHand();
 
   ProgramSegment NewGraspSegment();
   ProgramSegment NewUngraspSegment();
@@ -89,10 +90,10 @@ class HandStateMachine {
 // Generates an executable robot program given a sequence of states extracted
 // from a demonstration.
 class ProgramGenerator {
+ public:
   typedef std::map<std::string, task_perception_msgs::ObjectState>
       ObjectStateIndex;
 
- public:
   ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
                    moveit::planning_interface::MoveGroup& right_group);
   task_perception_msgs::Program Generate(
@@ -103,13 +104,15 @@ class ProgramGenerator {
   std::vector<ProgramSegment> Segment(
       const std::vector<task_perception_msgs::DemoState>& demo_states);
   void ProcessSegment(const ProgramSegment& state,
-                      const ObjectStateIndex& initial_objects);
+                      const ObjectStateIndex& initial_runtime_objects,
+                      const ObjectStateIndex& initial_demo_objects);
   void AddGraspStep(const ProgramSegment& segment,
-                    const ObjectStateIndex& initial_objects);
+                    const ObjectStateIndex& initial_runtime_objects);
   void AddUngraspStep(const ProgramSegment& segment);
-  void AddMoveToStep(const ProgramSegment& segment);
+  void AddMoveToStep(const ProgramSegment& segment,
+                     const ObjectStateIndex& initial_demo_objects);
   void AddTrajectoryStep(const ProgramSegment& segment,
-                         const ObjectStateIndex& initial_objects);
+                         const ObjectStateIndex& initial_runtime_objects);
 
   // Gets the most recently created step for the given arm.
   // Returns a pointer to the most recent step, or NULL if there was none.
@@ -143,6 +146,12 @@ task_perception_msgs::ObjectState GetObjectState(
 std::string InferDoubleCollisionTarget(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
     int start_index, const CollisionChecker& collision_checker);
+
+// Gets the initial states of all the objects at the time of the demonstration.
+// NOTE: the poses of these objects are in the camera frame. In contrast, the
+// poses of "runtime objects" are given in the robot's planning/base frame.
+ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
+    const std::vector<task_perception_msgs::DemoState>& demo_states);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_GENERATOR_H_
