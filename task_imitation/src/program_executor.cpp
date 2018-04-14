@@ -137,6 +137,7 @@ std::string ProgramExecutor::Execute(
 
   ROS_INFO("Waiting for trigger to start execution...");
   ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+  ROS_INFO("Executing...");
 
   bool is_sim = rapid::GetBoolParamOrThrow("use_sim_time");
   const double kGraspForce = is_sim ? -1 : 50;
@@ -147,7 +148,7 @@ std::string ProgramExecutor::Execute(
   for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
     ProgramSlice& slice = retimed_slices.slices[i];
     if (slice.left_traj.points.size() == 0) {
-      ROS_ASSERT(slice.is_left_closing ^ slice.is_left_opening);
+      ROS_ASSERT(!(slice.is_left_closing && slice.is_left_opening));
       if (slice.is_left_closing) {
         slice.left_traj =
             GetNonMovingTrajectory(left_group_, ros::Duration(kGraspDuration));
@@ -157,7 +158,7 @@ std::string ProgramExecutor::Execute(
       }
     }
     if (slice.right_traj.points.size() == 0) {
-      ROS_ASSERT(slice.is_right_closing ^ slice.is_right_opening);
+      ROS_ASSERT(!(slice.is_right_closing && slice.is_right_opening));
       if (slice.is_right_closing) {
         slice.right_traj =
             GetNonMovingTrajectory(right_group_, ros::Duration(kGraspDuration));
@@ -211,6 +212,7 @@ std::string ProgramExecutor::Execute(
         rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
     ros::Duration(kPauseDuration).sleep();
   }
+  ROS_INFO("Execution complete!");
   return "";
 }
 
