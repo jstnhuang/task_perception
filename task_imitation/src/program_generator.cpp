@@ -70,6 +70,8 @@ bool CollisionChecker::Check(const msgs::ObjectState& obj1,
                              const msgs::ObjectState& obj2) const {
   LazyObjectModel obj1_model(obj1.mesh_name, planning_frame_, obj1.pose);
   LazyObjectModel obj2_model(obj2.mesh_name, planning_frame_, obj2.pose);
+  obj1_model.set_object_model_cache(&model_cache_);
+  obj2_model.set_object_model_cache(&model_cache_);
   const double kInflationSize =
       rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
 
