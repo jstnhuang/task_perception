@@ -727,16 +727,6 @@ void ProgramGenerator::AddTrajectoryStep(
   program_.steps.push_back(traj_step);
 }
 
-int ProgramGenerator::GetMostRecentStep(const std::string& arm_name) {
-  for (int i = program_.steps.size() - 1; i >= 0; --i) {
-    const msgs::Step& step = program_.steps[i];
-    if (step.arm == arm_name) {
-      return i;
-    }
-  }
-  return -1;
-}
-
 int ProgramGenerator::GetMostRecentGraspStep(const std::string& arm_name) {
   for (int i = program_.steps.size() - 1; i >= 0; --i) {
     const msgs::Step& step = program_.steps[i];

@@ -114,9 +114,6 @@ class ProgramGenerator {
   void AddTrajectoryStep(const ProgramSegment& segment,
                          const ObjectStateIndex& initial_runtime_objects);
 
-  // Gets the most recently created step for the given arm.
-  // Returns a pointer to the most recent step, or NULL if there was none.
-  int GetMostRecentStep(const std::string& arm_name);
   int GetMostRecentGraspStep(const std::string& arm_name);
   ros::Duration GetEndTime(const task_perception_msgs::Step& step);
 
