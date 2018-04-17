@@ -312,7 +312,13 @@ void HandStateMachine::StationaryCollisionState(
   } else {
     if (is_same_object) {
       working_traj_.demo_states.push_back(demo_state);
-    } /*else {
+    } else {
+      if (working_traj_.target_object != "") {
+        ROS_WARN(
+            "Ignoring change in stationary collision from \"%s\" to \"%s\"",
+            working_traj_.target_object.c_str(), collidee.c_str());
+      }
+      /*
       ROS_INFO("Colliding with a different object %s", collidee.c_str());
       if (working_traj_.demo_states.size() > 0) {
         ROS_ASSERT(working_traj_.target_object != "");
@@ -321,7 +327,8 @@ void HandStateMachine::StationaryCollisionState(
       working_traj_ = NewTrajSegment();
       working_traj_.target_object = collidee;
       working_traj_.demo_states.push_back(demo_state);
-    }*/
+      */
+    }
   }
 }
 
