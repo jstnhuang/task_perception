@@ -142,19 +142,9 @@ std::string ProgramExecutor::Execute(
 
   // Validate
   error = ValidatePlannedSteps(left_steps);
-  if (error == "") {
-    ROS_INFO("Validated planned steps for left arm.");
-  } else {
-    ROS_ERROR("%s", error.c_str());
-    return error;
-  }
+  ROS_ASSERT_MSG(error != "", "%s", error.c_str());
   error = ValidatePlannedSteps(right_steps);
-  if (error == "") {
-    ROS_INFO("Validated planned steps for right arm.");
-  } else {
-    ROS_ERROR("%s", error.c_str());
-    return error;
-  }
+  ROS_ASSERT_MSG(error != "", "%s", error.c_str());
 
   // End debug -----------------------------------------------------------
 
