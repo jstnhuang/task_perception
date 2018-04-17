@@ -138,6 +138,7 @@ catkin_package(
     task_imitation_program_generator
     task_imitation_program_server
     task_imitation_program_slice
+    task_imitation_program_step
   CATKIN_DEPENDS
     actionlib
     eigen_conversions
@@ -205,15 +206,17 @@ add_library(task_imitation_program_executor src/program_executor.cpp)
 add_dependencies(task_imitation_program_executor ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_executor
   task_imitation_bimanual_manipulation
-  task_imitation_grasp_planner
-  task_imitation_grasp_planning_context
   task_imitation_program_slice
+  task_imitation_program_step
   ${catkin_LIBRARIES}
 )
 
 add_library(task_imitation_program_generator src/program_generator.cpp)
 add_dependencies(task_imitation_program_generator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_generator
+  task_imitation_grasp_planner
+  task_imitation_grasp_planning_context
+  task_imitation_program_step
   ${catkin_LIBRARIES}
 )
 
@@ -228,6 +231,12 @@ target_link_libraries(task_imitation_program_server
 add_library(task_imitation_program_slice src/program_slice.cpp)
 add_dependencies(task_imitation_program_slice ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_slice
+  ${catkin_LIBRARIES}
+)
+
+add_library(task_imitation_program_step src/program_step.cpp)
+add_dependencies(task_imitation_program_step ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_program_step
   ${catkin_LIBRARIES}
 )
 

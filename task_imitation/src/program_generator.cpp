@@ -19,6 +19,7 @@
 #include "task_imitation/grasp_planner.h"
 #include "task_imitation/grasp_planning_context.h"
 #include "task_imitation/program_constants.h"
+#include "task_imitation/program_step.h"
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;

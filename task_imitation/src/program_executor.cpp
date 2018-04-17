@@ -20,6 +20,8 @@
 
 #include "task_imitation/bimanual_manipulation.h"
 #include "task_imitation/program_constants.h"
+#include "task_imitation/program_slice.h"
+#include "task_imitation/program_step.h"
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
