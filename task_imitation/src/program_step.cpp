@@ -9,7 +9,7 @@ namespace msgs = task_perception_msgs;
 namespace pbi {
 ros::Duration GetEndTime(const task_perception_msgs::Step& step) {
   if (step.type == msgs::Step::GRASP) {
-    return step.start_time + ros::Duration(kGraspDuration);
+    return step.start_time;
   } else if (step.type == msgs::Step::UNGRASP) {
     return step.start_time + ros::Duration(kUngraspDuration);
   } else if (step.type == msgs::Step::MOVE_TO_POSE) {

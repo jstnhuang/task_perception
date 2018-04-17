@@ -519,20 +519,23 @@ std::vector<PlannedStep> PlanGraspStep(
   // Add pregrasp step
   PlannedStep pregrasp_step;
   pregrasp_step.traj = pregrasp_plan.trajectory_.joint_trajectory;
-  pregrasp_step.traj.header.stamp =
-      plan_start + step.start_time - grasp_duration - pregrasp_duration;
+  pregrasp_step.traj.header.stamp = plan_start + step.start_time -
+                                    ros::Duration(kGraspDuration) -
+                                    grasp_duration - pregrasp_duration;
   result.push_back(pregrasp_step);
 
   // Add move-to-grasp step
   PlannedStep move_to_grasp;
   move_to_grasp.traj = grasp_plan.trajectory_.joint_trajectory;
-  move_to_grasp.traj.header.stamp =
-      plan_start + step.start_time - grasp_duration;
+  move_to_grasp.traj.header.stamp = plan_start + step.start_time -
+                                    ros::Duration(kGraspDuration) -
+                                    grasp_duration;
   result.push_back(move_to_grasp);
 
   // Add grasp step (the trajectory is to hold still)
   PlannedStep grasp;
-  grasp.traj.header.stamp = plan_start + step.start_time;
+  grasp.traj.header.stamp =
+      plan_start + step.start_time - ros::Duration(kGraspDuration);
   grasp.traj.joint_names = move_to_grasp.traj.joint_names;
   JointTrajectoryPoint end_pt = move_to_grasp.traj.points.back();
   end_pt.time_from_start = ros::Duration(kGraspDuration);

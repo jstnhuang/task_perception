@@ -216,7 +216,6 @@ add_dependencies(task_imitation_program_generator ${${PROJECT_NAME}_EXPORTED_TAR
 target_link_libraries(task_imitation_program_generator
   task_imitation_grasp_planner
   task_imitation_grasp_planning_context
-  task_imitation_program_step
   ${catkin_LIBRARIES}
 )
 

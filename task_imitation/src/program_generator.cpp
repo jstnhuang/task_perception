@@ -19,7 +19,6 @@
 #include "task_imitation/grasp_planner.h"
 #include "task_imitation/grasp_planning_context.h"
 #include "task_imitation/program_constants.h"
-#include "task_imitation/program_step.h"
 
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
@@ -60,8 +59,6 @@ std::string CollisionChecker::Check(
         closest_sq_distance = sq_distance;
         closest_collidee = other.name;
       }
-      // ROS_INFO("%s is colliding with %s, dist=%f", object.name.c_str(),
-      //         other.name.c_str(), (held_obj_vec - other_vec).norm());
     }
   }
   return closest_collidee;
@@ -588,18 +585,7 @@ void ProgramGenerator::AddGraspStep(
   }
 
   msgs::Step grasp_step;
-
-  // Compute start time
-  int prev_step_index = GetMostRecentStep(segment.arm_name);
-  if (prev_step_index != -1) {
-    ros::Duration prev_end = GetEndTime(program_.steps[prev_step_index]);
-    if (prev_end > grasp_step.start_time) {
-      grasp_step.start_time = prev_end + ros::Duration(0.03);
-    }
-  } else {
-    grasp_step.start_time = state.stamp - start_time_;
-  }
-
+  grasp_step.start_time = state.stamp - start_time_;
   grasp_step.arm = segment.arm_name;
   grasp_step.type = msgs::Step::GRASP;
   grasp_step.object_state = GetObjectState(state, hand.object_name);
@@ -627,15 +613,11 @@ void ProgramGenerator::AddGraspStep(
 }
 
 void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
-  int prev_step_i = GetMostRecentStep(segment.arm_name);
-  ROS_ASSERT(prev_step_i != -1);
-  const msgs::Step& prev_step = program_.steps[prev_step_i];
-  ROS_ASSERT(prev_step.type == msgs::Step::GRASP ||
-             prev_step.type == msgs::Step::FOLLOW_TRAJECTORY ||
-             prev_step.type == msgs::Step::MOVE_TO_POSE);
+  ROS_ASSERT(segment.demo_states.size() > 0);
+  const msgs::DemoState& state = segment.demo_states[0];
 
   msgs::Step ungrasp_step;
-  ungrasp_step.start_time = GetEndTime(prev_step) + ros::Duration(0.03);
+  ungrasp_step.start_time = state.stamp - start_time_;
   ungrasp_step.arm = segment.arm_name;
   ungrasp_step.type = msgs::Step::UNGRASP;
   program_.steps.push_back(ungrasp_step);
@@ -654,7 +636,6 @@ void ProgramGenerator::AddMoveToStep(
 
   // Add transform of grasped object relative to target object
   ROS_ASSERT(segment.demo_states.size() == 2);
-  const ros::Time start_time(segment.demo_states[0].stamp);
   const msgs::DemoState end_state(segment.demo_states[1]);
   msgs::HandState hand;
   if (segment.arm_name == msgs::Step::LEFT) {
@@ -679,30 +660,26 @@ void ProgramGenerator::AddMoveToStep(
   graph.ComputeDescription("gripper", tg::RefFrame("target object"),
                            &ee_in_target);
 
-  int prev_step_i = GetMostRecentStep(segment.arm_name);
-  ROS_ASSERT(prev_step_i != -1);
-  const msgs::Step prev_step = program_.steps[prev_step_i];
-
+  const ros::Time step_start(segment.demo_states[0].stamp);
   msgs::Step move_step;
-  move_step.start_time = GetEndTime(prev_step) + ros::Duration(0.03);
+  move_step.start_time = step_start - start_time_ + ros::Duration(0.03);
   move_step.arm = segment.arm_name;
   move_step.type = msgs::Step::MOVE_TO_POSE;
   move_step.object_state = target_obj;
   move_step.ee_trajectory.push_back(ee_in_target.pose());
-  move_step.times_from_start.push_back(end_state.stamp - start_time);
+  move_step.times_from_start.push_back(end_state.stamp - step_start);
   program_.steps.push_back(move_step);
 }
 
 void ProgramGenerator::AddTrajectoryStep(
     const ProgramSegment& segment,
     const ObjectStateIndex& initial_runtime_objects) {
-  int prev_step_i = GetMostRecentStep(segment.arm_name);
-  ROS_ASSERT(prev_step_i != -1);
-  const msgs::Step prev_step = program_.steps[prev_step_i];
+  ROS_ASSERT(segment.demo_states.size() > 0);
+  const msgs::DemoState& start_state = segment.demo_states[0];
 
   // Set up all fields of trajectory step other than the trajectory itself.
   msgs::Step traj_step;
-  traj_step.start_time = GetEndTime(prev_step) + ros::Duration(0.03);
+  traj_step.start_time = start_state.stamp - start_time_ + ros::Duration(0.03);
   traj_step.arm = segment.arm_name;
   traj_step.type = msgs::Step::FOLLOW_TRAJECTORY;
   traj_step.object_state = initial_runtime_objects.at(segment.target_object);
@@ -768,31 +745,6 @@ int ProgramGenerator::GetMostRecentGraspStep(const std::string& arm_name) {
     }
   }
   return -1;
-}
-
-ros::Duration ProgramGenerator::GetEndTime(
-    const task_perception_msgs::Step& step) {
-  if (step.type == msgs::Step::GRASP) {
-    return step.start_time + ros::Duration(kGraspDuration);
-  } else if (step.type == msgs::Step::UNGRASP) {
-    return step.start_time + ros::Duration(kUngraspDuration);
-  } else if (step.type == msgs::Step::MOVE_TO_POSE) {
-    if (step.times_from_start.size() > 0) {
-      return step.start_time + step.times_from_start.back();
-    } else {
-      ROS_ASSERT(false);
-      return step.start_time;
-    }
-  } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
-    if (step.times_from_start.size() > 0) {
-      return step.start_time + step.times_from_start.back();
-    } else {
-      ROS_ASSERT(false);
-      return step.start_time;
-    }
-  }
-  ROS_ASSERT_MSG(false, "Unknown step type %s", step.type.c_str());
-  return ros::Duration(0);
 }
 
 geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
