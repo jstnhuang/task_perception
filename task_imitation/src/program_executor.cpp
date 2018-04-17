@@ -1,5 +1,6 @@
 #include "task_imitation/program_executor.h"
 
+#include <algorithm>
 #include <sstream>
 
 #include "boost/optional.hpp"
@@ -142,9 +143,9 @@ std::string ProgramExecutor::Execute(
 
   // Validate
   error = ValidatePlannedSteps(left_steps);
-  ROS_ASSERT_MSG(error != "", "%s", error.c_str());
+  ROS_ASSERT_MSG(error == "", "%s", error.c_str());
   error = ValidatePlannedSteps(right_steps);
-  ROS_ASSERT_MSG(error != "", "%s", error.c_str());
+  ROS_ASSERT_MSG(error == "", "%s", error.c_str());
 
   // End debug -----------------------------------------------------------
 
@@ -672,7 +673,10 @@ PlannedStep PlanFollowTrajectoryStep(
   ros::Duration intended_duration = step.times_from_start.back();
   ros::Duration planned_duration =
       planned_traj.joint_trajectory.points.back().time_from_start;
-  double scale_factor = intended_duration.toSec() / planned_duration.toSec();
+  double scale_factor =
+      std::min(1.0, intended_duration.toSec() / planned_duration.toSec());
+  ROS_INFO("Trajectory should take %fs, robot plan takes %fs, scale_factor=%f",
+           intended_duration.toSec(), planned_duration.toSec(), scale_factor);
   for (size_t i = 0; i < planned_traj.joint_trajectory.points.size(); ++i) {
     planned_traj.joint_trajectory.points[i].time_from_start *= scale_factor;
   }
@@ -726,7 +730,10 @@ PlannedStep PlanMoveToPoseStep(
     return result;
   }
 
-  double scale_factor = intended_duration.toSec() / planned_time.toSec();
+  double scale_factor =
+      std::min(1.0, intended_duration.toSec() / planned_time.toSec());
+  ROS_INFO("MoveTo should take %fs, robot plan takes %fs, scale_factor=%f",
+           intended_duration.toSec(), planned_time.toSec(), scale_factor);
   for (size_t i = 0; i < plan.trajectory_.joint_trajectory.points.size(); ++i) {
     plan.trajectory_.joint_trajectory.points[i].time_from_start *= scale_factor;
   }

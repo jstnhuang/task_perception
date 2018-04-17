@@ -635,8 +635,7 @@ void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
              prev_step.type == msgs::Step::MOVE_TO_POSE);
 
   msgs::Step ungrasp_step;
-  ungrasp_step.start_time =
-      segment.demo_states[0].stamp - start_time_ + ros::Duration(0.03);
+  ungrasp_step.start_time = GetEndTime(prev_step) + ros::Duration(0.03);
   ungrasp_step.arm = segment.arm_name;
   ungrasp_step.type = msgs::Step::UNGRASP;
   program_.steps.push_back(ungrasp_step);
