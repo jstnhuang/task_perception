@@ -91,6 +91,8 @@ std::string ProgramExecutor::Execute(
     return error;
   }
 
+  // Debug -------------------------------------------------------------
+  // Print planned steps
   ROS_INFO("Left plan:");
   ros::Time first(0);
   // if (left_steps.size() > 0) {
@@ -138,21 +140,23 @@ std::string ProgramExecutor::Execute(
              action.c_str());
   }
 
-  // DEBUG
-  bool is_valid = true;
-  for (size_t i = 0; i < left_steps.size(); ++i) {
-    const PlannedStep& step = left_steps[i];
-    if (!IsValidTrajectory(step.traj)) {
-      ROS_ERROR("Step %zu has invalid trajectory!", i);
-      is_valid = false;
-    }
-  }
-  if (is_valid) {
-    ROS_INFO("Validated planned steps.");
+  // Validate
+  error = ValidatePlannedSteps(left_steps);
+  if (error == "") {
+    ROS_INFO("Validated planned steps for left arm.");
   } else {
-    ROS_ERROR("Planned steps were invalid.");
-    return "Planned steps were invalid.";
+    ROS_ERROR("%s", error.c_str());
+    return error;
   }
+  error = ValidatePlannedSteps(right_steps);
+  if (error == "") {
+    ROS_INFO("Validated planned steps for right arm.");
+  } else {
+    ROS_ERROR("%s", error.c_str());
+    return error;
+  }
+
+  // End debug -----------------------------------------------------------
 
   msgs::ProgramSlices slices;
   slices.slices = SliceProgram(left_steps, right_steps);
@@ -160,7 +164,7 @@ std::string ProgramExecutor::Execute(
   ROS_INFO("Generated slices");
 
   // DEBUG
-  is_valid = true;
+  bool is_valid = true;
   for (size_t i = 0; i < slices.slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices.slices[i];
     if (!IsValidTrajectory(slice.left_traj)) {
@@ -462,6 +466,8 @@ std::vector<PlannedStep> PlanSteps(
     }
     prev_end = plan_start + GetEndTime(step);
   }
+
+  ROS_INFO("Validating planned steps");
   return result;
 }
 
@@ -757,5 +763,30 @@ bool IsValidTrajectory(const JointTrajectory& traj) {
     }
   }
   return true;
+}
+
+std::string ValidatePlannedSteps(
+    const std::vector<PlannedStep>& planned_steps) {
+  for (size_t i = 0; i < planned_steps.size(); ++i) {
+    const PlannedStep& step = planned_steps[i];
+    if (!IsValidTrajectory(step.traj)) {
+      std::stringstream ss;
+      ss << "Step " << i << " has invalid trajectory!";
+      return ss.str();
+    }
+    if (i > 0) {
+      const PlannedStep& prev_step = planned_steps[i - 1];
+      ros::Time prev_end = prev_step.traj.header.stamp +
+                           prev_step.traj.points.back().time_from_start;
+      if (prev_end > step.traj.header.stamp) {
+        std::stringstream ss;
+        ss << "Step " << i << " of left trajectory starts ("
+           << step.traj.header.stamp.toSec() << ") before " << i - 1
+           << " ends (" << prev_end.toSec() << ")!";
+        return ss.str();
+      }
+    }
+  }
+  return "";
 }
 }  // namespace pbi

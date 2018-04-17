@@ -125,6 +125,9 @@ PlannedStep PlanMoveToPoseStep(
 // Checks the validity of a trajectory message.
 // Currently, only checks that the time_from_starts are monotonically increasing
 bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj);
+
+// Returns error string or "" if valid.
+std::string ValidatePlannedSteps(const std::vector<PlannedStep>& planned_steps);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_
