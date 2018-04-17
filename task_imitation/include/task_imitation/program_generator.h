@@ -13,6 +13,7 @@
 #include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/Step.h"
 
+#include "task_imitation/collision_checker.h"
 #include "task_imitation/program_constants.h"
 
 namespace pbi {
@@ -29,21 +30,6 @@ struct ProgramSegment {
   std::vector<task_perception_msgs::DemoState> demo_states;
   // In case of a trajectory, this indicates which object is the target object.
   std::string target_object;
-};
-
-// Collision checking class with an object model cache.
-class CollisionChecker {
- public:
-  CollisionChecker(const std::string& planning_frame);
-  std::string Check(const task_perception_msgs::ObjectState& object,
-                    const std::vector<task_perception_msgs::ObjectState>&
-                        other_objects) const;
-  bool Check(const task_perception_msgs::ObjectState& obj1,
-             const task_perception_msgs::ObjectState& obj2) const;
-
- private:
-  std::string planning_frame_;
-  mutable LazyObjectModel::ObjectModelCache model_cache_;
 };
 
 // State machine for segmenting a demonstration.
@@ -128,10 +114,6 @@ class ProgramGenerator {
 
   CollisionChecker collision_checker_;
 };
-
-// Add a constant to a vector3.
-geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
-                                    double distance);
 
 task_perception_msgs::ObjectState GetObjectState(
     const task_perception_msgs::DemoState& state,

@@ -132,6 +132,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
     task_imitation_bimanual_manipulation
+    task_imitation_collision_checker
     task_imitation_grasp_planner
     task_imitation_grasp_planning_context
     task_imitation_program_executor
@@ -187,6 +188,12 @@ target_link_libraries(task_imitation_bimanual_manipulation
   ${catkin_LIBRARIES}
 )
 
+add_library(task_imitation_collision_checker src/collision_checker.cpp)
+add_dependencies(task_imitation_collision_checker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_collision_checker
+  ${catkin_LIBRARIES}
+)
+
 add_library(task_imitation_grasp_planner src/grasp_planner.cpp)
 add_dependencies(task_imitation_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_grasp_planner
@@ -214,6 +221,7 @@ target_link_libraries(task_imitation_program_executor
 add_library(task_imitation_program_generator src/program_generator.cpp)
 add_dependencies(task_imitation_program_generator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_generator
+  task_imitation_collision_checker
   task_imitation_grasp_planner
   task_imitation_grasp_planning_context
   ${catkin_LIBRARIES}
