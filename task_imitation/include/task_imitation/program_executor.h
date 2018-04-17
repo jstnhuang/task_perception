@@ -82,31 +82,45 @@ std::vector<PlannedStep> PlanSteps(
 // start_state is both an input and an output. As as input, it specifies the
 // start state before the step. As an output, it specifies what the updated
 // state is after the step.
+//
+// Timing: the program generator allocates 2 seconds for the grasp to happen,
+// starting from start_time + step.header.stamp. However, no time is allocated
+// for the pre-grasp and move-to-grasp motions. prev_end specifies when the
+// previous step ends, so the pre-grasp and move-to-grasp must happen between
+// prev_end and start_time + step.header.stamp.
 std::vector<PlannedStep> PlanGraspStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out);
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& prev_end, robot_state::RobotStatePtr start_state,
+    std::string* error_out);
 
+// next_start_time gives the start time of the next step. The program generator
+// allocates 2 seconds for the ungrasp step, but no time for the post-grasp
+// movement. The post-grasp must be scaled to fit in between the end of the
+// ungrasp and the start of the next step.
 std::vector<PlannedStep> PlanUngraspStep(
     const task_perception_msgs::Step& step,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out);
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& next_start, robot_state::RobotStatePtr start_state,
+    std::string* error_out);
 
 PlannedStep PlanFollowTrajectoryStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out);
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& next_start, robot_state::RobotStatePtr start_state,
+    std::string* error_out);
 
 PlannedStep PlanMoveToPoseStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out);
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& next_start, robot_state::RobotStatePtr start_state,
+    std::string* error_out);
 
 // Checks the validity of a trajectory message.
 // Currently, only checks that the time_from_starts are monotonically increasing

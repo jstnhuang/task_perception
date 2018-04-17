@@ -420,27 +420,34 @@ std::vector<PlannedStep> PlanSteps(
   robot_model::RobotModelConstPtr robot_model = group.getRobotModel();
   group.setStartStateToCurrentState();
 
-  ros::Time start_time = ros::Time::now();
+  ros::Time plan_start = ros::Time::now();
   robot_state::RobotStatePtr robot_state = group.getCurrentState();
 
+  ros::Time prev_end(0);
   for (size_t i = 0; i < steps.size(); ++i) {
     const msgs::Step& step = steps[i];
-    ros::Time prev_end(0);
+    ros::Time next_start(0);
+    if (i + 1 < steps.size()) {
+      next_start = plan_start + steps[i + 1].start_time;
+    }
     if (step.type == msgs::Step::GRASP) {
-      std::vector<PlannedStep> planned_steps = PlanGraspStep(
-          step, object_states, group, start_time, robot_state, error_out);
+      std::vector<PlannedStep> planned_steps =
+          PlanGraspStep(step, object_states, group, plan_start, prev_end,
+                        robot_state, error_out);
       result.insert(result.end(), planned_steps.begin(), planned_steps.end());
     } else if (step.type == msgs::Step::UNGRASP) {
-      std::vector<PlannedStep> planned_steps =
-          PlanUngraspStep(step, group, start_time, robot_state, error_out);
+      std::vector<PlannedStep> planned_steps = PlanUngraspStep(
+          step, group, plan_start, next_start, robot_state, error_out);
       result.insert(result.end(), planned_steps.begin(), planned_steps.end());
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
-      PlannedStep planned_step = PlanFollowTrajectoryStep(
-          step, object_states, group, start_time, robot_state, error_out);
+      PlannedStep planned_step =
+          PlanFollowTrajectoryStep(step, object_states, group, plan_start,
+                                   next_start, robot_state, error_out);
       result.push_back(planned_step);
     } else if (step.type == msgs::Step::MOVE_TO_POSE) {
-      PlannedStep planned_step = PlanMoveToPoseStep(
-          step, object_states, group, start_time, robot_state, error_out);
+      PlannedStep planned_step =
+          PlanMoveToPoseStep(step, object_states, group, plan_start, next_start,
+                             robot_state, error_out);
       result.push_back(planned_step);
     } else {
       ROS_ASSERT(false);
@@ -451,6 +458,7 @@ std::vector<PlannedStep> PlanSteps(
       *error_out = ss.str();
       return result;
     }
+    prev_end = plan_start + GetEndTime(step);
   }
   return result;
 }
@@ -459,8 +467,9 @@ std::vector<PlannedStep> PlanGraspStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr robot_state, std::string* error_out) {
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& prev_end, robot_state::RobotStatePtr robot_state,
+    std::string* error_out) {
   std::vector<PlannedStep> result;
 
   // Plan pre-grasp
@@ -512,19 +521,19 @@ std::vector<PlannedStep> PlanGraspStep(
   PlannedStep pregrasp_step;
   pregrasp_step.traj = pregrasp_plan.trajectory_.joint_trajectory;
   pregrasp_step.traj.header.stamp =
-      start_time + step.start_time - grasp_duration - pregrasp_duration;
+      plan_start + step.start_time - grasp_duration - pregrasp_duration;
   result.push_back(pregrasp_step);
 
   // Add move-to-grasp step
   PlannedStep move_to_grasp;
   move_to_grasp.traj = grasp_plan.trajectory_.joint_trajectory;
   move_to_grasp.traj.header.stamp =
-      start_time + step.start_time - grasp_duration;
+      plan_start + step.start_time - grasp_duration;
   result.push_back(move_to_grasp);
 
   // Add grasp step (the trajectory is to hold still)
   PlannedStep grasp;
-  grasp.traj.header.stamp = start_time + step.start_time;
+  grasp.traj.header.stamp = plan_start + step.start_time;
   grasp.traj.joint_names = move_to_grasp.traj.joint_names;
   JointTrajectoryPoint end_pt = move_to_grasp.traj.points.back();
   end_pt.time_from_start = ros::Duration(kGraspDuration);
@@ -538,7 +547,7 @@ std::vector<PlannedStep> PlanGraspStep(
       "Planned grasp step input: %f (%f) -> pre: [%f, %f], grasp: [%f, %f], "
       "close: "
       "[%f %f]",
-      step.start_time.toSec() + start_time.toSec(), step.start_time.toSec(),
+      step.start_time.toSec() + plan_start.toSec(), step.start_time.toSec(),
       pregrasp_step.traj.header.stamp.toSec(),
       pregrasp_step.traj.header.stamp.toSec() +
           pregrasp_step.traj.points.back().time_from_start.toSec(),
@@ -553,8 +562,9 @@ std::vector<PlannedStep> PlanGraspStep(
 
 std::vector<PlannedStep> PlanUngraspStep(
     const task_perception_msgs::Step& step,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out) {
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& next_start, robot_state::RobotStatePtr start_state,
+    std::string* error_out) {
   std::vector<PlannedStep> result;
 
   tg::Graph graph;
@@ -582,7 +592,7 @@ std::vector<PlannedStep> PlanUngraspStep(
 
   // Add ungrasp
   PlannedStep ungrasp;
-  ungrasp.traj.header.stamp = start_time + step.start_time;
+  ungrasp.traj.header.stamp = plan_start + step.start_time;
   ungrasp.traj.joint_names =
       post_grasp_plan.trajectory_.joint_trajectory.joint_names;
   JointTrajectoryPoint start_pt =
@@ -597,19 +607,19 @@ std::vector<PlannedStep> PlanUngraspStep(
   PlannedStep post_grasp;
   post_grasp.traj = post_grasp_plan.trajectory_.joint_trajectory;
   post_grasp.traj.header.stamp =
-      start_time + step.start_time + ros::Duration(kUngraspDuration);
+      plan_start + step.start_time + ros::Duration(kUngraspDuration);
 
   result.push_back(post_grasp);
   // TODO: could scale the post grasp trajectory in case we overrun into another
   // Step's allocated time.
 
   ROS_INFO("Planned ungrasp step, input: %f (%f) -> open [%f %f], post [%f %f]",
-           start_time.toSec() + step.start_time.toSec(),
+           plan_start.toSec() + step.start_time.toSec(),
            step.start_time.toSec(), ungrasp.traj.header.stamp.toSec(),
            ungrasp.traj.header.stamp.toSec() +
                ungrasp.traj.points.back().time_from_start.toSec(),
            post_grasp.traj.header.stamp.toSec(),
-           post_grasp.traj.header.stamp.toSec() + start_time.toSec());
+           post_grasp.traj.header.stamp.toSec() + plan_start.toSec());
   return result;
 }
 
@@ -617,8 +627,9 @@ PlannedStep PlanFollowTrajectoryStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out) {
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& next_start, robot_state::RobotStatePtr start_state,
+    std::string* error_out) {
   PlannedStep result;
   moveit_msgs::MoveItErrorCodes error_code;
   moveit_msgs::RobotTrajectory planned_traj;
@@ -669,7 +680,7 @@ PlannedStep PlanFollowTrajectoryStep(
   }
 
   result.traj = planned_traj.joint_trajectory;
-  result.traj.header.stamp = start_time + step.start_time;
+  result.traj.header.stamp = plan_start + step.start_time;
 
   return result;
 }
@@ -678,8 +689,9 @@ PlannedStep PlanMoveToPoseStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
         object_states,
-    moveit::planning_interface::MoveGroup& group, const ros::Time& start_time,
-    robot_state::RobotStatePtr start_state, std::string* error_out) {
+    moveit::planning_interface::MoveGroup& group, const ros::Time& plan_start,
+    const ros::Time& next_start, robot_state::RobotStatePtr start_state,
+    std::string* error_out) {
   tg::Graph graph;
   graph.Add("current object", tg::RefFrame("planning"),
             object_states.at(step.object_state.name).pose);
@@ -722,7 +734,7 @@ PlannedStep PlanMoveToPoseStep(
   }
 
   result.traj = plan.trajectory_.joint_trajectory;
-  result.traj.header.stamp = start_time + step.start_time;
+  result.traj.header.stamp = plan_start + step.start_time;
   return result;
 }
 
