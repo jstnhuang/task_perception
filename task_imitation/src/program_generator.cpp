@@ -312,7 +312,7 @@ void HandStateMachine::StationaryCollisionState(
   } else {
     if (is_same_object) {
       working_traj_.demo_states.push_back(demo_state);
-    } else {
+    } /*else {
       ROS_INFO("Colliding with a different object %s", collidee.c_str());
       if (working_traj_.demo_states.size() > 0) {
         ROS_ASSERT(working_traj_.target_object != "");
@@ -321,7 +321,7 @@ void HandStateMachine::StationaryCollisionState(
       working_traj_ = NewTrajSegment();
       working_traj_.target_object = collidee;
       working_traj_.demo_states.push_back(demo_state);
-    }
+    }*/
   }
 }
 
@@ -633,7 +633,8 @@ void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
              prev_step.type == msgs::Step::MOVE_TO_POSE);
 
   msgs::Step ungrasp_step;
-  ungrasp_step.start_time = GetEndTime(prev_step) + ros::Duration(0.03);
+  ungrasp_step.start_time =
+      segment.demo_states[0].stamp - start_time_ + ros::Duration(0.03);
   ungrasp_step.arm = segment.arm_name;
   ungrasp_step.type = msgs::Step::UNGRASP;
   program_.steps.push_back(ungrasp_step);
