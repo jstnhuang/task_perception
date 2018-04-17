@@ -89,6 +89,53 @@ std::string ProgramExecutor::Execute(
     return error;
   }
 
+  ROS_INFO("Left plan:");
+  ros::Time first(0);
+  // if (left_steps.size() > 0) {
+  //  first = left_steps[0].traj.header.stamp;
+  //}
+  // if (right_steps.size() > 0 && right_steps[0].traj.header.stamp < first) {
+  //  first = right_steps[0].traj.header.stamp;
+  //}
+  for (size_t i = 0; i < left_steps.size(); ++i) {
+    const PlannedStep& step = left_steps[i];
+    std::string action("");
+    if (step.is_closing) {
+      action = " (closing)";
+    } else if (step.is_opening) {
+      action = " (opening)";
+    }
+    const ros::Time& start_time = step.traj.header.stamp;
+    ros::Time end_time = start_time;
+    if (step.traj.points.size() > 0) {
+      end_time += step.traj.points.back().time_from_start;
+    }
+    ROS_INFO("Step %zu: [%f, %f], %zu points%s", i,
+             start_time.toSec() - first.toSec(),
+             end_time.toSec() - first.toSec(), step.traj.points.size(),
+             action.c_str());
+  }
+
+  ROS_INFO("Right plan:");
+  for (size_t i = 0; i < right_steps.size(); ++i) {
+    const PlannedStep& step = right_steps[i];
+    std::string action("");
+    if (step.is_closing) {
+      action = " (closing)";
+    } else if (step.is_opening) {
+      action = " (opening)";
+    }
+    const ros::Time& start_time = step.traj.header.stamp;
+    ros::Time end_time = start_time;
+    if (step.traj.points.size() > 0) {
+      end_time += step.traj.points.back().time_from_start;
+    }
+    ROS_INFO("Step %zu: [%f, %f], %zu points%s", i,
+             start_time.toSec() - first.toSec(),
+             end_time.toSec() - first.toSec(), step.traj.points.size(),
+             action.c_str());
+  }
+
   // DEBUG
   bool is_valid = true;
   for (size_t i = 0; i < left_steps.size(); ++i) {
@@ -486,6 +533,21 @@ std::vector<PlannedStep> PlanGraspStep(
   // Step's allocated time.
   grasp.is_closing = true;
   result.push_back(grasp);
+
+  ROS_INFO(
+      "Planned grasp step input: %f (%f) -> pre: [%f, %f], grasp: [%f, %f], "
+      "close: "
+      "[%f %f]",
+      step.start_time.toSec() + start_time.toSec(), step.start_time.toSec(),
+      pregrasp_step.traj.header.stamp.toSec(),
+      pregrasp_step.traj.header.stamp.toSec() +
+          pregrasp_step.traj.points.back().time_from_start.toSec(),
+      move_to_grasp.traj.header.stamp.toSec(),
+      move_to_grasp.traj.header.stamp.toSec() +
+          move_to_grasp.traj.points.back().time_from_start.toSec(),
+      grasp.traj.header.stamp.toSec(),
+      grasp.traj.header.stamp.toSec() +
+          grasp.traj.points.back().time_from_start.toSec());
   return result;
 }
 
@@ -541,6 +603,13 @@ std::vector<PlannedStep> PlanUngraspStep(
   // TODO: could scale the post grasp trajectory in case we overrun into another
   // Step's allocated time.
 
+  ROS_INFO("Planned ungrasp step, input: %f (%f) -> open [%f %f], post [%f %f]",
+           start_time.toSec() + step.start_time.toSec(),
+           step.start_time.toSec(), ungrasp.traj.header.stamp.toSec(),
+           ungrasp.traj.header.stamp.toSec() +
+               ungrasp.traj.points.back().time_from_start.toSec(),
+           post_grasp.traj.header.stamp.toSec(),
+           post_grasp.traj.header.stamp.toSec() + start_time.toSec());
   return result;
 }
 
