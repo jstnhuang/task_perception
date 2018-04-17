@@ -359,10 +359,6 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
     if (is_master) {
       working_traj_.demo_states.push_back(demo_state);
     }
-    ROS_INFO("(Other hand just ungrasped) Hand: %s", arm_name_.c_str());
-    ROS_INFO("Working traj: %zu points relative to %s",
-             working_traj_.demo_states.size(),
-             working_traj_.target_object.c_str());
     // If the other hand ungrasps, then transition to STATIONARY COLLISION
     ROS_INFO("%s transitioning from DOUBLE_COLLISION to STATIONARY_COLLISION",
              arm_name_.c_str());
@@ -375,8 +371,6 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
         GetObjectState(demo_state, hand.object_name);
     std::string collidee(
         collision_checker_.Check(object, demo_state.object_states));
-    ROS_INFO("Both hands still grasping, %s is colliding with %s",
-             arm_name_.c_str(), collidee.c_str());
 
     if (collidee == "") {
       // Free grasping
