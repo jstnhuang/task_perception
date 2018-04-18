@@ -1,5 +1,7 @@
 #include "task_imitation/program_slice.h"
 
+#include <stdexcept>
+
 #include "task_perception_msgs/ProgramSlice.h"
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
@@ -61,9 +63,24 @@ void PlannedStep::GetIsClosingOrOpening(const ros::Time& start_time,
                                         const ros::Time& end_time,
                                         bool* is_closing_result,
                                         bool* is_opening_result) const {
+  ROS_ASSERT(start_time <= end_time);
   ROS_ASSERT(traj.points.size() > 0);
   ros::Time start = traj.header.stamp;
   ros::Time end = start + traj.points.back().time_from_start;
+
+  // The requested interval must either be entirely outside this step, or
+  // entirely inside.
+  bool bad_condition1 = start_time < start && end_time > start;
+  bool bad_condition2 =
+      start_time >= start && start_time < end && end_time > end;
+  if (bad_condition1 || bad_condition2) {
+    ROS_ERROR("step: [%f, %f], requested: [%f, %f]", start.toSec(), end.toSec(),
+              start_time.toSec(), end_time.toSec());
+    throw std::invalid_argument(
+        "Requested interval must be entirely outside or entirely inside the "
+        "PlannedStep");
+  }
+
   if (start_time >= start && end_time <= end) {
     *is_closing_result = is_closing;
     *is_opening_result = is_opening;
