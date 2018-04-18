@@ -145,6 +145,8 @@ std::string ProgramExecutor::Execute(
   while (ros::ok() && (!left_gripper_.IsDone() || !right_gripper_.IsDone())) {
     ros::spinOnce();
   }
+  const double kPauseDuration =
+      rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
 
   for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
     ProgramSlice& slice = retimed_slices.slices[i];
@@ -172,6 +174,9 @@ std::string ProgramExecutor::Execute(
     moveit::planning_interface::MoveGroup::Plan plan;
     plan.trajectory_.joint_trajectory =
         MergeTrajectories(slice.left_traj, slice.right_traj);
+    ROS_INFO("Slice %zu: trajectory starts at %f, current time is %f", i + 1,
+             plan.trajectory_.joint_trajectory.header.stamp.toSec(),
+             ros::Time::now().toSec());
 
     // Remove all accelerations from the trajectory. This could possibly lead to
     // smoother executions.
@@ -179,6 +184,7 @@ std::string ProgramExecutor::Execute(
          ++j) {
       JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[j];
       pt.accelerations.clear();
+      pt.effort.clear();
     }
 
     // Execute slice
@@ -192,10 +198,12 @@ std::string ProgramExecutor::Execute(
     } else if (slice.is_right_opening) {
       right_gripper_.StartOpening();
     }
-    bool success = arms_group_.execute(plan);
-    if (!success) {
+    moveit::planning_interface::MoveItErrorCode error =
+        arms_group_.execute(plan);
+    if (!rapid::IsSuccess(error)) {
       std::stringstream ss;
-      ss << "Failed to execute slice " << (i + 1);
+      ss << "Failed to execute slice " << (i + 1) << ": "
+         << rapid::ErrorString(error);
       ROS_ERROR_STREAM(ss.str());
       return ss.str();
     }
@@ -223,8 +231,7 @@ std::string ProgramExecutor::Execute(
         }
       }
     }
-    const double kPauseDuration =
-        rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
+    ROS_INFO("Sleeping for %f seconds", kPauseDuration);
     ros::Duration(kPauseDuration).sleep();
   }
   ROS_INFO("Execution complete!");
@@ -637,7 +644,7 @@ PlannedStep PlanFollowTrajectoryStep(
     return result;
   } else if (step.ee_trajectory.size() > 0 && fraction < 1) {
     std::stringstream ss;
-    ss << "Planned " << fraction * 100 << "%% of arm trajectory";
+    ss << "Planned " << fraction * 100 << "% of arm trajectory";
     *error_out = ss.str();
     return result;
   } else {
