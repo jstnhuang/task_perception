@@ -94,52 +94,7 @@ std::string ProgramExecutor::Execute(
 
   // Debug -------------------------------------------------------------
   // Print planned steps
-  ROS_INFO("Left plan:");
-  ros::Time first(0);
-  if (left_steps.size() > 0) {
-    first = left_steps[0].traj.header.stamp;
-  }
-  if (right_steps.size() > 0 && right_steps[0].traj.header.stamp < first) {
-    first = right_steps[0].traj.header.stamp;
-  }
-  for (size_t i = 0; i < left_steps.size(); ++i) {
-    const PlannedStep& step = left_steps[i];
-    std::string action("");
-    if (step.is_closing) {
-      action = " (closing)";
-    } else if (step.is_opening) {
-      action = " (opening)";
-    }
-    const ros::Time& start_time = step.traj.header.stamp;
-    ros::Time end_time = start_time;
-    if (step.traj.points.size() > 0) {
-      end_time += step.traj.points.back().time_from_start;
-    }
-    ROS_INFO("Step %zu: [%f, %f], %zu points%s", i,
-             start_time.toSec() - first.toSec(),
-             end_time.toSec() - first.toSec(), step.traj.points.size(),
-             action.c_str());
-  }
-
-  ROS_INFO("Right plan:");
-  for (size_t i = 0; i < right_steps.size(); ++i) {
-    const PlannedStep& step = right_steps[i];
-    std::string action("");
-    if (step.is_closing) {
-      action = " (closing)";
-    } else if (step.is_opening) {
-      action = " (opening)";
-    }
-    const ros::Time& start_time = step.traj.header.stamp;
-    ros::Time end_time = start_time;
-    if (step.traj.points.size() > 0) {
-      end_time += step.traj.points.back().time_from_start;
-    }
-    ROS_INFO("Step %zu: [%f, %f], %zu points%s", i,
-             start_time.toSec() - first.toSec(),
-             end_time.toSec() - first.toSec(), step.traj.points.size(),
-             action.c_str());
-  }
+  PrintPlan(left_steps, right_steps);
 
   // Validate
   error = ValidatePlannedSteps(left_steps);
@@ -160,10 +115,16 @@ std::string ProgramExecutor::Execute(
     ROS_ASSERT(IsValidTrajectory(slice.left_traj));
     ROS_ASSERT(IsValidTrajectory(slice.right_traj));
   }
+  PrintSlices(slices.slices);
   ROS_INFO("Validated initial slices");
+
+  ROS_INFO("Waiting for trigger to retime slices...");
+  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+  ROS_INFO("Retiming slices...");
 
   msgs::ProgramSlices retimed_slices;
   retimed_slices.slices = RetimeSlices(slices.slices);
+  PrintSlices(retimed_slices.slices);
   slice_pub_.publish(retimed_slices);
   ROS_INFO("Done retiming slices.");
 
@@ -781,5 +742,115 @@ std::string ValidatePlannedSteps(
     }
   }
   return "";
+}
+
+void PrintPlan(const std::vector<PlannedStep>& left_steps,
+               const std::vector<PlannedStep>& right_steps) {
+  ROS_INFO("Left plan:");
+  ros::Time first(0);
+  if (left_steps.size() > 0) {
+    first = left_steps[0].traj.header.stamp;
+  }
+  if (right_steps.size() > 0 && right_steps[0].traj.header.stamp < first) {
+    first = right_steps[0].traj.header.stamp;
+  }
+  for (size_t i = 0; i < left_steps.size(); ++i) {
+    const PlannedStep& step = left_steps[i];
+    std::string action("");
+    if (step.is_closing) {
+      action = " (closing)";
+    } else if (step.is_opening) {
+      action = " (opening)";
+    }
+    const ros::Time& start_time = step.traj.header.stamp;
+    ros::Time end_time = start_time;
+    if (step.traj.points.size() > 0) {
+      end_time += step.traj.points.back().time_from_start;
+    }
+    ROS_INFO("Step %zu: [%f, %f], %zu points%s", i,
+             start_time.toSec() - first.toSec(),
+             end_time.toSec() - first.toSec(), step.traj.points.size(),
+             action.c_str());
+  }
+
+  ROS_INFO("Right plan:");
+  for (size_t i = 0; i < right_steps.size(); ++i) {
+    const PlannedStep& step = right_steps[i];
+    std::string action("");
+    if (step.is_closing) {
+      action = " (closing)";
+    } else if (step.is_opening) {
+      action = " (opening)";
+    }
+    const ros::Time& start_time = step.traj.header.stamp;
+    ros::Time end_time = start_time;
+    if (step.traj.points.size() > 0) {
+      end_time += step.traj.points.back().time_from_start;
+    }
+    ROS_INFO("Step %zu: [%f, %f], %zu points%s", i,
+             start_time.toSec() - first.toSec(),
+             end_time.toSec() - first.toSec(), step.traj.points.size(),
+             action.c_str());
+  }
+}
+
+void PrintSlices(
+    const std::vector<task_perception_msgs::ProgramSlice>& slices) {
+  ros::Time slice_start(0);
+  for (size_t i = 0; i < slices.size(); ++i) {
+    const msgs::ProgramSlice& slice = slices[i];
+    ROS_ASSERT(IsValidTrajectory(slice.left_traj));
+    ROS_ASSERT(IsValidTrajectory(slice.right_traj));
+
+    if (i == 0) {
+      if (slice.left_traj.points.size() > 0) {
+        slice_start = slice.left_traj.header.stamp;
+      }
+      if (slice.right_traj.points.size() > 0 &&
+          slice.right_traj.header.stamp < slice_start) {
+        slice_start = slice.right_traj.header.stamp;
+      }
+    }
+    std::string left_action("");
+    if (slice.is_left_closing) {
+      left_action = "close ";
+    } else if (slice.is_left_opening) {
+      left_action = "open ";
+    }
+    std::string left_interval("");
+    if (slice.left_traj.points.size() > 0) {
+      ros::Duration left_start = slice.left_traj.header.stamp - slice_start;
+      ros::Duration left_end = slice.left_traj.header.stamp +
+                               slice.left_traj.points.back().time_from_start -
+                               slice_start;
+      std::stringstream ss;
+      ss << std::setprecision(5) << " [" << left_start.toSec() << ", "
+         << left_end.toSec() << "]";
+      left_interval = ss.str();
+    }
+
+    std::string right_action("");
+    if (slice.is_right_closing) {
+      right_action = "close ";
+    } else if (slice.is_right_opening) {
+      right_action = "open ";
+    }
+    std::string right_interval("");
+    if (slice.right_traj.points.size() > 0) {
+      ros::Duration right_start = slice.right_traj.header.stamp - slice_start;
+      ros::Duration right_end = slice.right_traj.header.stamp +
+                                slice.right_traj.points.back().time_from_start -
+                                slice_start;
+      std::stringstream ss;
+      ss << std::setprecision(5) << " [" << right_start.toSec() << ", "
+         << right_end.toSec() << "]";
+      right_interval = ss.str();
+    }
+
+    ROS_INFO("Slice %zu: %sleft: %zu pts%s, %sright: %zu pts%s", i + 1,
+             left_action.c_str(), slice.left_traj.points.size(),
+             left_interval.c_str(), right_action.c_str(),
+             slice.right_traj.points.size(), right_interval.c_str());
+  }
 }
 }  // namespace pbi

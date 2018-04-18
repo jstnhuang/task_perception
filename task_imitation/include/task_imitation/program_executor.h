@@ -128,6 +128,10 @@ bool IsValidTrajectory(const trajectory_msgs::JointTrajectory& traj);
 
 // Returns error string or "" if valid.
 std::string ValidatePlannedSteps(const std::vector<PlannedStep>& planned_steps);
+
+void PrintPlan(const std::vector<PlannedStep>& left_steps,
+               const std::vector<PlannedStep>& right_steps);
+void PrintSlices(const std::vector<task_perception_msgs::ProgramSlice>& slices);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_
