@@ -96,12 +96,12 @@ std::string ProgramExecutor::Execute(
   // Print planned steps
   ROS_INFO("Left plan:");
   ros::Time first(0);
-  // if (left_steps.size() > 0) {
-  //  first = left_steps[0].traj.header.stamp;
-  //}
-  // if (right_steps.size() > 0 && right_steps[0].traj.header.stamp < first) {
-  //  first = right_steps[0].traj.header.stamp;
-  //}
+  if (left_steps.size() > 0) {
+    first = left_steps[0].traj.header.stamp;
+  }
+  if (right_steps.size() > 0 && right_steps[0].traj.header.stamp < first) {
+    first = right_steps[0].traj.header.stamp;
+  }
   for (size_t i = 0; i < left_steps.size(); ++i) {
     const PlannedStep& step = left_steps[i];
     std::string action("");
@@ -155,24 +155,12 @@ std::string ProgramExecutor::Execute(
   ROS_INFO("Generated slices");
 
   // DEBUG
-  bool is_valid = true;
   for (size_t i = 0; i < slices.slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices.slices[i];
-    if (!IsValidTrajectory(slice.left_traj)) {
-      ROS_ERROR("Slice %zu: left traj is invalid!", i);
-      is_valid = false;
-    }
-    if (!IsValidTrajectory(slice.right_traj)) {
-      ROS_ERROR("Slice %zu: right traj is invalid!", i);
-      is_valid = false;
-    }
+    ROS_ASSERT(IsValidTrajectory(slice.left_traj));
+    ROS_ASSERT(IsValidTrajectory(slice.right_traj));
   }
-  if (is_valid) {
-    ROS_INFO("Validated initial slices");
-  } else {
-    ROS_ERROR("Initial slices are invalid!");
-    return "Initial slices are invalid.";
-  }
+  ROS_INFO("Validated initial slices");
 
   msgs::ProgramSlices retimed_slices;
   retimed_slices.slices = RetimeSlices(slices.slices);
@@ -339,6 +327,7 @@ std::vector<ProgramSlice> SliceProgram(
     ros::Time best_time(0);
     for (size_t i = 0; i < event_times.size(); ++i) {
       ros::Time time = event_times[i];
+      ROS_ASSERT(!time.isZero());
       if (time > prev_time) {
         if (best_time.isZero() || time < best_time) {
           best_time = time;
@@ -350,21 +339,25 @@ std::vector<ProgramSlice> SliceProgram(
     if (!prev_time.isZero() && !current_time.isZero()) {
       // Get left slice from prev_time to current_time
       if (left_step) {
-        current_slice.is_left_closing = left_step->is_closing;
-        current_slice.is_left_opening = left_step->is_opening;
+        bool is_left_closing;
+        bool is_left_opening;
+        left_step->GetIsClosingOrOpening(prev_time, current_time,
+                                         &is_left_closing, &is_left_opening);
+        current_slice.is_left_closing = is_left_closing;
+        current_slice.is_left_opening = is_left_opening;
         current_slice.left_traj = left_step->GetTraj(prev_time, current_time);
-        if (!IsValidTrajectory(current_slice.left_traj)) {
-          ROS_ERROR("left slice is invalid");
-        }
+        ROS_ASSERT(IsValidTrajectory(current_slice.left_traj));
       }
       // Get right slice from prev_time to current_time
       if (right_step) {
-        current_slice.is_right_closing = right_step->is_closing;
-        current_slice.is_right_opening = right_step->is_opening;
+        bool is_right_closing;
+        bool is_right_opening;
+        right_step->GetIsClosingOrOpening(prev_time, current_time,
+                                          &is_right_closing, &is_right_opening);
+        current_slice.is_right_closing = is_right_closing;
+        current_slice.is_right_opening = is_right_opening;
         current_slice.right_traj = right_step->GetTraj(prev_time, current_time);
-        if (!IsValidTrajectory(current_slice.right_traj)) {
-          ROS_ERROR("right slice is invalid");
-        }
+        ROS_ASSERT(IsValidTrajectory(current_slice.right_traj));
       }
 
       if (!IsSliceEmpty(current_slice)) {
