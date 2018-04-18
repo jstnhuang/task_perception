@@ -92,7 +92,6 @@ std::string ProgramExecutor::Execute(
     return error;
   }
 
-  // Debug -------------------------------------------------------------
   // Print planned steps
   PrintPlan(left_steps, right_steps);
 
@@ -102,21 +101,34 @@ std::string ProgramExecutor::Execute(
   error = ValidatePlannedSteps(right_steps);
   ROS_ASSERT_MSG(error == "", "%s", error.c_str());
 
-  // End debug -----------------------------------------------------------
-
   msgs::ProgramSlices slices;
   slices.slices = SliceProgram(left_steps, right_steps);
-  slice_pub_.publish(slices);
-  ROS_INFO("Generated slices");
-
-  // DEBUG
+  PrintSlices(slices.slices);
   for (size_t i = 0; i < slices.slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices.slices[i];
     ROS_ASSERT(IsValidTrajectory(slice.left_traj));
     ROS_ASSERT(IsValidTrajectory(slice.right_traj));
   }
-  PrintSlices(slices.slices);
   ROS_INFO("Validated initial slices");
+
+  // Shift slices so that they start at time 0.
+  ros::Time slices_start_time = GetStartOfSlices(slices.slices);
+  ros::Duration slices_start(slices_start_time.sec, slices_start_time.nsec);
+  ROS_INFO("Start of slices: %f", slices_start.toSec());
+  for (size_t i = 0; i < slices.slices.size(); ++i) {
+    msgs::ProgramSlice& slice = slices.slices[i];
+    if (!slice.left_traj.header.stamp.isZero()) {
+      ROS_ASSERT(slice.left_traj.header.stamp >= slices_start_time);
+      slice.left_traj.header.stamp -= slices_start;
+    }
+    if (!slice.right_traj.header.stamp.isZero()) {
+      ROS_ASSERT(slice.right_traj.header.stamp >= slices_start_time);
+      slice.right_traj.header.stamp -= slices_start;
+    }
+  }
+  PrintSlices(slices.slices);
+  slice_pub_.publish(slices);
+  ROS_INFO("Generated slices");
 
   ROS_INFO("Waiting for trigger to retime slices...");
   ros::topic::waitForMessage<std_msgs::Bool>("trigger");
@@ -231,6 +243,7 @@ std::vector<ProgramSlice> ProgramExecutor::RetimeSlices(
       moveit_msgs::RobotTrajectory msg;
       left_traj.getRobotTrajectoryMsg(msg);
       retimed_slice.left_traj = msg.joint_trajectory;
+      retimed_slice.left_traj.header.stamp = slice.left_traj.header.stamp;
     }
     if (slice.right_traj.points.size() > 0) {
       right_traj.setRobotTrajectoryMsg(*state, slice.right_traj);
@@ -238,6 +251,7 @@ std::vector<ProgramSlice> ProgramExecutor::RetimeSlices(
       moveit_msgs::RobotTrajectory msg;
       right_traj.getRobotTrajectoryMsg(msg);
       retimed_slice.right_traj = msg.joint_trajectory;
+      retimed_slice.right_traj.header.stamp = slice.right_traj.header.stamp;
     }
     retimed_slices.push_back(retimed_slice);
   }
@@ -794,23 +808,27 @@ void PrintPlan(const std::vector<PlannedStep>& left_steps,
   }
 }
 
-void PrintSlices(
-    const std::vector<task_perception_msgs::ProgramSlice>& slices) {
+ros::Time GetStartOfSlices(const std::vector<msgs::ProgramSlice>& slices) {
   ros::Time slice_start(0);
+  if (slices.size() > 0) {
+    const msgs::ProgramSlice& slice = slices[0];
+    if (slice.left_traj.points.size() > 0) {
+      slice_start = slice.left_traj.header.stamp;
+    }
+    if (slice.right_traj.points.size() > 0 &&
+        slice.right_traj.header.stamp < slice_start) {
+      slice_start = slice.right_traj.header.stamp;
+    }
+  }
+  return slice_start;
+}
+
+void PrintSlices(const std::vector<msgs::ProgramSlice>& slices) {
   for (size_t i = 0; i < slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices[i];
     ROS_ASSERT(IsValidTrajectory(slice.left_traj));
     ROS_ASSERT(IsValidTrajectory(slice.right_traj));
 
-    if (i == 0) {
-      if (slice.left_traj.points.size() > 0) {
-        slice_start = slice.left_traj.header.stamp;
-      }
-      if (slice.right_traj.points.size() > 0 &&
-          slice.right_traj.header.stamp < slice_start) {
-        slice_start = slice.right_traj.header.stamp;
-      }
-    }
     std::string left_action("");
     if (slice.is_left_closing) {
       left_action = "close ";
@@ -819,12 +837,11 @@ void PrintSlices(
     }
     std::string left_interval("");
     if (slice.left_traj.points.size() > 0) {
-      ros::Duration left_start = slice.left_traj.header.stamp - slice_start;
-      ros::Duration left_end = slice.left_traj.header.stamp +
-                               slice.left_traj.points.back().time_from_start -
-                               slice_start;
+      ros::Time left_start = slice.left_traj.header.stamp;
+      ros::Time left_end = slice.left_traj.header.stamp +
+                           slice.left_traj.points.back().time_from_start;
       std::stringstream ss;
-      ss << std::setprecision(5) << " [" << left_start.toSec() << ", "
+      ss << std::setprecision(10) << " [" << left_start.toSec() << ", "
          << left_end.toSec() << "]";
       left_interval = ss.str();
     }
@@ -837,12 +854,11 @@ void PrintSlices(
     }
     std::string right_interval("");
     if (slice.right_traj.points.size() > 0) {
-      ros::Duration right_start = slice.right_traj.header.stamp - slice_start;
-      ros::Duration right_end = slice.right_traj.header.stamp +
-                                slice.right_traj.points.back().time_from_start -
-                                slice_start;
+      ros::Time right_start = slice.right_traj.header.stamp;
+      ros::Time right_end = slice.right_traj.header.stamp +
+                            slice.right_traj.points.back().time_from_start;
       std::stringstream ss;
-      ss << std::setprecision(5) << " [" << right_start.toSec() << ", "
+      ss << std::setprecision(10) << " [" << right_start.toSec() << ", "
          << right_end.toSec() << "]";
       right_interval = ss.str();
     }

@@ -25,13 +25,17 @@
       <strong>Slice [[_displayIndex(index)]]</strong>
       <div class="layout horizontal">
         <div class="half">
-          <strong>Start time:</strong> [[slice.left_traj.header.stamp.secs]].[[slice.left_traj.header.stamp.nsecs]]<br />
+          <span hidden$="[[_isEmpty(slice.left_traj)]]">
+            <strong>Time:</strong> [[_timeToString(slice.left_traj.header.stamp)]] to [[_getEndTimeStr(slice.left_traj)]]<br />
+          </span>
           <strong>Left traj:</strong> [[slice.left_traj.points.length]] points<br />
           <strong hidden$="[[!slice.is_left_closing]]">Left gripper closes</strong>
           <strong hidden$="[[!slice.is_left_opening]]">Left gripper opens</strong>
         </div>
         <div class="half">
-          <strong>Start time:</strong> [[slice.right_traj.header.stamp.secs]].[[slice.right_traj.header.stamp.nsecs]]<br />
+          <span hidden$="[[_isEmpty(slice.right_traj)]]">
+            <strong>Time:</strong> [[_timeToString(slice.right_traj.header.stamp)]] to [[_getEndTimeStr(slice.right_traj)]]<br />
+          </span>
           <strong>Right traj:</strong> [[slice.right_traj.points.length]] points<br />
           <strong hidden$="[[!slice.is_right_closing]]">Right gripper closes</strong>
           <strong hidden$="[[!slice.is_right_opening]]">Right gripper opens</strong>
@@ -60,6 +64,41 @@
 
       _displayIndex(index) {
         return index+1;
+      }
+
+      _isEmpty(traj) {
+        return traj.points.length === 0;
+      }
+
+      _addTimes(time1, time2) {
+        var result = {secs: 0, nsecs: 0};
+        result.secs += time1.secs;
+        result.nsecs += time1.nsecs;
+        result.secs += time2.secs;
+        result.nsecs += time2.nsecs;
+        result.secs += Math.floor(result.nsecs / 1000000000);
+        result.nsecs = result.nsecs % 1000000000;
+        return result;
+      }
+
+      _timeToString(time) {
+        var nsecs = Math.round(time.nsecs/100000) * 100000;
+        var time = time.secs + nsecs / 1000000000;
+        return "" + time;
+      }
+
+      _getEndTime(traj) {
+        var result = {secs: 0, nsecs: 0};
+        result = this._addTimes(result, traj.header.stamp);
+        if (traj.points.length > 0) {
+          var last_pt = traj.points[traj.points.length-1];
+          result = this._addTimes(result, last_pt.time_from_start);
+        }
+        return result;
+      }
+
+      _getEndTimeStr(traj) {
+        return this._timeToString(this._getEndTime(traj));
       }
     };
     window.customElements.define(PbiSlice.is, PbiSlice);

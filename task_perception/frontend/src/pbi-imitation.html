@@ -88,7 +88,7 @@
         <pbi-step index="[[index]]" step="[[step]]" ros="[[ros]]"></pbi-step>
       </template>
       <h3>Slices:</h3>
-      <span hidden$="[[slices]]">Not generated yet</span>
+      <span hidden$="[[_slicesReady()]]">Not generated yet</span>
       <template is="dom-repeat" items="[[slices.slices]]" as="slice">
         <pbi-slice index="[[index]]" slice="[[slice]]" ros="[[ros]]"></pbi-slice>
       </template>
@@ -141,6 +141,10 @@
           this.$.errorDialog.open();
           console.error('Error imitating the demonstration:', evt.detail.error);
         }
+      }
+
+      _slicesReady() {
+        return this.slices && this.slices.slices && this.slices.slices.length;
       }
     };
     window.customElements.define(PbiImitation.is, PbiImitation);
