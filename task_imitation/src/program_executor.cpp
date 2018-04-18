@@ -103,7 +103,6 @@ std::string ProgramExecutor::Execute(
 
   msgs::ProgramSlices slices;
   slices.slices = SliceProgram(left_steps, right_steps);
-  PrintSlices(slices.slices);
   for (size_t i = 0; i < slices.slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices.slices[i];
     ROS_ASSERT(IsValidTrajectory(slice.left_traj));
