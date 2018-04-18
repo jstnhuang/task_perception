@@ -111,6 +111,54 @@ TEST(ProgramSliceTest, PlannedStepGetTrajMultiplePoints) {
   EXPECT_EQ(2.5, traj.points[1].time_from_start.toSec());
   EXPECT_EQ(3, traj.points[2].time_from_start.toSec());
 }
+
+TEST(ProgramSliceTest, PlannedStepOpenCloseState) {
+  // Step with a point from [1-3]
+  PlannedStep step;
+  step.traj.header.stamp = ros::Time(1);
+
+  JointTrajectoryPoint pt;
+  pt.time_from_start = ros::Duration(2);
+  pt.positions.push_back(5);
+  step.traj.points.push_back(pt);
+  step.is_closing = true;
+
+  bool is_closing;
+  bool is_opening;
+  step.GetIsClosingOrOpening(ros::Time(0), ros::Time(1), &is_closing,
+                             &is_opening);
+  EXPECT_FALSE(is_closing);
+  EXPECT_FALSE(is_opening);
+
+  step.GetIsClosingOrOpening(ros::Time(1), ros::Time(2), &is_closing,
+                             &is_opening);
+  EXPECT_TRUE(is_closing);
+  EXPECT_FALSE(is_opening);
+
+  step.GetIsClosingOrOpening(ros::Time(1), ros::Time(3), &is_closing,
+                             &is_opening);
+  EXPECT_TRUE(is_closing);
+  EXPECT_FALSE(is_opening);
+
+  step.GetIsClosingOrOpening(ros::Time(2), ros::Time(3), &is_closing,
+                             &is_opening);
+  EXPECT_TRUE(is_closing);
+  EXPECT_FALSE(is_opening);
+
+  step.GetIsClosingOrOpening(ros::Time(3), ros::Time(4), &is_closing,
+                             &is_opening);
+  EXPECT_FALSE(is_closing);
+  EXPECT_FALSE(is_opening);
+
+  step.GetIsClosingOrOpening(ros::Time(4), ros::Time(5), &is_closing,
+                             &is_opening);
+  EXPECT_FALSE(is_closing);
+  EXPECT_FALSE(is_opening);
+
+  EXPECT_THROW(step.GetIsClosingOrOpening(ros::Time(1.5), ros::Time(5),
+                                          &is_closing, &is_opening),
+               std::invalid_argument);
+}
 }  // namespace pbi
 
 int main(int argc, char **argv) {
