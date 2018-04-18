@@ -129,10 +129,7 @@ std::string ProgramExecutor::Execute(
   slice_pub_.publish(slices);
   ROS_INFO("Generated slices");
 
-  ROS_INFO("Waiting for trigger to retime slices...");
-  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   ROS_INFO("Retiming slices...");
-
   msgs::ProgramSlices retimed_slices;
   retimed_slices.slices = RetimeSlices(slices.slices);
   PrintSlices(retimed_slices.slices);
@@ -203,13 +200,27 @@ std::string ProgramExecutor::Execute(
       return ss.str();
     }
     if (slice.is_left_closing || slice.is_left_opening) {
-      while (ros::ok() && !left_gripper_.IsDone()) {
-        ros::spinOnce();
+      // Check if we must finish gripper action. Either 1) This is the last
+      // action or 2) The next action does not open/close the gripper.
+      if (i + 1 == retimed_slices.slices.size() ||
+          (slice.is_left_closing &&
+           !retimed_slices.slices[i + 1].is_left_closing) ||
+          (slice.is_left_opening &&
+           !retimed_slices.slices[i + 1].is_left_opening)) {
+        while (ros::ok() && !left_gripper_.IsDone()) {
+          ros::spinOnce();
+        }
       }
     }
     if (slice.is_right_closing || slice.is_right_opening) {
-      while (ros::ok() && !right_gripper_.IsDone()) {
-        ros::spinOnce();
+      if (i + 1 == retimed_slices.slices.size() ||
+          (slice.is_right_closing &&
+           !retimed_slices.slices[i + 1].is_right_closing) ||
+          (slice.is_right_opening &&
+           !retimed_slices.slices[i + 1].is_right_opening)) {
+        while (ros::ok() && !right_gripper_.IsDone()) {
+          ros::spinOnce();
+        }
       }
     }
     const double kPauseDuration =
