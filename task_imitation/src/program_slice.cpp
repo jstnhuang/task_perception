@@ -4,6 +4,8 @@
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 
+#include "ros/ros.h"
+
 using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
 
@@ -15,7 +17,7 @@ bool IsSliceEmpty(const task_perception_msgs::ProgramSlice& slice) {
 PlannedStep::PlannedStep() : traj(), is_closing(false), is_opening(false) {}
 
 JointTrajectory PlannedStep::GetTraj(const ros::Time& start_time,
-                                     const ros::Time& end_time) {
+                                     const ros::Time& end_time) const {
   // A common case to reject early is when end_time is exactly equal to the
   // start time of this trajectory. This is because we are always trying to
   // extract trajectories from the next step.
@@ -53,5 +55,21 @@ JointTrajectory PlannedStep::GetTraj(const ros::Time& start_time,
     pt_start = pt_end;
   }
   return result;
+}
+
+void PlannedStep::GetIsClosingOrOpening(const ros::Time& start_time,
+                                        const ros::Time& end_time,
+                                        bool* is_closing_result,
+                                        bool* is_opening_result) const {
+  ROS_ASSERT(traj.points.size() > 0);
+  ros::Time start = traj.header.stamp;
+  ros::Time end = start + traj.points.back().time_from_start;
+  if (start_time >= start && end_time <= end) {
+    *is_closing_result = is_closing;
+    *is_opening_result = is_opening;
+  } else {
+    *is_closing_result = false;
+    *is_opening_result = false;
+  }
 }
 }  // namespace pbi

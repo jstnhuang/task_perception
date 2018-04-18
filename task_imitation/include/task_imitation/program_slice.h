@@ -33,7 +33,10 @@ class PlannedStep {
  public:
   PlannedStep();
   trajectory_msgs::JointTrajectory GetTraj(const ros::Time& start_time,
-                                           const ros::Time& end_time);
+                                           const ros::Time& end_time) const;
+  void GetIsClosingOrOpening(const ros::Time& start_time,
+                             const ros::Time& end_time, bool* is_closing,
+                             bool* is_opening) const;
 
   trajectory_msgs::JointTrajectory traj;
   bool is_closing;
