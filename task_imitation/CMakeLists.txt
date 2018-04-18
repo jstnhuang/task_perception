@@ -322,7 +322,7 @@ if(CATKIN_ENABLE_TESTING)
     task_imitation_program_slice
     ${catkin_LIBRARIES})
 
-  add_rostest_gtest(task_imitation_program_executor_test test/program_executor.test test/program_executor_test.cpp)
+  catkin_add_gtest(task_imitation_program_executor_test test/program_executor_test.cpp)
   target_link_libraries(task_imitation_program_executor_test
     task_imitation_program_executor
     ${catkin_LIBRARIES})

@@ -1,3 +1,0 @@
-<launch>
-  <test test-name="task_imitation_program_executor_test" pkg="task_imitation" type="task_imitation_program_executor_test" />
-</launch>
