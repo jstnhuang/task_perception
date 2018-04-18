@@ -145,9 +145,9 @@ std::string ProgramExecutor::Execute(
   while (ros::ok() && (!left_gripper_.IsDone() || !right_gripper_.IsDone())) {
     ros::spinOnce();
   }
+
   const double kPauseDuration =
       rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
-
   for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
     ProgramSlice& slice = retimed_slices.slices[i];
     if (slice.left_traj.points.size() == 0) {
@@ -198,6 +198,8 @@ std::string ProgramExecutor::Execute(
     } else if (slice.is_right_opening) {
       right_gripper_.StartOpening();
     }
+    plan.trajectory_.joint_trajectory.header.stamp =
+        ros::Time::now() + ros::Duration(kPauseDuration);
     moveit::planning_interface::MoveItErrorCode error =
         arms_group_.execute(plan);
     if (!rapid::IsSuccess(error)) {
@@ -231,8 +233,6 @@ std::string ProgramExecutor::Execute(
         }
       }
     }
-    ROS_INFO("Sleeping for %f seconds", kPauseDuration);
-    ros::Duration(kPauseDuration).sleep();
   }
   ROS_INFO("Execution complete!");
   return "";
