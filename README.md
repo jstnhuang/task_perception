@@ -49,7 +49,7 @@ Save a point cloud in a real scene using: `rosrun rapid_perception save_cloud NA
 
 - [ ] Start up robot
   - If simulation: start Gazebo and MoveIt: `roslaunch task_imitation pr2_sim.launch`
-  - If PR2: Start RWS and `rosrun rqt_console rqt_console`
+  - If PR2: Start RWS and `rosrun rqt_pr2_dashboard rqt_pr2_dashboard`
 - [ ] Raise torso to 0.4 m: `rosrun rapid_pr2 torso 0.4`
 - [ ] RViz: `rosrun rviz rviz -d task_imitation/config/imitation.rviz`
 - [ ] Move to start position
