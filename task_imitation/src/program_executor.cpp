@@ -225,30 +225,6 @@ std::string ProgramExecutor::Execute(
       ROS_ERROR_STREAM(ss.str());
       return ss.str();
     }
-    if (slice.is_left_closing || slice.is_left_opening) {
-      // Check if we must finish gripper action. Either 1) This is the last
-      // action or 2) The next action does not open/close the gripper.
-      if (i + 1 == retimed_slices.slices.size() ||
-          (slice.is_left_closing &&
-           !retimed_slices.slices[i + 1].is_left_closing) ||
-          (slice.is_left_opening &&
-           !retimed_slices.slices[i + 1].is_left_opening)) {
-        while (ros::ok() && !left_gripper_.IsDone()) {
-          ros::spinOnce();
-        }
-      }
-    }
-    if (slice.is_right_closing || slice.is_right_opening) {
-      if (i + 1 == retimed_slices.slices.size() ||
-          (slice.is_right_closing &&
-           !retimed_slices.slices[i + 1].is_right_closing) ||
-          (slice.is_right_opening &&
-           !retimed_slices.slices[i + 1].is_right_opening)) {
-        while (ros::ok() && !right_gripper_.IsDone()) {
-          ros::spinOnce();
-        }
-      }
-    }
     ros::Duration(kPauseDuration).sleep();
   }
   ROS_INFO("Execution complete!");
