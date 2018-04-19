@@ -48,6 +48,8 @@ flags = [
 '-I',
 '../robot_markers/include',
 '-I',
+'../surface_perception/include',
+'-I',
 '/opt/ros/indigo/include',
 '-I',
 '../../devel/include',
