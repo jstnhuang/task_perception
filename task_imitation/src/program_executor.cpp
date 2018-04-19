@@ -195,16 +195,15 @@ std::string ProgramExecutor::Execute(
     plan.trajectory_.joint_trajectory =
         MergeTrajectories(slice.left_traj, slice.right_traj);
     ROS_ASSERT(IsValidTrajectory(plan.trajectory_.joint_trajectory));
-    plan.trajectory_.joint_trajectory.header.stamp = ros::Time(0);
 
-    // Remove all accelerations from the trajectory. This could possibly lead to
-    // smoother executions.
-    for (size_t j = 0; j < plan.trajectory_.joint_trajectory.points.size();
-         ++j) {
-      JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[j];
-      pt.accelerations.clear();
-      pt.effort.clear();
-    }
+    trajectory_processing::IterativeParabolicTimeParameterization retimer;
+    moveit::core::RobotStatePtr state = arms_group_.getCurrentState();
+    robot_model::RobotModelConstPtr robot_model = arms_group_.getRobotModel();
+    robot_trajectory::RobotTrajectory arms_traj(robot_model, "arms");
+    arms_traj.setRobotTrajectoryMsg(*state, plan.trajectory_.joint_trajectory);
+    retimer.computeTimeStamps(arms_traj);
+    arms_traj.getRobotTrajectoryMsg(plan.trajectory_);
+    plan.trajectory_.joint_trajectory.header.stamp = ros::Time(0);
 
     // Execute slice
     if (slice.is_left_closing) {
