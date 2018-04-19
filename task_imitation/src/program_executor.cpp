@@ -103,6 +103,9 @@ std::string ProgramExecutor::Execute(
 
   msgs::ProgramSlices slices;
   slices.slices = SliceProgram(left_steps, right_steps);
+  slice_pub_.publish(slices);
+  PrintSlices(slices.slices);
+
   for (size_t i = 0; i < slices.slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices.slices[i];
     ROS_ASSERT(IsValidTrajectory(slice.left_traj));
@@ -125,7 +128,7 @@ std::string ProgramExecutor::Execute(
       slice.right_traj.header.stamp -= slices_start;
     }
   }
-  PrintSlices(slices.slices);
+
   slice_pub_.publish(slices);
   ROS_INFO("Generated slices");
 
@@ -134,11 +137,14 @@ std::string ProgramExecutor::Execute(
   retimed_slices.slices = RetimeSlices(slices.slices);
   PrintSlices(retimed_slices.slices);
   slice_pub_.publish(retimed_slices);
-  ROS_INFO("Done retiming slices.");
+  for (size_t i = 0; i < slices.slices.size(); ++i) {
+    const msgs::ProgramSlice& slice = slices.slices[i];
+    ROS_ASSERT(IsValidTrajectory(slice.left_traj));
+    ROS_ASSERT(IsValidTrajectory(slice.right_traj));
+  }
+  ROS_INFO("Validated retimed slices");
 
-  ROS_INFO("Waiting for trigger to start execution...");
-  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-  ROS_INFO("Executing...");
+  ROS_INFO("Done retiming slices.");
 
   bool is_sim = rapid::GetBoolParamOrThrow("use_sim_time");
   const double kGraspForce = is_sim ? -1 : 50;
@@ -146,9 +152,13 @@ std::string ProgramExecutor::Execute(
     ros::spinOnce();
   }
 
+  ROS_INFO("Waiting for trigger to start execution...");
+  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+
   const double kPauseDuration =
       rapid::GetDoubleParamOrThrow("task_imitation/slice_pause_duration");
   for (size_t i = 0; i < retimed_slices.slices.size(); ++i) {
+    ROS_INFO("Executing slice %zu of %zu", i + 1, retimed_slices.slices.size());
     ProgramSlice& slice = retimed_slices.slices[i];
     if (slice.left_traj.points.size() == 0) {
       ROS_ASSERT(!(slice.is_left_closing && slice.is_left_opening));
@@ -174,15 +184,14 @@ std::string ProgramExecutor::Execute(
     moveit::planning_interface::MoveGroup::Plan plan;
     plan.trajectory_.joint_trajectory =
         MergeTrajectories(slice.left_traj, slice.right_traj);
-    ROS_INFO("Slice %zu: trajectory starts at %f, current time is %f", i + 1,
-             plan.trajectory_.joint_trajectory.header.stamp.toSec(),
-             ros::Time::now().toSec());
+    plan.trajectory_.joint_trajectory.header.stamp = ros::Time(0);
 
     // Remove all accelerations from the trajectory. This could possibly lead to
     // smoother executions.
     for (size_t j = 0; j < plan.trajectory_.joint_trajectory.points.size();
          ++j) {
       JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[j];
+      pt.velocities.clear();
       pt.accelerations.clear();
       pt.effort.clear();
     }
@@ -198,8 +207,6 @@ std::string ProgramExecutor::Execute(
     } else if (slice.is_right_opening) {
       right_gripper_.StartOpening();
     }
-    plan.trajectory_.joint_trajectory.header.stamp =
-        ros::Time::now() + ros::Duration(kPauseDuration);
     moveit::planning_interface::MoveItErrorCode error =
         arms_group_.execute(plan);
     if (!rapid::IsSuccess(error)) {
@@ -233,6 +240,7 @@ std::string ProgramExecutor::Execute(
         }
       }
     }
+    ros::Duration(kPauseDuration).sleep();
   }
   ROS_INFO("Execution complete!");
   return "";
@@ -251,24 +259,55 @@ std::vector<ProgramSlice> ProgramExecutor::RetimeSlices(
   robot_trajectory::RobotTrajectory left_traj(robot_model, "left_arm");
   robot_trajectory::RobotTrajectory right_traj(robot_model, "right_arm");
 
+  bool printed = false;
   for (size_t i = 0; i < slices.size(); ++i) {
     const ProgramSlice& slice = slices[i];
+    JointTrajectory left_traj_mod = slice.left_traj;
+    for (size_t i = 0; i < left_traj_mod.points.size(); ++i) {
+      left_traj_mod.points[i].velocities.clear();
+      left_traj_mod.points[i].accelerations.clear();
+      left_traj_mod.points[i].effort.clear();
+    }
+    JointTrajectory right_traj_mod = slice.right_traj;
+    for (size_t i = 0; i < right_traj_mod.points.size(); ++i) {
+      right_traj_mod.points[i].velocities.clear();
+      right_traj_mod.points[i].accelerations.clear();
+      right_traj_mod.points[i].effort.clear();
+    }
     ProgramSlice retimed_slice = slice;
-    if (slice.left_traj.points.size() > 0) {
-      left_traj.setRobotTrajectoryMsg(*state, slice.left_traj);
+    retimed_slice.left_traj = left_traj_mod;
+    retimed_slice.right_traj = right_traj_mod;
+    if (slice.left_traj.points.size() > 1) {
+      left_traj.setRobotTrajectoryMsg(*state, left_traj_mod);
       retimer.computeTimeStamps(left_traj);
       moveit_msgs::RobotTrajectory msg;
       left_traj.getRobotTrajectoryMsg(msg);
       retimed_slice.left_traj = msg.joint_trajectory;
       retimed_slice.left_traj.header.stamp = slice.left_traj.header.stamp;
     }
-    if (slice.right_traj.points.size() > 0) {
-      right_traj.setRobotTrajectoryMsg(*state, slice.right_traj);
+    if (slice.right_traj.points.size() > 1) {
+      right_traj.setRobotTrajectoryMsg(*state, right_traj_mod);
       retimer.computeTimeStamps(right_traj);
       moveit_msgs::RobotTrajectory msg;
       right_traj.getRobotTrajectoryMsg(msg);
       retimed_slice.right_traj = msg.joint_trajectory;
       retimed_slice.right_traj.header.stamp = slice.right_traj.header.stamp;
+    }
+    if (!printed && slice.left_traj.points.size() > 1 &&
+        slice.right_traj.points.size() > 1) {
+      ROS_INFO_STREAM("left traj after: " << retimed_slice.left_traj);
+      ROS_INFO_STREAM("right traj after: " << retimed_slice.right_traj);
+      printed = true;
+    }
+    if (slice.left_traj.points.size() > 0) {
+      moveit::core::jointTrajPointToRobotState(
+          retimed_slice.left_traj, retimed_slice.left_traj.points.size() - 1,
+          *state);
+    }
+    if (slice.right_traj.points.size() > 0) {
+      moveit::core::jointTrajPointToRobotState(
+          retimed_slice.right_traj, retimed_slice.right_traj.points.size() - 1,
+          *state);
     }
     retimed_slices.push_back(retimed_slice);
   }
@@ -338,7 +377,6 @@ std::vector<ProgramSlice> SliceProgram(
         current_slice.is_left_closing = is_left_closing;
         current_slice.is_left_opening = is_left_opening;
         current_slice.left_traj = left_step->GetTraj(prev_time, current_time);
-        ROS_ASSERT(IsValidTrajectory(current_slice.left_traj));
       }
       // Get right slice from prev_time to current_time
       if (right_step) {
@@ -349,7 +387,6 @@ std::vector<ProgramSlice> SliceProgram(
         current_slice.is_right_closing = is_right_closing;
         current_slice.is_right_opening = is_right_opening;
         current_slice.right_traj = right_step->GetTraj(prev_time, current_time);
-        ROS_ASSERT(IsValidTrajectory(current_slice.right_traj));
       }
 
       if (!IsSliceEmpty(current_slice)) {
@@ -732,18 +769,35 @@ PlannedStep PlanMoveToPoseStep(
 }
 
 bool IsValidTrajectory(const JointTrajectory& traj) {
-  // Verify timestamps are monotonically increasing
   for (size_t i = 0; i + 1 < traj.points.size(); ++i) {
     const JointTrajectoryPoint& pt = traj.points[i];
     const JointTrajectoryPoint& next_pt = traj.points[i + 1];
+    // Verify timestamps are monotonically increasing
     if (next_pt.time_from_start < pt.time_from_start) {
+      ROS_ERROR(
+          "Timestamps are not monotonically increasing: pt %zu at %fs > pt %zu "
+          "at %fs",
+          i, pt.time_from_start.toSec(), i + 1,
+          next_pt.time_from_start.toSec());
       return false;
     }
   }
 
   // Verify joint_names matches positions in length
+  size_t num_joints = traj.joint_names.size();
+  for (size_t i = 0; i < traj.points.size(); ++i) {
+    const JointTrajectoryPoint& pt = traj.points[i];
+    if (num_joints != pt.positions.size()) {
+      ROS_ERROR("Expected %zu joint values, got %zu", num_joints,
+                pt.positions.size());
+      return false;
+    }
+  }
+
+  // Verify that the last timestamp is not 0
   if (traj.points.size() > 0) {
-    if (traj.joint_names.size() != traj.points[0].positions.size()) {
+    if (traj.points.back().time_from_start.isZero()) {
+      ROS_ERROR("Last time_from_start is 0!");
       return false;
     }
   }
@@ -843,8 +897,6 @@ ros::Time GetStartOfSlices(const std::vector<msgs::ProgramSlice>& slices) {
 void PrintSlices(const std::vector<msgs::ProgramSlice>& slices) {
   for (size_t i = 0; i < slices.size(); ++i) {
     const msgs::ProgramSlice& slice = slices[i];
-    ROS_ASSERT(IsValidTrajectory(slice.left_traj));
-    ROS_ASSERT(IsValidTrajectory(slice.right_traj));
 
     std::string left_action("");
     if (slice.is_left_closing) {
