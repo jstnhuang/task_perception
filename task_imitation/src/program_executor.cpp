@@ -886,8 +886,8 @@ ros::Time GetStartOfSlices(const std::vector<msgs::ProgramSlice>& slices) {
     if (slice.left_traj.points.size() > 0) {
       slice_start = slice.left_traj.header.stamp;
     }
-    if (slice.right_traj.points.size() > 0 &&
-        slice.right_traj.header.stamp < slice_start) {
+    if (slice_start.isZero() || (slice.right_traj.points.size() > 0 &&
+                                 slice.right_traj.header.stamp < slice_start)) {
       slice_start = slice.right_traj.header.stamp;
     }
   }
