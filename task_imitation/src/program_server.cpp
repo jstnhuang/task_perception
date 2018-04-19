@@ -563,6 +563,7 @@ geometry_msgs::Pose AlignObject(
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setInputSource(obs_cloud);
   icp.setInputTarget(obj_cloud);
+  icp.setMaximumIterations(100);
   rapid::PointCloudP aligned;
   icp.align(aligned);
 
