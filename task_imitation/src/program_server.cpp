@@ -13,6 +13,9 @@
 #include "moveit/robot_state/conversions.h"
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "pcl/filters/crop_box.h"
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
+#include "pcl/registration/icp.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "pcl_ros/transforms.h"
 #include "rapid_ros/params.h"
@@ -255,11 +258,18 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
       rapid::GetDoubleParamOrThrow("surface_segmentation/max_cluster_size"));
   seg.set_min_surface_size(
       rapid::GetDoubleParamOrThrow("surface_segmentation/min_surface_size"));
+  seg.set_max_point_distance(
+      rapid::GetDoubleParamOrThrow("surface_segmentation/max_point_distance"));
   std::vector<surface_perception::SurfaceObjects> surface_objects;
   bool segment_success = seg.Segment(&surface_objects);
   if (!segment_success) {
     ROS_ERROR("Failed to segment surface.");
   }
+  for (size_t i = 0; i < surface_objects.size(); ++i) {
+    ROS_INFO("Surface %zu has %zu objects", i,
+             surface_objects[i].objects.size());
+  }
+
   segmentation_viz_.Hide();
   segmentation_viz_.set_surface_objects(surface_objects);
   segmentation_viz_.Show();
@@ -304,28 +314,38 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
     graph.DescribePosition(obj_state.pose.position, tg::Source("camera"),
                            tg::Target("base"), &obj_position);
 
-    geometry_msgs::Pose obj_pose;
+    geometry_msgs::Pose rough_obj_pose;
     geometry_msgs::Vector3 obj_scale_obs;
     geometry_msgs::Point initial_obj_position = obj_position.point();
     // Flip about y axis to account for mirroring.
     initial_obj_position.y *= -1;
-    bool found = MatchObject(initial_obj_position, obj_scale, surface_objects,
-                             &obj_pose, &obj_scale_obs);
+    int obj_index =
+        MatchObject(initial_obj_position, obj_scale, surface_objects,
+                    &rough_obj_pose, &obj_scale_obs);
     dbot_ros_msgs::InitializeObjectGoal init_goal;
     init_goal.frame_id = executor_.planning_frame();
     init_goal.mesh_name = it->second.mesh_name;
-    if (found) {
+    if (obj_index != -1) {
       // surface_perception returns a pose in the center of the object
       // However, our object models have their frames defined in the bottom
       // center of the object. So we shift the pose by half the height.
       tg::Graph graph;
-      graph.Add("center frame", tg::RefFrame("planning"), obj_pose);
+      graph.Add("center frame", tg::RefFrame("planning"), rough_obj_pose);
       tg::Position origin_in_planning;
       graph.DescribePosition(tg::Position(0, 0, -obj_scale.z / 2),
                              tg::Source("center frame"), tg::Target("planning"),
                              &origin_in_planning);
-      init_goal.initial_pose = obj_pose;
-      init_goal.initial_pose.position = origin_in_planning.point();
+      rough_obj_pose.position = origin_in_planning.point();
+
+      LazyObjectModel rough_obj_model(obj_state.mesh_name, planning_frame_,
+                                      rough_obj_pose);
+      obj_model.set_object_model_cache(&model_cache_);
+
+      ROS_ASSERT(surface_objects.size() == 1);  // MatchObject enforces this
+      geometry_msgs::Pose aligned_pose =
+          AlignObject(rough_obj_model, surface_objects[0].objects[obj_index]);
+
+      init_goal.initial_pose = aligned_pose;
     } else {
       init_goal.initial_pose.orientation.w = 1;
       init_goal.initial_pose.position.x = 1;
@@ -478,39 +498,90 @@ MarkerArray ProgramServer::GripperMarkers(const std::string& ns,
   return result;
 }
 
-bool MatchObject(
+int MatchObject(
     const geometry_msgs::Point& initial_obj_position,
     const geometry_msgs::Vector3& obj_scale,
     const std::vector<surface_perception::SurfaceObjects>& surface_objects,
     geometry_msgs::Pose* pose, geometry_msgs::Vector3* scale) {
+  if (surface_objects.size() != 1) {
+    ROS_ERROR("Expected to find exactly one surface, found %zu",
+              surface_objects.size());
+    return -1;
+  }
+
   double match_dim_tolerance =
       rapid::GetDoubleParamOrThrow("task_imitation/match_dim_tolerance");
   double best_sq_dist = std::numeric_limits<double>::max();
-  for (size_t i = 0; i < surface_objects.size(); ++i) {
-    const surface_perception::SurfaceObjects& surface = surface_objects[i];
-    for (size_t j = 0; j < surface.objects.size(); ++j) {
-      const surface_perception::Object& object = surface.objects[j];
-      double dim_dx = fabs(object.dimensions.x - obj_scale.x);
-      double dim_dy = fabs(object.dimensions.y - obj_scale.y);
-      double dim_dz = fabs(object.dimensions.z - obj_scale.z);
-      if (dim_dx < match_dim_tolerance && dim_dy < match_dim_tolerance &&
-          dim_dz < match_dim_tolerance) {
-        double dx =
-            fabs(initial_obj_position.x - object.pose_stamped.pose.position.x);
-        double dy =
-            fabs(initial_obj_position.y - object.pose_stamped.pose.position.y);
-        double dz =
-            fabs(initial_obj_position.z - object.pose_stamped.pose.position.z);
-        double sq_dist = dx * dx + dy * dy + dz * dz;
-        if (sq_dist < best_sq_dist) {
-          best_sq_dist = sq_dist;
-          *pose = object.pose_stamped.pose;
-          *scale = object.dimensions;
-        }
+  int best_index = -1;
+  const surface_perception::SurfaceObjects& surface = surface_objects[0];
+  for (size_t j = 0; j < surface.objects.size(); ++j) {
+    const surface_perception::Object& object = surface.objects[j];
+    double dim_dx = fabs(object.dimensions.x - obj_scale.x);
+    double dim_dy = fabs(object.dimensions.y - obj_scale.y);
+    double dim_dz = fabs(object.dimensions.z - obj_scale.z);
+    if (dim_dx < match_dim_tolerance && dim_dy < match_dim_tolerance &&
+        dim_dz < match_dim_tolerance) {
+      double dx =
+          fabs(initial_obj_position.x - object.pose_stamped.pose.position.x);
+      double dy =
+          fabs(initial_obj_position.y - object.pose_stamped.pose.position.y);
+      double dz =
+          fabs(initial_obj_position.z - object.pose_stamped.pose.position.z);
+      double sq_dist = dx * dx + dy * dy + dz * dz;
+      if (sq_dist < best_sq_dist) {
+        best_sq_dist = sq_dist;
+        best_index = static_cast<int>(j);
+        *pose = object.pose_stamped.pose;
+        *scale = object.dimensions;
       }
     }
   }
-  return best_sq_dist != std::numeric_limits<double>::max();
+  return best_index;
 }
 
+geometry_msgs::Pose AlignObject(
+    const LazyObjectModel& object_model,
+    const surface_perception::Object& target_object) {
+  rapid::PointCloudP::Ptr obj_cloud = object_model.GetObjectCloud();
+
+  // Extract target cloud and convert to PointXYZ
+  rapid::PointCloudP::Ptr obs_cloud(new rapid::PointCloudP);
+  obs_cloud->header = target_object.cloud->header;
+  for (size_t i = 0; i < target_object.indices->indices.size(); ++i) {
+    int index = target_object.indices->indices[i];
+    const pcl::PointXYZRGB& color_pt = target_object.cloud->at(index);
+    pcl::PointXYZ pt;
+    pt.x = color_pt.x;
+    pt.y = color_pt.y;
+    pt.z = color_pt.z;
+    obs_cloud->push_back(pt);
+  }
+
+  // We actually align the observation to the model rather than vice versa
+  // because ICP works better when you align smaller objects to larger ones. We
+  // see less of the observation than we do of the full model.
+  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+  icp.setInputSource(obs_cloud);
+  icp.setInputTarget(obj_cloud);
+  rapid::PointCloudP aligned;
+  icp.align(aligned);
+
+  if (icp.hasConverged()) {
+    ROS_INFO("Aligned object with score %f", icp.getFitnessScore());
+    Eigen::Matrix4f aligned_in_obs = icp.getFinalTransformation();
+    Eigen::Matrix4d aligned_in_obs_d = aligned_in_obs.cast<double>();
+    Eigen::Affine3d aligned_affine(aligned_in_obs_d);
+    Eigen::Affine3d model_pose;
+    tf::poseMsgToEigen(object_model.pose(), model_pose);
+
+    Eigen::Affine3d updated_model_pose = aligned_affine.inverse() * model_pose;
+    geometry_msgs::Pose result;
+    tf::poseEigenToMsg(updated_model_pose, result);
+    return result;
+  } else {
+    ROS_WARN("Failed to align object. Fitness score: %f",
+             icp.getFitnessScore());
+    return object_model.pose();
+  }
+}
 }  // namespace pbi
