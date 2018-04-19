@@ -317,14 +317,19 @@ target_link_libraries(task_imitation_program_server_node
 
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
-  catkin_add_gtest(task_imitation_program_slice_test test/program_slice_test.cpp)
-  target_link_libraries(task_imitation_program_slice_test
-    task_imitation_program_slice
+  catkin_add_gtest(task_imitation_bimanual_manipulation_test test/bimanual_manipulation_test.cpp)
+  target_link_libraries(task_imitation_bimanual_manipulation_test
+    task_imitation_bimanual_manipulation
     ${catkin_LIBRARIES})
 
   catkin_add_gtest(task_imitation_program_executor_test test/program_executor_test.cpp)
   target_link_libraries(task_imitation_program_executor_test
     task_imitation_program_executor
+    ${catkin_LIBRARIES})
+
+  catkin_add_gtest(task_imitation_program_slice_test test/program_slice_test.cpp)
+  target_link_libraries(task_imitation_program_slice_test
+    task_imitation_program_slice
     ${catkin_LIBRARIES})
 endif()
 

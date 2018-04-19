@@ -77,44 +77,37 @@ JointTrajectory MergeTrajectories(const JointTrajectory& left_traj,
                             right_traj.joint_names.end());
 
   // Walk through both trajectories in order of time.
-  int left_i = -1;
-  int right_i = -1;
+  size_t left_i = 0;
+  size_t right_i = 0;
   const std::vector<JointTrajectoryPoint>& left_pts = left_traj.points;
   const std::vector<JointTrajectoryPoint>& right_pts = right_traj.points;
-  while (left_i < static_cast<int>(left_pts.size()) ||
-         right_i < static_cast<int>(right_pts.size())) {
-    int left_i_clamped = clamp(left_i, 0, left_pts.size() - 1);
-    int right_i_clamped = clamp(right_i, 0, right_pts.size() - 1);
-    const JointTrajectoryPoint left_pt =
-        StandardizePoint(left_pts[left_i_clamped]);
-    const JointTrajectoryPoint right_pt =
-        StandardizePoint(right_pts[right_i_clamped]);
-
-    // Use non-clamped index left_i/right_i.
-    // If i < 0, then use the first point.
-    // If i >= trajectory size, then set its time to infinity.
+  while (left_i < left_pts.size() || right_i < right_pts.size()) {
+    JointTrajectoryPoint left_pt;
     double left_time = std::numeric_limits<double>::max();
-    if (left_i < static_cast<int>(left_pts.size())) {
+    if (left_i < left_pts.size()) {
+      left_pt = StandardizePoint(left_pts[left_i]);
       left_time = left_pt.time_from_start.toSec();
+    } else if (left_i == left_pts.size()) {
+      left_pt = StandardizePoint(left_pts[left_i - 1]);
     }
+
+    JointTrajectoryPoint right_pt;
     double right_time = std::numeric_limits<double>::max();
-    if (right_i < static_cast<int>(right_pts.size())) {
+    if (right_i < right_pts.size()) {
+      right_pt = StandardizePoint(right_pts[right_i]);
       right_time = right_pt.time_from_start.toSec();
+    } else if (right_i == right_pts.size()) {
+      right_pt = StandardizePoint(right_pts[right_i - 1]);
     }
 
     // If the left point is sooner, then merge the left point and the previous
     // right point, and vice versa. If the points have identical start times,
     // then merge them into a single point.
     JointTrajectoryPoint pt;
-    if (left_time < right_time) {
-      pt.time_from_start = left_pt.time_from_start;
-      ++left_i;
+    if (left_time <= right_time) {
+      pt.time_from_start = ros::Duration(left_time);
     } else if (right_time < left_time) {
-      pt.time_from_start = right_pt.time_from_start;
-      ++right_i;
-    } else {
-      ++left_i;
-      ++right_i;
+      pt.time_from_start = ros::Duration(right_time);
     }
 
     pt.positions = left_pt.positions;
@@ -131,6 +124,15 @@ JointTrajectory MergeTrajectories(const JointTrajectory& left_traj,
     pt.effort.insert(pt.effort.end(), right_pt.effort.begin(),
                      right_pt.effort.end());
     result.points.push_back(pt);
+
+    if (left_time < right_time) {
+      ++left_i;
+    } else if (right_time < left_time) {
+      ++right_i;
+    } else {
+      ++left_i;
+      ++right_i;
+    }
   }
   return result;
 }

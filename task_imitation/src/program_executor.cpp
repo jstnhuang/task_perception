@@ -165,9 +165,14 @@ std::string ProgramExecutor::Execute(
       if (slice.is_left_closing) {
         slice.left_traj =
             GetNonMovingTrajectory(left_group_, ros::Duration(kGraspDuration));
-      } else {
+      } else if (slice.is_left_opening) {
         slice.left_traj = GetNonMovingTrajectory(
             left_group_, ros::Duration(kUngraspDuration));
+      } else {
+        ROS_ASSERT(slice.right_traj.points.size() > 0);
+        ros::Duration right_duration(
+            slice.right_traj.points.back().time_from_start);
+        slice.left_traj = GetNonMovingTrajectory(left_group_, right_duration);
       }
     }
     if (slice.right_traj.points.size() == 0) {
@@ -175,15 +180,21 @@ std::string ProgramExecutor::Execute(
       if (slice.is_right_closing) {
         slice.right_traj =
             GetNonMovingTrajectory(right_group_, ros::Duration(kGraspDuration));
-      } else {
+      } else if (slice.is_right_opening) {
         slice.right_traj = GetNonMovingTrajectory(
             right_group_, ros::Duration(kUngraspDuration));
+      } else {
+        ROS_ASSERT(slice.left_traj.points.size() > 0);
+        ros::Duration left_duration(
+            slice.left_traj.points.back().time_from_start);
+        slice.right_traj = GetNonMovingTrajectory(right_group_, left_duration);
       }
     }
 
     moveit::planning_interface::MoveGroup::Plan plan;
     plan.trajectory_.joint_trajectory =
         MergeTrajectories(slice.left_traj, slice.right_traj);
+    ROS_ASSERT(IsValidTrajectory(plan.trajectory_.joint_trajectory));
     plan.trajectory_.joint_trajectory.header.stamp = ros::Time(0);
 
     // Remove all accelerations from the trajectory. This could possibly lead to
@@ -773,10 +784,10 @@ bool IsValidTrajectory(const JointTrajectory& traj) {
     const JointTrajectoryPoint& pt = traj.points[i];
     const JointTrajectoryPoint& next_pt = traj.points[i + 1];
     // Verify timestamps are monotonically increasing
-    if (next_pt.time_from_start < pt.time_from_start) {
+    if (next_pt.time_from_start <= pt.time_from_start) {
       ROS_ERROR(
-          "Timestamps are not monotonically increasing: pt %zu at %fs > pt %zu "
-          "at %fs",
+          "Timestamps are not monotonically increasing: pt %zu at %fs >= pt "
+          "%zu at %fs",
           i, pt.time_from_start.toSec(), i + 1,
           next_pt.time_from_start.toSec());
       return false;
