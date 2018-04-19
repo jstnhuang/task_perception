@@ -202,7 +202,6 @@ std::string ProgramExecutor::Execute(
     for (size_t j = 0; j < plan.trajectory_.joint_trajectory.points.size();
          ++j) {
       JointTrajectoryPoint& pt = plan.trajectory_.joint_trajectory.points[j];
-      pt.velocities.clear();
       pt.accelerations.clear();
       pt.effort.clear();
     }
