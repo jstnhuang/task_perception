@@ -225,6 +225,32 @@ std::string ProgramExecutor::Execute(
       ROS_ERROR_STREAM(ss.str());
       return ss.str();
     }
+
+    if (slice.is_left_closing || slice.is_left_opening) {
+      // Check if we must finish gripper action. Either
+      // 1) This is the last action or
+      // 2) The next action does not open/close the gripper.
+      if (i + 1 == retimed_slices.slices.size() ||
+          (slice.is_left_closing &&
+           !retimed_slices.slices[i + 1].is_left_closing) ||
+          (slice.is_left_opening &&
+           !retimed_slices.slices[i + 1].is_left_opening)) {
+        while (ros::ok() && !left_gripper_.IsDone()) {
+          ros::spinOnce();
+        }
+      }
+    }
+    if (slice.is_right_closing || slice.is_right_opening) {
+      if (i + 1 == retimed_slices.slices.size() ||
+          (slice.is_right_closing &&
+           !retimed_slices.slices[i + 1].is_right_closing) ||
+          (slice.is_right_opening &&
+           !retimed_slices.slices[i + 1].is_right_opening)) {
+        while (ros::ok() && !right_gripper_.IsDone()) {
+          ros::spinOnce();
+        }
+      }
+    }
     ros::Duration(kPauseDuration).sleep();
   }
   ROS_INFO("Execution complete!");
@@ -540,8 +566,6 @@ std::vector<PlannedStep> PlanGraspStep(
   JointTrajectoryPoint end_pt = move_to_grasp.traj.points.back();
   end_pt.time_from_start = ros::Duration(kGraspDuration);
   grasp.traj.points.push_back(end_pt);
-  // TODO: could scale the pre grasp trajectory in case we overrun into another
-  // Step's allocated time.
   grasp.is_closing = true;
   result.push_back(grasp);
 
@@ -611,8 +635,6 @@ std::vector<PlannedStep> PlanUngraspStep(
       plan_start + step.start_time + ros::Duration(kUngraspDuration);
 
   result.push_back(post_grasp);
-  // TODO: could scale the post grasp trajectory in case we overrun into another
-  // Step's allocated time.
 
   ROS_INFO("Planned ungrasp step, input: %f (%f) -> open [%f %f], post [%f %f]",
            plan_start.toSec() + step.start_time.toSec(),
@@ -635,6 +657,8 @@ PlannedStep PlanFollowTrajectoryStep(
   moveit_msgs::MoveItErrorCodes error_code;
   moveit_msgs::RobotTrajectory planned_traj;
 
+  const double kEefThreshold =
+      rapid::GetDoubleParamOrThrow("task_imitation/cart_path_eef_threshold");
   const double kJumpThreshold =
       rapid::GetDoubleParamOrThrow("task_imitation/cart_path_jump_threshold");
   const bool kAvoidCollisions = true;
@@ -651,7 +675,7 @@ PlannedStep PlanFollowTrajectoryStep(
   group.setStartState(*start_state);
 
   double fraction =
-      group.computeCartesianPath(pose_trajectory, 0.01, kJumpThreshold,
+      group.computeCartesianPath(pose_trajectory, kEefThreshold, kJumpThreshold,
                                  planned_traj, kAvoidCollisions, &error_code);
   if (!rapid::IsSuccess(error_code)) {
     *error_out = rapid::ErrorString(error_code);
@@ -662,7 +686,9 @@ PlannedStep PlanFollowTrajectoryStep(
     *error_out = ss.str();
     return result;
   } else {
-    ROS_INFO("Planned %f%% of arm trajectory", fraction * 100);
+    ROS_INFO("Planned %f%% of arm trajectory (%zu -> %zu pts)", fraction * 100,
+             pose_trajectory.size(),
+             planned_traj.joint_trajectory.points.size());
   }
 
   // Update start state
