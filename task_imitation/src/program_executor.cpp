@@ -676,13 +676,20 @@ PlannedStep PlanFollowTrajectoryStep(
   std::vector<Pose> filtered_ee_traj;
   filtered_ee_traj.push_back(step.ee_trajectory[0]);
   Eigen::Vector3d prev_pos = rapid::AsVector3d(filtered_ee_traj[0].position);
+  bool added_last = false;
   for (size_t i = 0; i < step.ee_trajectory.size(); ++i) {
     const Pose& current_pose = step.ee_trajectory[i];
     Eigen::Vector3d pos = rapid::AsVector3d(current_pose.position);
     if ((pos - prev_pos).squaredNorm() >= kSqDistBetweenPoses) {
       filtered_ee_traj.push_back(current_pose);
       prev_pos = pos;
+      if (i + 1 == step.ee_trajectory.size()) {
+        added_last = true;
+      }
     }
+  }
+  if (!added_last && step.ee_trajectory.size() > 1) {
+    filtered_ee_traj.push_back(step.ee_trajectory.back());
   }
   ROS_INFO(
       "FollowTrajectory: filtered %zu poses to %zu poses using threshold: %f",
