@@ -217,6 +217,9 @@ std::string ProgramExecutor::Execute(
     } else if (slice.is_right_opening) {
       right_gripper_.StartOpening();
     }
+    if (slice.is_left_opening || slice.is_right_opening) {
+      ros::Duration(1).sleep();
+    }
     moveit::planning_interface::MoveItErrorCode error =
         arms_group_.execute(plan);
     if (!rapid::IsSuccess(error)) {
