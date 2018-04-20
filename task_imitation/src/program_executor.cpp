@@ -547,8 +547,7 @@ std::vector<PlannedStep> PlanGraspStep(
 
   ROS_INFO(
       "Planned grasp step input: %f (%f) -> pre: [%f, %f], grasp: [%f, %f], "
-      "close: "
-      "[%f %f]",
+      "close: [%f %f]",
       step.start_time.toSec() + plan_start.toSec(), step.start_time.toSec(),
       pregrasp_step.traj.header.stamp.toSec(),
       pregrasp_step.traj.header.stamp.toSec() +
