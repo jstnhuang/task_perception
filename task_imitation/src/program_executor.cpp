@@ -244,7 +244,6 @@ std::vector<ProgramSlice> ProgramExecutor::RetimeSlices(
   robot_trajectory::RobotTrajectory left_traj(robot_model, "left_arm");
   robot_trajectory::RobotTrajectory right_traj(robot_model, "right_arm");
 
-  bool printed = false;
   for (size_t i = 0; i < slices.size(); ++i) {
     const ProgramSlice& slice = slices[i];
     JointTrajectory left_traj_mod = slice.left_traj;
@@ -277,12 +276,6 @@ std::vector<ProgramSlice> ProgramExecutor::RetimeSlices(
       right_traj.getRobotTrajectoryMsg(msg);
       retimed_slice.right_traj = msg.joint_trajectory;
       retimed_slice.right_traj.header.stamp = slice.right_traj.header.stamp;
-    }
-    if (!printed && slice.left_traj.points.size() > 1 &&
-        slice.right_traj.points.size() > 1) {
-      ROS_INFO_STREAM("left traj after: " << retimed_slice.left_traj);
-      ROS_INFO_STREAM("right traj after: " << retimed_slice.right_traj);
-      printed = true;
     }
     if (slice.left_traj.points.size() > 0) {
       moveit::core::jointTrajPointToRobotState(
@@ -685,8 +678,6 @@ PlannedStep PlanFollowTrajectoryStep(
       planned_traj.joint_trajectory.points.back().time_from_start;
   double scale_factor =
       std::min(1.0, intended_duration.toSec() / planned_duration.toSec());
-  ROS_INFO("Trajectory should take %fs, robot plan takes %fs, scale_factor=%f",
-           intended_duration.toSec(), planned_duration.toSec(), scale_factor);
   for (size_t i = 0; i < planned_traj.joint_trajectory.points.size(); ++i) {
     planned_traj.joint_trajectory.points[i].time_from_start *= scale_factor;
   }
