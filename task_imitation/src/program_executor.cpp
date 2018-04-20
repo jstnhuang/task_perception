@@ -11,6 +11,7 @@
 #include "moveit_msgs/RobotTrajectory.h"
 #include "rapid_manipulation/moveit_error_code.h"
 #include "rapid_ros/params.h"
+#include "rapid_utils/vector3.hpp"
 #include "std_msgs/Bool.h"
 #include "task_perception_msgs/ProgramSlice.h"
 #include "task_perception_msgs/ProgramSlices.h"
@@ -668,10 +669,29 @@ PlannedStep PlanFollowTrajectoryStep(
     return blank;
   }
 
+  // Filter trajectory
+  const double kDistBetweenPoses = rapid::GetDoubleParamOrThrow(
+      "task_imitation/follow_traj_distance_between_poses");
+  const double kSqDistBetweenPoses = kDistBetweenPoses * kDistBetweenPoses;
+  std::vector<Pose> filtered_ee_traj;
+  filtered_ee_traj.push_back(step.ee_trajectory[0]);
+  Eigen::Vector3d prev_pos = rapid::AsVector3d(filtered_ee_traj[0].position);
+  for (size_t i = 0; i < step.ee_trajectory.size(); ++i) {
+    const Pose& current_pose = step.ee_trajectory[i];
+    Eigen::Vector3d pos = rapid::AsVector3d(current_pose.position);
+    if ((pos - prev_pos).squaredNorm() >= kSqDistBetweenPoses) {
+      filtered_ee_traj.push_back(current_pose);
+      prev_pos = pos;
+    }
+  }
+  ROS_INFO(
+      "FollowTrajectory: filtered %zu poses to %zu poses using threshold: %f",
+      step.ee_trajectory.size(), filtered_ee_traj.size(), kDistBetweenPoses);
+
   // Plan trajectory
   std::vector<Pose> pose_trajectory;
   Pose current_obj = object_states.at(step.object_state.name).pose;
-  pose_trajectory = ComputeGraspTrajectory(step.ee_trajectory, current_obj);
+  pose_trajectory = ComputeGraspTrajectory(filtered_ee_traj, current_obj);
   group.setStartState(*start_state);
 
   double fraction =
