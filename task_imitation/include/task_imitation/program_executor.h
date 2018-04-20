@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "actionlib/client/simple_action_client.h"
+#include "control_msgs/FollowJointTrajectoryAction.h"
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "rapid_pr2/gripper.h"
@@ -46,6 +48,10 @@ class ProgramExecutor {
   const std::string planning_frame_;
   rapid::pr2::Gripper left_gripper_;
   rapid::pr2::Gripper right_gripper_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
+      left_arm_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
+      right_arm_;
 
   ros::Publisher slice_pub_;
 };
@@ -134,6 +140,11 @@ void PrintPlan(const std::vector<PlannedStep>& left_steps,
 ros::Time GetStartOfSlices(
     const std::vector<task_perception_msgs::ProgramSlice>& slices);
 void PrintSlices(const std::vector<task_perception_msgs::ProgramSlice>& slices);
+
+trajectory_msgs::JointTrajectory RetimeTrajectory(
+    const trajectory_msgs::JointTrajectory& traj,
+    moveit::planning_interface::MoveGroup& group,
+    moveit::core::RobotStatePtr start_state);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_

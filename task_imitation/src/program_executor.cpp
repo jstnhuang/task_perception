@@ -45,6 +45,8 @@ ProgramExecutor::ProgramExecutor(
       planning_frame_(left_group_.getPlanningFrame()),
       left_gripper_(rapid::pr2::Gripper::Left()),
       right_gripper_(rapid::pr2::Gripper::Right()),
+      left_arm_("l_arm_controller/follow_joint_trajectory", true),
+      right_arm_("r_arm_controller/follow_joint_trajectory", true),
       slice_pub_(nh_.advertise<msgs::ProgramSlices>("program_executor/slices",
                                                     1, true)) {}
 
@@ -52,6 +54,12 @@ void ProgramExecutor::Init() {
   ROS_INFO("Using planning frame: %s", planning_frame_.c_str());
   left_group_.setPlannerId("RRTConnectkConfigDefault");
   right_group_.setPlannerId("RRTConnectkConfigDefault");
+  while (ros::ok() && !left_arm_.waitForServer(ros::Duration(5))) {
+    ROS_INFO("Waiting for left arm controller.");
+  }
+  while (ros::ok() && !right_arm_.waitForServer(ros::Duration(5))) {
+    ROS_INFO("Waiting for right arm controller.");
+  }
 }
 
 std::string ProgramExecutor::Execute(
@@ -192,20 +200,6 @@ std::string ProgramExecutor::Execute(
       }
     }
 
-    moveit::planning_interface::MoveGroup::Plan plan;
-    plan.trajectory_.joint_trajectory =
-        MergeTrajectories(slice.left_traj, slice.right_traj);
-    ROS_ASSERT(IsValidTrajectory(plan.trajectory_.joint_trajectory));
-
-    trajectory_processing::IterativeParabolicTimeParameterization retimer;
-    moveit::core::RobotStatePtr state = arms_group_.getCurrentState();
-    robot_model::RobotModelConstPtr robot_model = arms_group_.getRobotModel();
-    robot_trajectory::RobotTrajectory arms_traj(robot_model, "arms");
-    arms_traj.setRobotTrajectoryMsg(*state, plan.trajectory_.joint_trajectory);
-    retimer.computeTimeStamps(arms_traj);
-    arms_traj.getRobotTrajectoryMsg(plan.trajectory_);
-    plan.trajectory_.joint_trajectory.header.stamp = ros::Time(0);
-
     // Execute slice
     if (slice.is_left_closing) {
       left_gripper_.StartClosing(kGraspForce);
@@ -220,14 +214,21 @@ std::string ProgramExecutor::Execute(
     if (slice.is_left_opening || slice.is_right_opening) {
       ros::Duration(1).sleep();
     }
-    moveit::planning_interface::MoveItErrorCode error =
-        arms_group_.execute(plan);
-    if (!rapid::IsSuccess(error)) {
-      std::stringstream ss;
-      ss << "Failed to execute slice " << (i + 1) << ": "
-         << rapid::ErrorString(error);
-      ROS_ERROR_STREAM(ss.str());
-      return ss.str();
+
+    JointTrajectory left_retimed = RetimeTrajectory(
+        slice.left_traj, left_group_, left_group_.getCurrentState());
+    JointTrajectory right_retimed = RetimeTrajectory(
+        slice.right_traj, right_group_, right_group_.getCurrentState());
+
+    control_msgs::FollowJointTrajectoryGoal left_goal;
+    left_goal.trajectory = left_retimed;
+    control_msgs::FollowJointTrajectoryGoal right_goal;
+    right_goal.trajectory = right_retimed;
+    left_arm_.sendGoal(left_goal);
+    right_arm_.sendGoal(right_goal);
+    while (ros::ok() && (!left_arm_.getState().isDone() ||
+                         !right_arm_.getState().isDone())) {
+      ros::spinOnce();
     }
 
     if (slice.is_left_closing || slice.is_left_opening) {
@@ -969,4 +970,19 @@ void PrintSlices(const std::vector<msgs::ProgramSlice>& slices) {
              slice.right_traj.points.size(), right_interval.c_str());
   }
 }
+
+JointTrajectory RetimeTrajectory(const JointTrajectory& traj,
+                                 moveit::planning_interface::MoveGroup& group,
+                                 moveit::core::RobotStatePtr start_state) {
+  trajectory_processing::IterativeParabolicTimeParameterization retimer;
+  // moveit::core::RobotStatePtr state = group.getCurrentState();
+  robot_model::RobotModelConstPtr robot_model = group.getRobotModel();
+  robot_trajectory::RobotTrajectory arms_traj(robot_model, group.getName());
+  arms_traj.setRobotTrajectoryMsg(*start_state, traj);
+  retimer.computeTimeStamps(arms_traj);
+  moveit_msgs::RobotTrajectory result;
+  arms_traj.getRobotTrajectoryMsg(result);
+  return result.joint_trajectory;
+}
+
 }  // namespace pbi
