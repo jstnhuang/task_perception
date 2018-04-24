@@ -1,6 +1,7 @@
 #include "task_imitation/grasp_planning_context.h"
 
 #include <string>
+#include <vector>
 
 #include "geometry_msgs/Pose.h"
 #include "pcl/point_cloud.h"
@@ -40,5 +41,11 @@ PointCloudN::Ptr GraspPlanningContext::object_cloud_with_normals() const {
 
 KdTreeP::Ptr GraspPlanningContext::object_tree() const {
   return lazy_model_.GetObjectTree();
+}
+
+std::vector<Obb> GraspPlanningContext::obstacles() const { return obstacles_; }
+
+void GraspPlanningContext::AddObstacle(const Obb& obstacle) {
+  obstacles_.push_back(obstacle);
 }
 }  // namespace pbi

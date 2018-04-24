@@ -51,7 +51,8 @@ msgs::Program ProgramGenerator::Generate(
   ObjectStateIndex initial_demo_objects = GetInitialDemoObjects(demo_states);
 
   for (size_t i = 0; i < segments.size(); ++i) {
-    ProcessSegment(segments[i], initial_runtime_objects, initial_demo_objects);
+    ProcessSegment(segments[i], initial_runtime_objects, initial_demo_objects,
+                   table);
   }
 
   ROS_INFO("Generated program");
@@ -96,9 +97,9 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
 void ProgramGenerator::ProcessSegment(
     const ProgramSegment& segment,
     const ObjectStateIndex& initial_runtime_objects,
-    const ObjectStateIndex& initial_demo_objects) {
+    const ObjectStateIndex& initial_demo_objects, const Obb& table) {
   if (segment.type == msgs::Step::GRASP) {
-    AddGraspStep(segment, initial_runtime_objects);
+    AddGraspStep(segment, initial_runtime_objects, table);
   } else if (segment.type == msgs::Step::UNGRASP) {
     AddUngraspStep(segment);
   } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
@@ -112,7 +113,7 @@ void ProgramGenerator::ProcessSegment(
 
 void ProgramGenerator::AddGraspStep(
     const ProgramSegment& segment,
-    const ObjectStateIndex& initial_runtime_objects) {
+    const ObjectStateIndex& initial_runtime_objects, const Obb& table) {
   const msgs::DemoState& state = segment.demo_states[0];
 
   msgs::HandState hand;
@@ -127,7 +128,7 @@ void ProgramGenerator::AddGraspStep(
   grasp_step.arm = segment.arm_name;
   grasp_step.type = msgs::Step::GRASP;
   grasp_step.object_state = GetObjectState(state, hand.object_name);
-  const std::string object_name = grasp_step.object_state.name;
+  const std::string& object_name = grasp_step.object_state.name;
 
   // Plan grasp
   tg::Graph graph;
@@ -140,6 +141,8 @@ void ProgramGenerator::AddGraspStep(
   GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
                                object_name, grasp_step.object_state.mesh_name,
                                current_obj_pose);
+  context.AddObstacle(table);
+
   GraspPlanner grasp_planner;
   Pose grasp_in_planning = grasp_planner.Plan(context);
   graph.Add("grasp", tg::RefFrame("planning"), grasp_in_planning);

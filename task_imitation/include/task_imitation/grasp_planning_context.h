@@ -2,12 +2,16 @@
 #define _PBI_GRASP_PLANNING_CONTEXT_H_
 
 #include <string>
+#include <vector>
 
 #include "geometry_msgs/Pose.h"
+#include "geometry_msgs/Vector3.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "pcl/search/kdtree.h"
 #include "task_perception/lazy_object_model.h"
+
+#include "task_imitation/obb.h"
 
 namespace pbi {
 // Stores key perceptual information necessary for doing local grasp planning
@@ -24,6 +28,9 @@ class GraspPlanningContext {
   pcl::PointCloud<pcl::PointXYZ>::Ptr object_cloud() const;
   pcl::PointCloud<pcl::PointNormal>::Ptr object_cloud_with_normals() const;
   pcl::search::KdTree<pcl::PointXYZ>::Ptr object_tree() const;
+  std::vector<Obb> obstacles() const;
+
+  void AddObstacle(const Obb& obstacle);
 
  private:
   geometry_msgs::Pose wrist_pose_;
@@ -32,6 +39,7 @@ class GraspPlanningContext {
   std::string object_mesh_;
   geometry_msgs::Pose object_pose_;
   LazyObjectModel lazy_model_;
+  std::vector<Obb> obstacles_;
 };
 }  // namespace pbi
 
