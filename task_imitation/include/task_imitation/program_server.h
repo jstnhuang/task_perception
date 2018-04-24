@@ -26,6 +26,7 @@
 #include "urdf/model.h"
 #include "visualization_msgs/MarkerArray.h"
 
+#include "task_imitation/obb.h"
 #include "task_imitation/program_executor.h"
 
 namespace pbi {
@@ -46,8 +47,10 @@ class ProgramServer {
       const std::string& bag_path, task_perception_msgs::Program* program,
       std::map<std::string, task_perception_msgs::ObjectState>* object_states);
 
-  std::map<std::string, task_perception_msgs::ObjectState> GetObjectPoses(
-      const task_perception_msgs::DemoStates& demo_states);
+  void GetObjectPoses(
+      const task_perception_msgs::DemoStates& demo_states,
+      std::map<std::string, task_perception_msgs::ObjectState>* object_states,
+      Obb* table);
   void VisualizeStep(const task_perception_msgs::Step& step);
   void VisualizeSlice(const task_perception_msgs::ProgramSlice& slice);
   visualization_msgs::MarkerArray GripperMarkers(

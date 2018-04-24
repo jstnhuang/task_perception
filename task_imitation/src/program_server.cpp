@@ -36,6 +36,7 @@
 #include "transform_graph/graph.h"
 #include "visualization_msgs/Marker.h"
 
+#include "task_imitation/obb.h"
 #include "task_imitation/program_executor.h"
 #include "task_imitation/program_generator.h"
 
@@ -196,17 +197,19 @@ std::string ProgramServer::GenerateProgramInternal(
 
   // Generate program and slices
   const msgs::DemoStates& demo_states = get_states_res.demo_states;
-  *object_states = GetObjectPoses(demo_states);
+  Obb table;
+  GetObjectPoses(demo_states, object_states, &table);
   ROS_INFO("All object states initialized.");
 
   ProgramGenerator generator(left_group_, right_group_);
-  *program = generator.Generate(demo_states.demo_states, *object_states);
+  *program = generator.Generate(demo_states.demo_states, *object_states, table);
   program_pub_.publish(*program);
   return "";
 }
 
-std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
-    const msgs::DemoStates& demo_states) {
+void ProgramServer::GetObjectPoses(
+    const msgs::DemoStates& demo_states,
+    std::map<std::string, msgs::ObjectState>* object_states, Obb* table) {
   // Get point cloud in base frame
   rapid::PointCloudC::Ptr cloud = cam_interface_.cloud();
   geometry_msgs::TransformStamped cam_in_base = cam_interface_.camera_pose();
@@ -265,6 +268,10 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
   if (!segment_success) {
     ROS_ERROR("Failed to segment surface.");
   }
+  if (surface_objects.size() > 0) {
+    table->pose = surface_objects[0].surface.pose_stamped.pose;
+    table->dims = surface_objects[0].surface.dimensions;
+  }
   for (size_t i = 0; i < surface_objects.size(); ++i) {
     ROS_INFO("Surface %zu has %zu objects", i,
              surface_objects[i].objects.size());
@@ -285,13 +292,12 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
   // object once.We could / should allow the robot to interact with an object
   // more than once, but we need to continuosly track the objects in that
   // case.
-  std::map<std::string, msgs::ObjectState> object_states;
   for (size_t i = 0; i < demo_states.demo_states.size(); ++i) {
     const msgs::DemoState& state = demo_states.demo_states[i];
     for (size_t j = 0; j < state.object_states.size(); ++j) {
       const msgs::ObjectState& os = state.object_states[j];
-      if (object_states.find(os.name) == object_states.end()) {
-        object_states[os.name] = os;
+      if (object_states->find(os.name) == object_states->end()) {
+        object_states->at(os.name) = os;
         graph.Add(os.name, tg::RefFrame("camera"), os.pose);
       }
     }
@@ -301,8 +307,8 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
   // segmented objects. If so, initialize its position automatically. Otherwise,
   // bring up an interactive marker.
   for (std::map<std::string, msgs::ObjectState>::iterator it =
-           object_states.begin();
-       it != object_states.end(); ++it) {
+           object_states->begin();
+       it != object_states->end(); ++it) {
     const msgs::ObjectState& obj_state = it->second;
     LazyObjectModel obj_model(obj_state.mesh_name, planning_frame_,
                               obj_state.pose);
@@ -362,8 +368,6 @@ std::map<std::string, msgs::ObjectState> ProgramServer::GetObjectPoses(
     ROS_INFO_STREAM("Initialized pose for object: \""
                     << it->first << "\" at pose " << it->second.pose);
   }
-
-  return object_states;
 }
 
 void ProgramServer::VisualizeStep(const msgs::Step& step) {

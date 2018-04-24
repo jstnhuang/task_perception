@@ -12,6 +12,7 @@
 #include "task_perception_msgs/Step.h"
 
 #include "task_imitation/collision_checker.h"
+#include "task_imitation/obb.h"
 #include "task_imitation/program_segment.h"
 
 namespace pbi {
@@ -26,7 +27,7 @@ class ProgramGenerator {
                    moveit::planning_interface::MoveGroup& right_group);
   task_perception_msgs::Program Generate(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
-      const ObjectStateIndex& initial_objects);
+      const ObjectStateIndex& initial_objects, const Obb& table);
 
  private:
   std::vector<ProgramSegment> Segment(

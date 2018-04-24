@@ -33,7 +33,7 @@ ProgramGenerator::ProgramGenerator(
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
-    const ObjectStateIndex& initial_runtime_objects) {
+    const ObjectStateIndex& initial_runtime_objects, const Obb& table) {
   std::vector<ProgramSegment> segments = Segment(demo_states);
 
   ros::Time earliest;
