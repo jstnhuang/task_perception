@@ -32,6 +32,7 @@ This package requires object models.
 For compatibility with `dbot_ros`, all object models must be in `.obj` format.
 You should run `/usr/bin/pcl_mesh_sampling MODEL.obj MODEL.pcd`, most likely with the default settings.
 All object meshes go in a ROS package called `object_meshes` and in a folder named `object_models`.
+- [Preparing object models](https://github.com/jstnhuang/task_perception/wiki/Preparing-object-models)
 
 ## Annotation procedure
 - [ ] `roscore`
