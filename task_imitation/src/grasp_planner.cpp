@@ -13,6 +13,7 @@
 #include "pcl/common/transforms.h"
 #include "pcl/kdtree/kdtree.h"
 #include "pcl_conversions/pcl_conversions.h"
+#include "rapid_collision/collision_checks.h"
 #include "rapid_ros/params.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
@@ -399,6 +400,12 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       rotated_tf.ToPose(&rotated_pose);
       Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
+      Pr2GripperModel candidate;
+      candidate.set_pose(rotated_pose);
+      if (IsGripperCollidingWithObstacles(candidate, context)) {
+        continue;
+      }
+
       GraspEvaluation grasp_eval = ScoreGrasp(rotated_mat, wrist_pos, context);
       double score = grasp_eval.score();
 
@@ -442,6 +449,12 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
     Pose rotated_pose;
     rotated_tf.ToPose(&rotated_pose);
     Eigen::Affine3d rotated_mat(rotated_tf.matrix());
+
+    Pr2GripperModel candidate;
+    candidate.set_pose(rotated_pose);
+    if (IsGripperCollidingWithObstacles(candidate, context)) {
+      continue;
+    }
 
     GraspEvaluation grasp_eval;
     ScoreGrasp(rotated_mat, wrist_pos, context);
@@ -584,5 +597,17 @@ void GraspPlanner::UpdateParams() {
       GetDoubleParamOrThrow("grasp_planner/non_antipodal_collision_weight");
   weights_.sq_wrist_distance_weight =
       GetDoubleParamOrThrow("grasp_planner/sq_wrist_distance_weight");
+}
+
+bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
+                                     const GraspPlanningContext& context) {
+  const std::vector<Obb>& obstacles = context.obstacles();
+  for (size_t i = 0; i < obstacles.size(); ++i) {
+    const Obb& obstacle = obstacles[i];
+    if (gripper.IsCollidingWithObb(obstacle.pose, obstacle.dims)) {
+      return true;
+    }
+  }
+  return false;
 }
 }  // namespace pbi

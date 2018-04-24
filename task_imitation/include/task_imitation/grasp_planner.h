@@ -91,6 +91,9 @@ class GraspPlanner {
   bool debug_;
   GraspFeatureWeights weights_;
 };
+
+bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
+                                     const GraspPlanningContext& context);
 }  // namespace pbi
 
 #endif  // _TASK_IMITATION_GRASP_PLANNER_H_
