@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
   mongodb_store
   pcl_conversions
+  rapid_collision
   robot_markers
   rosbag
   roscpp
@@ -149,6 +150,7 @@ catkin_package(
     message_filters
     mongodb_store
     pcl_conversions
+    rapid_collision
     robot_markers
     rosbag
     roscpp

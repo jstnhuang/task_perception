@@ -3,70 +3,73 @@
 #include "geometry_msgs/Point.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
+#include "rapid_collision/collision_checks.h"
 #include "visualization_msgs/MarkerArray.h"
 
 namespace tg = transform_graph;
+using geometry_msgs::Pose;
+using geometry_msgs::Point;
+using geometry_msgs::Vector3;
 
 namespace pbi {
 namespace {
-geometry_msgs::Point PalmPos() {
-  geometry_msgs::Point palm_pos;
+Point PalmPos() {
+  Point palm_pos;
   palm_pos.x = 0.078;
   return palm_pos;
 }
 
-geometry_msgs::Point LFingerPos() {
-  geometry_msgs::Point pos;
+Point LFingerPos() {
+  Point pos;
   pos.x = 0.156;
   pos.y = 0.065;
   return pos;
 }
 
-geometry_msgs::Point RFingerPos() {
-  geometry_msgs::Point pos;
+Point RFingerPos() {
+  Point pos;
   pos.x = 0.156;
   pos.y = -0.065;
   return pos;
 }
 
-geometry_msgs::Point GraspRegionPos() {
-  geometry_msgs::Point pos;
+Point GraspRegionPos() {
+  Point pos;
   pos.x = 0.1685;
   return pos;
 }
 
-geometry_msgs::Vector3 PalmDims() {
-  geometry_msgs::Vector3 vec;
+Vector3 PalmDims() {
+  Vector3 vec;
   vec.x = 0.096;
   vec.y = 0.15;
   vec.z = 0.06;
   return vec;
 }
 
-geometry_msgs::Vector3 FingerDims() {
-  geometry_msgs::Vector3 vec;
+Vector3 FingerDims() {
+  Vector3 vec;
   vec.x = 0.06;
   vec.y = 0.045;
   vec.z = 0.03;
   return vec;
 }
 
-geometry_msgs::Vector3 GraspRegionDims() {
-  geometry_msgs::Vector3 vec;
+Vector3 GraspRegionDims() {
+  Vector3 vec;
   vec.x = 0.085;
   vec.y = 0.085;
   vec.z = 0.03;
   return vec;
 }
 }
-const geometry_msgs::Point Pr2GripperModel::kPalmPos = PalmPos();
-const geometry_msgs::Point Pr2GripperModel::kLFingerPos = LFingerPos();
-const geometry_msgs::Point Pr2GripperModel::kRFingerPos = RFingerPos();
-const geometry_msgs::Point Pr2GripperModel::kGraspRegionPos = GraspRegionPos();
-const geometry_msgs::Vector3 Pr2GripperModel::kPalmDims = PalmDims();
-const geometry_msgs::Vector3 Pr2GripperModel::kFingerDims = FingerDims();
-const geometry_msgs::Vector3 Pr2GripperModel::kGraspRegionDims =
-    GraspRegionDims();
+const Point Pr2GripperModel::kPalmPos = PalmPos();
+const Point Pr2GripperModel::kLFingerPos = LFingerPos();
+const Point Pr2GripperModel::kRFingerPos = RFingerPos();
+const Point Pr2GripperModel::kGraspRegionPos = GraspRegionPos();
+const Vector3 Pr2GripperModel::kPalmDims = PalmDims();
+const Vector3 Pr2GripperModel::kFingerDims = FingerDims();
+const Vector3 Pr2GripperModel::kGraspRegionDims = GraspRegionDims();
 
 Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
   pose_.orientation.w = 1;
@@ -83,12 +86,12 @@ Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
                 tg::Transform(center, tg::Orientation()));
 }
 
-void Pr2GripperModel::set_pose(const geometry_msgs::Pose& pose) {
+void Pr2GripperModel::set_pose(const Pose& pose) {
   pose_ = pose;
   tf_graph_.Add("gripper", tg::RefFrame("gripper base"), pose);
 }
 
-geometry_msgs::Pose Pr2GripperModel::pose() const { return pose_; }
+Pose Pr2GripperModel::pose() const { return pose_; }
 
 void Pr2GripperModel::ToMarkerArray(
     const std::string& frame_id,
@@ -174,6 +177,39 @@ Eigen::Vector3d Pr2GripperModel::grasp_center() const {
 }
 
 const tg::Graph& Pr2GripperModel::tf_graph() const { return tf_graph_; }
+
+bool Pr2GripperModel::IsCollidingWithObb(const Pose& pose,
+                                         const Vector3& dims) const {
+  tg::Transform palm_tf;
+  tf_graph_.ComputeDescription("palm", tg::RefFrame("gripper base"), &palm_tf);
+  if (rapid::AreObbsInCollision(pose, dims, palm_tf.pose(), kPalmDims)) {
+    return true;
+  }
+
+  tg::Transform grasp_tf;
+  tf_graph_.ComputeDescription("grasp center", tg::RefFrame("gripper base"),
+                               &grasp_tf);
+  if (rapid::AreObbsInCollision(pose, dims, grasp_tf.pose(),
+                                kGraspRegionDims)) {
+    return true;
+  }
+
+  tg::Transform l_finger_tf;
+  tf_graph_.ComputeDescription("l_finger", tg::RefFrame("gripper base"),
+                               &l_finger_tf);
+  if (rapid::AreObbsInCollision(pose, dims, l_finger_tf.pose(), kFingerDims)) {
+    return true;
+  }
+
+  tg::Transform r_finger_tf;
+  tf_graph_.ComputeDescription("r_finger", tg::RefFrame("gripper base"),
+                               &r_finger_tf);
+  if (rapid::AreObbsInCollision(pose, dims, r_finger_tf.pose(), kFingerDims)) {
+    return true;
+  }
+
+  return false;
+}
 
 bool Pr2GripperModel::IsGripperFramePtInGraspRegion(double x, double y,
                                                     double z) {

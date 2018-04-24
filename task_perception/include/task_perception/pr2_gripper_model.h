@@ -34,6 +34,9 @@ class Pr2GripperModel {
   // grasp center: The center of the grasp region (CoG)
   const transform_graph::Graph& tf_graph() const;
 
+  bool IsCollidingWithObb(const geometry_msgs::Pose& pose,
+                          const geometry_msgs::Vector3& dims) const;
+
   // These functions assume that X/Y/Z have already been transformed into the
   // gripper frame, which differs from other methods in this class. This is
   // because we typically want to call both methods for the same point, so it's
