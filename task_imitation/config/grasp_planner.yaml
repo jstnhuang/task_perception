@@ -5,3 +5,14 @@ grasp_planner:
   antipodal_collision_weight: 0
   non_antipodal_collision_weight: -1
   sq_wrist_distance_weight: -900
+  max_translation_for_termination: 0.015
+  max_rotation_for_termination: 0.1
+  yaw_range_degrees: 120
+  yaw_resolution_degrees: 12
+  roll_range_degrees: 90
+  roll_resolution_degrees: 10
+  pitch_range_degrees: 63
+  pitch_resolution_degrees: 9
+  antipodal_degrees: 15
+  max_planning_iterations: 5
+  max_placement_iterations: 10

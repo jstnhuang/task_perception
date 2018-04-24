@@ -31,6 +31,7 @@
 namespace tg = transform_graph;
 namespace msgs = task_perception_msgs;
 using geometry_msgs::Pose;
+using rapid::GetDoubleParamOrThrow;
 
 namespace pbi {
 GraspFeatures::GraspFeatures()
@@ -136,8 +137,10 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   // Get current wrist pose and previous gripper pose
   tg::Graph graph;
 
-  const double kTranslationThreshold = 0.015;
-  const double kRotationThreshold = 0.1;
+  const double kTranslationThreshold =
+      GetDoubleParamOrThrow("grasp_planner/max_translation_for_termination");
+  const double kRotationThreshold =
+      GetDoubleParamOrThrow("grasp_planner/max_rotation_for_termination");
 
   // While termination criteria not reached:
   // - Point towards wrist
@@ -146,8 +149,13 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   // Check for collisions
   Pose prev_pose = initial_pose;
   Pose next_pose;
-  for (int i = 0; i < 5; ++i) {
-    Pose placed = OptimizePlacement(prev_pose, context, 10);
+  const int kMaxPlanningIterations =
+      rapid::GetIntParamOrThrow("grasp_planner/max_planning_iterations");
+  const int kMaxPlacementIterations =
+      rapid::GetIntParamOrThrow("grasp_planner/max_placement_iterations");
+  for (int i = 0; i < kMaxPlanningIterations; ++i) {
+    Pose placed =
+        OptimizePlacement(prev_pose, context, kMaxPlacementIterations);
     gripper_model.set_pose(placed);
     if (debug_) {
       VisualizeGripper("optimization", placed, context.planning_frame_id());
@@ -357,15 +365,22 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
   Pose best_pose;
   double best_score = -std::numeric_limits<double>::max();
 
-  const double kYawRange = 120 * M_PI / 180;
-  const double kYawResolution = 12 * M_PI / 180;
+  const double kDegToRad = M_PI / 180;
+  const double kYawRange =
+      kDegToRad * GetDoubleParamOrThrow("grasp_planner/yaw_range_degrees");
+  const double kYawResolution =
+      kDegToRad * GetDoubleParamOrThrow("grasp_planner/yaw_resolution_degrees");
+  const double kRollRange =
+      kDegToRad * GetDoubleParamOrThrow("grasp_planner/roll_range_degrees");
+  const double kRollResolution =
+      kDegToRad *
+      GetDoubleParamOrThrow("grasp_planner/roll_resolution_degrees");
+
   int num_yaw_samples = round(kYawRange / kYawResolution) + 1;
   for (int yaw_i = 0; yaw_i < num_yaw_samples; ++yaw_i) {
     double yaw_angle = yaw_i * kYawResolution - kYawRange / 2;
     Eigen::AngleAxisd yaw_rot(yaw_angle, Eigen::Vector3d::UnitZ());
 
-    const double kRollRange = 90 * M_PI / 180;
-    const double kRollResolution = 10 * M_PI / 180;
     int num_roll_samples = round(kRollRange / kRollResolution) + 1;
     for (int roll_i = 0; roll_i < num_roll_samples; ++roll_i) {
       double roll_angle = roll_i * kRollResolution - kRollRange / 2;
@@ -407,8 +422,11 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
     }
   }
 
-  const double kPitchRange = 63 * M_PI / 180;
-  const double kPitchResolution = 9 * M_PI / 180;
+  const double kPitchRange =
+      kDegToRad * GetDoubleParamOrThrow("grasp_planner/pitch_range_degrees");
+  const double kPitchResolution =
+      GetDoubleParamOrThrow("grasp_planner/pitch_resolution_degrees") *
+      kDegToRad;
   int num_pitch_samples = round(kPitchRange / kPitchResolution) + 1;
   for (int pitch_i = 0; pitch_i < num_pitch_samples; ++pitch_i) {
     double pitch_angle = pitch_i * kPitchResolution - kPitchRange / 2;
@@ -449,7 +467,8 @@ GraspEvaluation GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
                                          const Eigen::Vector3d& wrist_pos,
                                          const GraspPlanningContext& context) {
   GraspEvaluation eval;
-  const double kAntipodalDegrees = 15;
+  const double kAntipodalDegrees =
+      GetDoubleParamOrThrow("grasp_planner/antipodal_degrees");
   const double kAntipodalCos = cos(kAntipodalDegrees * M_PI / 180);
   eval.weights = weights_;
 
@@ -556,14 +575,14 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 void GraspPlanner::UpdateParams() {
   debug_ = rapid::GetBoolParamOrThrow("grasp_planner/debug");
   weights_.antipodal_grasp_weight =
-      rapid::GetDoubleParamOrThrow("grasp_planner/antipodal_grasp_weight");
+      GetDoubleParamOrThrow("grasp_planner/antipodal_grasp_weight");
   weights_.non_antipodal_grasp_weight =
-      rapid::GetDoubleParamOrThrow("grasp_planner/non_antipodal_grasp_weight");
+      GetDoubleParamOrThrow("grasp_planner/non_antipodal_grasp_weight");
   weights_.antipodal_collision_weight =
-      rapid::GetDoubleParamOrThrow("grasp_planner/antipodal_collision_weight");
-  weights_.non_antipodal_collision_weight = rapid::GetDoubleParamOrThrow(
-      "grasp_planner/non_antipodal_collision_weight");
+      GetDoubleParamOrThrow("grasp_planner/antipodal_collision_weight");
+  weights_.non_antipodal_collision_weight =
+      GetDoubleParamOrThrow("grasp_planner/non_antipodal_collision_weight");
   weights_.sq_wrist_distance_weight =
-      rapid::GetDoubleParamOrThrow("grasp_planner/sq_wrist_distance_weight");
+      GetDoubleParamOrThrow("grasp_planner/sq_wrist_distance_weight");
 }
 }  // namespace pbi
