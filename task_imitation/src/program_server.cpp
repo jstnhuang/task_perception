@@ -7,22 +7,16 @@
 
 #include "actionlib/client/simple_action_client.h"
 #include "actionlib/server/simple_action_server.h"
+#include "boost/optional.hpp"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
 #include "moveit/robot_state/conversions.h"
 #include "moveit_msgs/DisplayTrajectory.h"
-#include "pcl/filters/crop_box.h"
-#include "pcl/point_cloud.h"
-#include "pcl/point_types.h"
-#include "pcl/registration/icp.h"
 #include "pcl_conversions/pcl_conversions.h"
-#include "pcl_ros/transforms.h"
-#include "rapid_ros/params.h"
 #include "rapid_utils/pcl_typedefs.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
-#include "surface_perception/segmentation.h"
 #include "surface_perception/visualization.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoStates.h"
@@ -37,6 +31,7 @@
 #include "visualization_msgs/Marker.h"
 
 #include "task_imitation/obb.h"
+#include "task_imitation/object_initialization.h"
 #include "task_imitation/program_executor.h"
 #include "task_imitation/program_generator.h"
 
@@ -210,76 +205,33 @@ std::string ProgramServer::GenerateProgramInternal(
 void ProgramServer::GetObjectPoses(
     const msgs::DemoStates& demo_states,
     std::map<std::string, msgs::ObjectState>* object_states, Obb* table) {
-  // Get point cloud in base frame
-  rapid::PointCloudC::Ptr cloud = cam_interface_.cloud();
-  geometry_msgs::TransformStamped cam_in_base = cam_interface_.camera_pose();
-  Eigen::Affine3d transform;
-  tf::transformMsgToEigen(cam_in_base.transform, transform);
-  rapid::PointCloudC::Ptr cloud_in_base(new rapid::PointCloudC);
-  pcl::transformPointCloud(*cloud, *cloud_in_base, transform);
-  cloud_in_base->header.frame_id = cam_in_base.header.frame_id;
-
-  pcl::CropBox<rapid::PointC> crop;
-  crop.setInputCloud(cloud_in_base);
-  double min_x =
-      rapid::GetDoubleParamOrThrow("surface_segmentation/crop_min_x");
-  double min_y =
-      rapid::GetDoubleParamOrThrow("surface_segmentation/crop_min_y");
-  double min_z =
-      rapid::GetDoubleParamOrThrow("surface_segmentation/crop_min_z");
-  double max_x =
-      rapid::GetDoubleParamOrThrow("surface_segmentation/crop_max_x");
-  double max_y =
-      rapid::GetDoubleParamOrThrow("surface_segmentation/crop_max_y");
-  double max_z =
-      rapid::GetDoubleParamOrThrow("surface_segmentation/crop_max_z");
-  Eigen::Vector4f min_pt;
-  min_pt << min_x, min_y, min_z, 1;
-  crop.setMin(min_pt);
-  Eigen::Vector4f max_pt;
-  max_pt << max_x, max_y, max_z, 1;
-  crop.setMax(max_pt);
-  rapid::PointCloudC::Ptr cropped_cloud(new rapid::PointCloudC);
-  crop.filter(*cropped_cloud);
-
+  rapid::PointCloudC::Ptr cloud_in_base = GetCloudInBase(cam_interface_);
+  rapid::PointCloudC::Ptr cropped_cloud =
+      CropCloudUsingParams(cloud_in_base, "surface_segmentation/crop_");
   sensor_msgs::PointCloud2 cloud_in_base_msg;
   pcl::toROSMsg(*cropped_cloud, cloud_in_base_msg);
-  cloud_in_base_msg.header.frame_id = cam_in_base.header.frame_id;
+  cloud_in_base_msg.header.frame_id =
+      cam_interface_.camera_pose().header.frame_id;
   cloud_pub_.publish(cloud_in_base_msg);
 
-  surface_perception::Segmentation seg;
-  seg.set_input_cloud(cropped_cloud);
-  seg.set_horizontal_tolerance_degrees(rapid::GetDoubleParamOrThrow(
-      "surface_segmentation/horizontal_tolerance_degrees"));
-  seg.set_margin_above_surface(rapid::GetDoubleParamOrThrow(
-      "surface_segmentation/margin_above_surface"));
-  seg.set_cluster_distance(
-      rapid::GetDoubleParamOrThrow("surface_segmentation/cluster_distance"));
-  seg.set_min_cluster_size(
-      rapid::GetDoubleParamOrThrow("surface_segmentation/min_cluster_size"));
-  seg.set_max_cluster_size(
-      rapid::GetDoubleParamOrThrow("surface_segmentation/max_cluster_size"));
-  seg.set_min_surface_size(
-      rapid::GetDoubleParamOrThrow("surface_segmentation/min_surface_size"));
-  seg.set_max_point_distance(
-      rapid::GetDoubleParamOrThrow("surface_segmentation/max_point_distance"));
-  std::vector<surface_perception::SurfaceObjects> surface_objects;
-  bool segment_success = seg.Segment(&surface_objects);
-  if (!segment_success) {
+  optional<std::vector<surface_perception::SurfaceObjects> > surface_objects =
+      DetectTabletopObjects(cropped_cloud);
+  if (!surface_objects) {
     ROS_ERROR("Failed to segment surface.");
-  }
-  if (surface_objects.size() > 0) {
-    table->pose = surface_objects[0].surface.pose_stamped.pose;
-    table->dims = surface_objects[0].surface.dimensions;
-  }
-  for (size_t i = 0; i < surface_objects.size(); ++i) {
-    ROS_INFO("Surface %zu has %zu objects", i,
-             surface_objects[i].objects.size());
-  }
+  } else {
+    if (surface_objects->size() > 0) {
+      table->pose = surface_objects->at(0).surface.pose_stamped.pose;
+      table->dims = surface_objects->at(0).surface.dimensions;
+    }
+    for (size_t i = 0; i < surface_objects->size(); ++i) {
+      ROS_INFO("Surface %zu has %zu objects", i,
+               surface_objects->at(i).objects.size());
+    }
 
-  segmentation_viz_.Hide();
-  segmentation_viz_.set_surface_objects(surface_objects);
-  segmentation_viz_.Show();
+    segmentation_viz_.Hide();
+    segmentation_viz_.set_surface_objects(*surface_objects);
+    segmentation_viz_.Show();
+  }
 
   // Crude assumption: camera pose at demonstration time is approximately the
   // same at imitation time. The proper way to do this would be to store the
@@ -325,9 +277,11 @@ void ProgramServer::GetObjectPoses(
     geometry_msgs::Point initial_obj_position = obj_position.point();
     // Flip about y axis to account for mirroring.
     initial_obj_position.y *= -1;
-    int obj_index =
-        MatchObject(initial_obj_position, obj_scale, surface_objects,
-                    &rough_obj_pose, &obj_scale_obs);
+    int obj_index = -1;
+    if (surface_objects) {
+      obj_index = MatchObject(initial_obj_position, obj_scale, *surface_objects,
+                              &rough_obj_pose, &obj_scale_obs);
+    }
     dbot_ros_msgs::InitializeObjectGoal init_goal;
     init_goal.frame_id = executor_.planning_frame();
     init_goal.mesh_name = it->second.mesh_name;
@@ -347,9 +301,9 @@ void ProgramServer::GetObjectPoses(
                                       rough_obj_pose);
       obj_model.set_object_model_cache(&model_cache_);
 
-      ROS_ASSERT(surface_objects.size() == 1);  // MatchObject enforces this
-      geometry_msgs::Pose aligned_pose =
-          AlignObject(rough_obj_model, surface_objects[0].objects[obj_index]);
+      ROS_ASSERT(surface_objects->size() == 1);  // MatchObject enforces this
+      geometry_msgs::Pose aligned_pose = AlignObject(
+          rough_obj_model, surface_objects->at(0).objects[obj_index]);
 
       init_goal.initial_pose = aligned_pose;
     } else {
@@ -500,93 +454,5 @@ MarkerArray ProgramServer::GripperMarkers(const std::string& ns,
     result.markers.push_back(marker);
   }
   return result;
-}
-
-int MatchObject(
-    const geometry_msgs::Point& initial_obj_position,
-    const geometry_msgs::Vector3& obj_scale,
-    const std::vector<surface_perception::SurfaceObjects>& surface_objects,
-    geometry_msgs::Pose* pose, geometry_msgs::Vector3* scale) {
-  if (surface_objects.size() != 1) {
-    ROS_ERROR("Expected to find exactly one surface, found %zu",
-              surface_objects.size());
-    return -1;
-  }
-
-  double match_dim_tolerance =
-      rapid::GetDoubleParamOrThrow("task_imitation/match_dim_tolerance");
-  double best_sq_dist = std::numeric_limits<double>::max();
-  int best_index = -1;
-  const surface_perception::SurfaceObjects& surface = surface_objects[0];
-  for (size_t j = 0; j < surface.objects.size(); ++j) {
-    const surface_perception::Object& object = surface.objects[j];
-    double dim_dx = fabs(object.dimensions.x - obj_scale.x);
-    double dim_dy = fabs(object.dimensions.y - obj_scale.y);
-    double dim_dz = fabs(object.dimensions.z - obj_scale.z);
-    if (dim_dx < match_dim_tolerance && dim_dy < match_dim_tolerance &&
-        dim_dz < match_dim_tolerance) {
-      double dx =
-          fabs(initial_obj_position.x - object.pose_stamped.pose.position.x);
-      double dy =
-          fabs(initial_obj_position.y - object.pose_stamped.pose.position.y);
-      double dz =
-          fabs(initial_obj_position.z - object.pose_stamped.pose.position.z);
-      double sq_dist = dx * dx + dy * dy + dz * dz;
-      if (sq_dist < best_sq_dist) {
-        best_sq_dist = sq_dist;
-        best_index = static_cast<int>(j);
-        *pose = object.pose_stamped.pose;
-        *scale = object.dimensions;
-      }
-    }
-  }
-  return best_index;
-}
-
-geometry_msgs::Pose AlignObject(
-    const LazyObjectModel& object_model,
-    const surface_perception::Object& target_object) {
-  rapid::PointCloudP::Ptr obj_cloud = object_model.GetObjectCloud();
-
-  // Extract target cloud and convert to PointXYZ
-  rapid::PointCloudP::Ptr obs_cloud(new rapid::PointCloudP);
-  obs_cloud->header = target_object.cloud->header;
-  for (size_t i = 0; i < target_object.indices->indices.size(); ++i) {
-    int index = target_object.indices->indices[i];
-    const pcl::PointXYZRGB& color_pt = target_object.cloud->at(index);
-    pcl::PointXYZ pt;
-    pt.x = color_pt.x;
-    pt.y = color_pt.y;
-    pt.z = color_pt.z;
-    obs_cloud->push_back(pt);
-  }
-
-  // We actually align the observation to the model rather than vice versa
-  // because ICP works better when you align smaller objects to larger ones. We
-  // see less of the observation than we do of the full model.
-  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-  icp.setInputSource(obs_cloud);
-  icp.setInputTarget(obj_cloud);
-  icp.setMaximumIterations(100);
-  rapid::PointCloudP aligned;
-  icp.align(aligned);
-
-  if (icp.hasConverged()) {
-    ROS_INFO("Aligned object with score %f", icp.getFitnessScore());
-    Eigen::Matrix4f aligned_in_obs = icp.getFinalTransformation();
-    Eigen::Matrix4d aligned_in_obs_d = aligned_in_obs.cast<double>();
-    Eigen::Affine3d aligned_affine(aligned_in_obs_d);
-    Eigen::Affine3d model_pose;
-    tf::poseMsgToEigen(object_model.pose(), model_pose);
-
-    Eigen::Affine3d updated_model_pose = aligned_affine.inverse() * model_pose;
-    geometry_msgs::Pose result;
-    tf::poseEigenToMsg(updated_model_pose, result);
-    return result;
-  } else {
-    ROS_WARN("Failed to align object. Fitness score: %f",
-             icp.getFitnessScore());
-    return object_model.pose();
-  }
 }
 }  // namespace pbi
