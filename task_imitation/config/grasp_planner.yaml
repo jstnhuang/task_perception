@@ -4,7 +4,8 @@ grasp_planner:
   non_antipodal_grasp_weight: 1
   antipodal_collision_weight: 0
   non_antipodal_collision_weight: -1
-  sq_wrist_distance_weight: -900
+  sq_wrist_distance_weight: -1500
+  obstacle_collision_weight: -1000000
   max_translation_for_termination: 0.015
   max_rotation_for_termination: 0.1
   yaw_range_degrees: 120
