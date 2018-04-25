@@ -22,6 +22,7 @@ class GraspFeatures {
   int antipodal_collisions;
   int non_antipodal_collisions;
   double sq_wrist_distance;
+  bool is_colliding_with_obstacle;
 };
 
 class GraspFeatureWeights {
@@ -33,6 +34,7 @@ class GraspFeatureWeights {
   double antipodal_collision_weight;
   double non_antipodal_collision_weight;
   double sq_wrist_distance_weight;
+  double obstacle_collision_weight;
 };
 
 class GraspEvaluation {
@@ -94,6 +96,7 @@ class GraspPlanner {
 
 bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
                                      const GraspPlanningContext& context);
+bool IsZero(const geometry_msgs::Point& point);
 }  // namespace pbi
 
 #endif  // _TASK_IMITATION_GRASP_PLANNER_H_
