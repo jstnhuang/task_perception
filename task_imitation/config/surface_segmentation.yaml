@@ -7,7 +7,7 @@ surface_segmentation:
   crop_max_z: 1.5
   horizontal_tolerance_degrees: 10
   margin_above_surface: 0.02
-  cluster_distance: 0.03
+  cluster_distance: 0.035
   min_cluster_size: 100
   max_cluster_size: 10000
   min_surface_size: 8000
