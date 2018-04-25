@@ -1,5 +1,5 @@
 grasp_planner:
-  debug: false
+  debug: true
   antipodal_grasp_weight: 3
   non_antipodal_grasp_weight: 1
   antipodal_collision_weight: 0

@@ -97,6 +97,8 @@ class GraspPlanner {
 bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
                                      const GraspPlanningContext& context);
 bool IsZero(const geometry_msgs::Point& point);
+int NumCollisions(
+    const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper);
 }  // namespace pbi
 
 #endif  // _TASK_IMITATION_GRASP_PLANNER_H_

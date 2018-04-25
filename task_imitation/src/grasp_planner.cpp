@@ -114,8 +114,8 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
 
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(wrist_pose);
+  VisualizeGripper("optimization", wrist_pose, context.planning_frame_id());
   if (debug_) {
-    VisualizeGripper("optimization", wrist_pose, context.planning_frame_id());
     ros::Duration(0.2).sleep();
   }
 
@@ -123,16 +123,15 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
 
   Pose initial_pose = ComputeInitialGrasp(gripper_model, context);
   gripper_model.set_pose(initial_pose);
+  VisualizeGripper("optimization", initial_pose, context.planning_frame_id());
   if (debug_) {
-    VisualizeGripper("optimization", initial_pose, context.planning_frame_id());
     ros::Duration(0.2).sleep();
   }
 
   Pose to_wrist_pose = OrientTowardsWrist(gripper_model, context);
   gripper_model.set_pose(to_wrist_pose);
+  VisualizeGripper("optimization", to_wrist_pose, context.planning_frame_id());
   if (debug_) {
-    VisualizeGripper("optimization", to_wrist_pose,
-                     context.planning_frame_id());
     ros::Duration(0.2).sleep();
     ROS_INFO("Initial grasp");
     ros::topic::waitForMessage<std_msgs::Bool>("trigger");
@@ -179,8 +178,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     } else {
       ROS_WARN("No valid grasp after optimizing placement");
     }
+    VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", placed, context.planning_frame_id());
       ros::Duration(0.2).sleep();
       ROS_INFO("Iteration %d: Optimized placement", i);
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
@@ -192,9 +191,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     } else {
       ROS_WARN("No valid grasp after optimizing orientation");
     }
+    VisualizeGripper("optimization", rotated_pose, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", rotated_pose,
-                       context.planning_frame_id());
       ros::Duration(0.20).sleep();
       ROS_INFO("Iteration %d: Optimized orientation", i);
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
@@ -224,9 +222,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     }
     prev_pose = next_pose;
   }
-  if (debug_) {
-    VisualizeGripper("optimization", next_pose, context.planning_frame_id());
-  }
+  VisualizeGripper("optimization", next_pose, context.planning_frame_id());
   return next_pose;
 }
 
@@ -452,9 +448,9 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
         if (score > best_score) {
           best_score = score;
           best_pose = rotated_pose;
+          VisualizeGripper("optimization", rotated_pose,
+                           context.planning_frame_id());
           if (debug_) {
-            VisualizeGripper("optimization", rotated_pose,
-                             context.planning_frame_id());
             ros::Duration(0.01).sleep();
             ROS_INFO("y: %f r: %f p: %f: %s", yaw_angle * 180 / M_PI,
                      roll_angle * 180 / M_PI, pitch_angle * 180 / M_PI,
@@ -533,6 +529,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
   gripper_center << Pr2GripperModel::kGraspRegionPos.x,
       Pr2GripperModel::kGraspRegionPos.y, Pr2GripperModel::kGraspRegionPos.z;
 
+  int num_collisions = 0;
   for (int iter = 0; iter < max_iters; ++iter) {
     PointCloudP::Ptr object_cloud = context.object_cloud();
     PointCloudP::Ptr transformed_cloud(new PointCloudP);
@@ -541,8 +538,6 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 
     Eigen::Vector3d total = Eigen::Vector3d::Zero();
 
-    // Number of points in collision
-    int num_collisions = 0;
     for (size_t i = 0; i < transformed_cloud->size(); ++i) {
       PointP pt = transformed_cloud->at(i);
       if (Pr2GripperModel::IsGripperFramePtInCollision(pt.x, pt.y, pt.z)) {
@@ -568,17 +563,84 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 
     total /= (num_pts_in_grasp + num_collisions);
 
+    if (num_collisions > 0) {
+      ROS_WARN("%d collisions", num_collisions);
+    }
     if (total.norm() < 0.001) {
-      return current_pose;
+      break;
     }
 
     affine_pose.translate(total);
     tf::poseEigenToMsg(affine_pose, current_pose);
 
+    VisualizeGripper("optimization", current_pose, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", current_pose,
-                       context.planning_frame_id());
       ros::Duration(0.01).sleep();
+      ROS_INFO("Optimized placement (iter %d)", iter);
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+    }
+  }
+
+  // If optimized position is in collision, then search locally to get out of
+  // collision
+  if (num_collisions > 0) {
+    const geometry_msgs::Pose& wrist_pose = context.wrist_pose();
+    Eigen::Vector3d wrist_pos;
+    wrist_pos << wrist_pose.position.x, wrist_pose.position.y,
+        wrist_pose.position.z;
+    for (double distance = 0.005; distance < 0.025; distance += 0.005) {
+      // Translate along local x, y, and z axes.
+      std::vector<Eigen::Affine3d> translations(6);
+      Eigen::Vector3d x_trans(affine_pose.matrix().col(0).topRows(3) *
+                              distance);
+      Eigen::Vector3d y_trans(affine_pose.matrix().col(1).topRows(3) *
+                              distance);
+      Eigen::Vector3d z_trans(affine_pose.matrix().col(2).topRows(3) *
+                              distance);
+      for (int i = 0; i < 6; ++i) {
+        translations[i] = affine_pose;
+      }
+      translations[0].translate(x_trans);
+      translations[1].translate(-x_trans);
+      translations[2].translate(y_trans);
+      translations[3].translate(-y_trans);
+      translations[4].translate(z_trans);
+      translations[5].translate(-z_trans);
+
+      Eigen::Affine3d best_trans;
+      double best_score = -std::numeric_limits<double>::max();
+      for (int i = 0; i < 6; ++i) {
+        Eigen::Affine3d translated = translations[0];
+        PointCloudP::Ptr object_cloud = context.object_cloud();
+        PointCloudP::Ptr translated_cloud(new PointCloudP);
+        pcl::transformPointCloud(*object_cloud, *translated_cloud,
+                                 translated.inverse());
+        int collisions = NumCollisions(translated_cloud);
+        if (collisions != 0) {
+          ROS_INFO("%d still %d points in collision", i, collisions);
+          continue;
+        }
+        GraspEvaluation eval = ScoreGrasp(translated, wrist_pos, context);
+        if (eval.score() > best_score) {
+          best_score = eval.score();
+          best_trans = translated;
+          ROS_INFO("%d best score: %f", i, best_score);
+        }
+        if (debug_) {
+          Pose viz_msg;
+          tf::poseEigenToMsg(best_trans, viz_msg);
+          VisualizeGripper("optimization", viz_msg,
+                           context.planning_frame_id());
+          ros::Duration(0.01).sleep();
+          ROS_INFO("Getting out of collision");
+          // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+        }
+      }
+
+      if (best_score != -std::numeric_limits<double>::max()) {
+        tf::poseEigenToMsg(best_trans, current_pose);
+        break;
+      }
     }
   }
   return current_pose;
@@ -614,5 +676,18 @@ bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
 
 bool IsZero(const geometry_msgs::Point& point) {
   return point.x == 0 && point.y == 0 && point.z == 0;
+}
+
+int NumCollisions(
+    const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper) {
+  int num_collisions = 0;
+  for (size_t i = 0; i < obj_in_gripper->size(); ++i) {
+    const PointP& pt = obj_in_gripper->at(i);
+    if (Pr2GripperModel::IsGripperFramePtInCollision(pt.x, pt.y, pt.z)) {
+      ++num_collisions;
+    }
+  }
+
+  return num_collisions;
 }
 }  // namespace pbi
