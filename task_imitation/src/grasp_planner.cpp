@@ -119,23 +119,18 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
 
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(wrist_pose);
-  if (debug_) {
-    VisualizeGripper("optimization", wrist_pose, context.planning_frame_id());
-  }
+  VisualizeGripper("optimization", wrist_pose, context.planning_frame_id());
 
   PublishPointCloud(object_pub_, *context.object_cloud());
 
   Pose initial_pose = ComputeInitialGrasp(gripper_model, context);
   gripper_model.set_pose(initial_pose);
-  if (debug_) {
-    VisualizeGripper("optimization", initial_pose, context.planning_frame_id());
-  }
+  VisualizeGripper("optimization", initial_pose, context.planning_frame_id());
 
   Pose to_wrist_pose = OrientTowardsWrist(gripper_model, context);
   gripper_model.set_pose(to_wrist_pose);
+  VisualizeGripper("optimization", to_wrist_pose, context.planning_frame_id());
   if (debug_) {
-    VisualizeGripper("optimization", to_wrist_pose,
-                     context.planning_frame_id());
     ROS_INFO("Initial grasp");
     ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
@@ -177,8 +172,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     Pose placed =
         OptimizePlacement(prev_pose, context, kMaxPlacementIterations);
     gripper_model.set_pose(placed);
+    VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", placed, context.planning_frame_id());
       ROS_INFO("Iteration %d: Optimized placement", i);
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
@@ -187,9 +182,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     Pose rotated_pose = OptimizeOrientation(gripper_model, context);
     ros::Time rotate_end = ros::Time::now();
     gripper_model.set_pose(rotated_pose);
+    VisualizeGripper("optimization", rotated_pose, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", rotated_pose,
-                       context.planning_frame_id());
       ros::Duration rotate_duration = rotate_end - rotate_start;
       ROS_INFO("Iteration %d: Optimized orientation in %f seconds", i,
                rotate_duration.toSec());
@@ -222,8 +216,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   }
   Pose final_pose =
       OptimizePlacement(next_pose, context, kMaxPlacementIterations);
+  VisualizeGripper("optimization", final_pose, context.planning_frame_id());
   if (debug_) {
-    VisualizeGripper("optimization", final_pose, context.planning_frame_id());
     ROS_INFO("Done planning grasp");
     ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
@@ -391,12 +385,13 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       wrist_pose.position.z;
 
   Pose best_pose = gripper_model.pose();
-  // Eigen::Affine3d initial_mat;
-  // tf::poseMsgToEigen(best_pose, initial_mat);
-  // GraspEvaluation initial_eval = ScoreGrasp(initial_mat, wrist_pos, context);
-  // double best_score = initial_eval.score();
-  // ROS_INFO("Initial score: %s", initial_eval.ToString().c_str());
-  double best_score = -std::numeric_limits<double>::max();
+  Eigen::Affine3d initial_mat;
+  tf::poseMsgToEigen(best_pose, initial_mat);
+  GraspEvaluation initial_eval = ScoreGrasp(initial_mat, wrist_pos, context);
+  double best_score = initial_eval.score();
+  if (debug_) {
+    ROS_INFO("Initial score: %s", initial_eval.ToString().c_str());
+  }
 
   const double kDegToRad = M_PI / 180;
   const double kYawRange =
@@ -445,9 +440,9 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       if (score > best_score) {
         best_score = score;
         best_pose = rotated_pose;
-        VisualizeGripper("optimization", rotated_pose,
-                         context.planning_frame_id());
         if (debug_) {
+          VisualizeGripper("optimization", rotated_pose,
+                           context.planning_frame_id());
           ROS_INFO("y: %f r: %f: %s", yaw_angle * 180 / M_PI,
                    roll_angle * 180 / M_PI, grasp_eval.ToString().c_str());
         }
@@ -482,9 +477,9 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
     if (score > best_score) {
       best_score = score;
       best_pose = rotated_pose;
-      VisualizeGripper("optimization", rotated_pose,
-                       context.planning_frame_id());
       if (debug_) {
+        VisualizeGripper("optimization", rotated_pose,
+                         context.planning_frame_id());
         ROS_INFO("p: %f: %s", pitch_angle * 180 / M_PI,
                  grasp_eval.ToString().c_str());
       }
