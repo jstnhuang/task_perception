@@ -655,8 +655,6 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
           VisualizeGripper("optimization", viz_msg,
                            context.planning_frame_id());
           ros::Duration(0.01).sleep();
-          ROS_INFO("Pose %d, %d: %d collisions, score: %f", iters, i,
-                   collisions, score);
         }
 
         if (score > best_score) {
@@ -665,22 +663,6 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
           ROS_INFO("Fewest collisions: %d, score so far: %f", lowest_collisions,
                    best_score);
         }
-
-        // if (collisions < lowest_collisions) {
-        //  best_score = score;
-        //  best_trans = translated;
-        //  lowest_collisions = collisions;
-        //  ROS_INFO("Fewest collisions: %d, score so far: %f",
-        //  lowest_collisions,
-        //           best_score);
-        //} else if (collisions == lowest_collisions) {
-        //  if (eval.score() > best_score) {
-        //    best_score = score;
-        //    best_trans = translated;
-        //    ROS_INFO("Fewest collisions: %d, score so far: %f",
-        //             lowest_collisions, best_score);
-        //  }
-        //}
 
         if (collisions == 0 && NumPointsInGraspRegion(translated_cloud) > 0) {
           ROS_INFO("Got out of collision with score: %f", best_score);
@@ -693,8 +675,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
         tf::poseEigenToMsg(best_trans, viz_msg);
         VisualizeGripper("optimization", viz_msg, context.planning_frame_id());
         ros::Duration(0.01).sleep();
-
-        ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+        // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
       }
     }
     tf::poseEigenToMsg(best_trans, current_pose);
