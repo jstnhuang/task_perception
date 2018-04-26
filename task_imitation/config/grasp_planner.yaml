@@ -11,12 +11,12 @@ grasp_planner:
 
   # Termination criteria
   max_planning_iterations: 5
-  max_translation_for_termination: 0.015
+  max_translation_for_termination: 0.02
   max_rotation_for_termination: 0.1
 
   # Parameters for optimizing the orientation of the gripper
-  yaw_range_degrees: 120
-  yaw_resolution_degrees: 12
+  yaw_range_degrees: 90
+  yaw_resolution_degrees: 10
   roll_range_degrees: 120
   roll_resolution_degrees: 10
   pitch_range_degrees: 63
@@ -25,14 +25,3 @@ grasp_planner:
 
   # How many iterations to try adjusting the gripper placement
   max_placement_iterations: 10
-
-  # Parameters for when the gripper is in collision with the object after
-  # optimizing placement.
-  # When trying to get out of collision, the addition weight to give to collisions
-  placement_collision_weight: -5.0
-  # How many batches of random poses to try to get out of collision
-  placement_num_batches: 3
-  # How many random poses per batch to try to get out of collision
-  placement_iters_per_batch: 15
-  # How far to randomly sample translations to get out of collision
-  placement_max_random_dist: 0.015
