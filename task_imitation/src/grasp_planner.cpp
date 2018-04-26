@@ -178,6 +178,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   for (int i = 0; i < kMaxPlanningIterations; ++i) {
     Pose placed =
         OptimizePlacement(prev_pose, context, kMaxPlacementIterations);
+    gripper_model.set_pose(placed);
     VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
       ros::Duration(0.2).sleep();
@@ -186,6 +187,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     }
 
     Pose rotated_pose = OptimizeOrientation(gripper_model, context);
+    gripper_model.set_pose(rotated_pose);
     VisualizeGripper("optimization", rotated_pose, context.planning_frame_id());
     if (debug_) {
       ros::Duration(0.20).sleep();
@@ -221,6 +223,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       OptimizePlacement(next_pose, context, kMaxPlacementIterations);
   VisualizeGripper("optimization", final_pose, context.planning_frame_id());
   if (debug_) {
+    ROS_INFO("Done planning grasp");
     ros::Duration(0.2).sleep();
     ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
