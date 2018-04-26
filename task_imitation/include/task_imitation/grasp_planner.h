@@ -91,13 +91,14 @@ class GraspPlanner {
   // orientation.
   visualization_msgs::MarkerArray kGripperMarkers;
   bool debug_;
+
+  // Weights and params
   GraspFeatureWeights weights_;
   double kAntipodalCos;
 };
 
 bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
                                      const GraspPlanningContext& context);
-bool IsZero(const geometry_msgs::Point& point);
 int NumCollisions(
     const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper);
 int NumPointsInGraspRegion(

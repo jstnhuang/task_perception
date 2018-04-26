@@ -178,11 +178,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   for (int i = 0; i < kMaxPlanningIterations; ++i) {
     Pose placed =
         OptimizePlacement(prev_pose, context, kMaxPlacementIterations);
-    if (!IsZero(placed.position)) {
-      gripper_model.set_pose(placed);
-    } else {
-      ROS_WARN("No valid grasp after optimizing placement");
-    }
     VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
       ros::Duration(0.2).sleep();
@@ -191,11 +186,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     }
 
     Pose rotated_pose = OptimizeOrientation(gripper_model, context);
-    if (!IsZero(rotated_pose.position)) {
-      gripper_model.set_pose(rotated_pose);
-    } else {
-      ROS_WARN("No valid grasp after optimizing orientation");
-    }
     VisualizeGripper("optimization", rotated_pose, context.planning_frame_id());
     if (debug_) {
       ros::Duration(0.20).sleep();
@@ -580,9 +570,6 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 
     total /= (num_pts_in_grasp + num_collisions);
 
-    if (num_collisions > 0) {
-      ROS_WARN("%d collisions", num_collisions);
-    }
     if (total.norm() < 0.001) {
       break;
     }
@@ -597,13 +584,11 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
     }
   }
 
-  double kCollisionWeight;
-  ros::param::param("coll_weight", kCollisionWeight, -5.0);
-
   // If optimized position is in collision, then search locally to get out of
   // collision
   if (num_collisions > 0) {
-    ROS_INFO("Optimized placement is still in collision, searching...");
+    ROS_INFO("Optimized placement is still in collision (%d), searching...",
+             num_collisions);
     const geometry_msgs::Pose& wrist_pose = context.wrist_pose();
     Eigen::Vector3d wrist_pos;
     wrist_pos << wrist_pose.position.x, wrist_pose.position.y,
@@ -611,11 +596,18 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 
     Eigen::Affine3d best_trans = affine_pose;
 
+    double kCollisionWeight = rapid::GetDoubleParamOrThrow(
+        "grasp_planner/placement_collision_weight");
     double initial_score = ScoreGrasp(best_trans, wrist_pos, context).score();
     double best_score = kCollisionWeight * num_collisions + initial_score;
+    ROS_INFO("Initial score: %f", best_score);
     int lowest_collisions = num_collisions;
-    const int kNumBatches = 5;
-    const int kItersPerBatch = 40;
+    const int kNumBatches =
+        rapid::GetIntParamOrThrow("grasp_planner/placement_num_batches");
+    const int kItersPerBatch =
+        rapid::GetIntParamOrThrow("grasp_planner/placement_iters_per_batch");
+    const int kMaxRandomDist =
+        rapid::GetDoubleParamOrThrow("grasp_planner/placement_max_random_dist");
     for (int iters = 0; iters < kNumBatches; ++iters) {
       std::vector<Eigen::Affine3d> translations(kItersPerBatch);
       for (int i = 0; i < kItersPerBatch; ++i) {
@@ -623,7 +615,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 
         Eigen::Vector3d random;
         random.setRandom();
-        random *= 0.015;
+        random *= kMaxRandomDist;
         random.x() = 0;
         translations[i].translate(random);
       }
@@ -713,10 +705,6 @@ bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
     }
   }
   return false;
-}
-
-bool IsZero(const geometry_msgs::Point& point) {
-  return point.x == 0 && point.y == 0 && point.z == 0;
 }
 
 int NumCollisions(
