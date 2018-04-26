@@ -56,6 +56,7 @@ ProgramServer::ProgramServer(
           nh_, "imitate_demo",
           boost::bind(&pbi::ProgramServer::ExecuteImitation, this, _1), false),
       initialize_object_("initialize_object"),
+      planning_scene_(),
       left_group_("left_arm"),
       right_group_("right_arm"),
       executor_(left_group_, right_group_),
@@ -190,6 +191,8 @@ std::string ProgramServer::GenerateProgramInternal(
     return get_states_res.error;
   }
 
+  planning_scene_.RemoveObstacle("table");
+
   // Generate program and slices
   const msgs::DemoStates& demo_states = get_states_res.demo_states;
   Obb table;
@@ -220,8 +223,12 @@ void ProgramServer::GetObjectPoses(
     ROS_ERROR("Failed to segment surface.");
   } else {
     if (surface_objects->size() > 0) {
-      table->pose = surface_objects->at(0).surface.pose_stamped.pose;
-      table->dims = surface_objects->at(0).surface.dimensions;
+      const surface_perception::SurfaceObjects& surface =
+          surface_objects->at(0);
+      table->pose = surface.surface.pose_stamped.pose;
+      table->dims = surface.surface.dimensions;
+      planning_scene_.AddBoxObstacle("table", surface.surface.pose_stamped,
+                                     surface.surface.dimensions);
     }
     for (size_t i = 0; i < surface_objects->size(); ++i) {
       ROS_INFO("Surface %zu has %zu objects", i,

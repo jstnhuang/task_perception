@@ -11,6 +11,7 @@
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
 #include "moveit/move_group_interface/move_group.h"
+#include "rapid_manipulation/moveit_planning_scene.h"
 #include "rapid_robot/camera_interface.h"
 #include "robot_markers/builder.h"
 #include "ros/ros.h"
@@ -68,6 +69,7 @@ class ProgramServer {
   actionlib::SimpleActionClient<dbot_ros_msgs::InitializeObjectAction>
       initialize_object_;
 
+  rapid::MoveItPlanningScene planning_scene_;
   moveit::planning_interface::MoveGroup left_group_;
   moveit::planning_interface::MoveGroup right_group_;
 
