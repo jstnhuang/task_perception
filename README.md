@@ -21,6 +21,9 @@ Buid these in a separate workspace called **dbot**:
   - If tripod: `roslaunch task_perception xtion_tripod.launch`
   - If PR2: start up as usual
 - [ ] Verify workspace and person are visible (up to neck, 30 degree head tilt works well)
+- [ ] (Optional): Test object tracking
+  - [ ] Specify the object to track: `setws dbot; roscd dbot_ros; vim config/object.yaml`
+  - [ ] Run the tracker: `roslaunch dbot_ros particle_tracker.yaml`
 - [ ] Record data
   - If tripod: `roslaunch task_perception record_demonstration.launch is_pr2:=false`
   - If PR2: `roslaunch task_perception record_demonstration.launch is_pr2:=true`
