@@ -1,6 +1,6 @@
 task_imitation:
   object_inflation_size: 0.05 # How much to inflate each object's dimensions when doing collision checking, in meters
-  match_dim_tolerance: 0.03 # When auto-initializing object poses, objects whose box dimensions are within this tolerance of the model's dimensions are considered a possible match
+  match_dim_tolerance: 0.035 # When auto-initializing object poses, objects whose box dimensions are within this tolerance of the model's dimensions are considered a possible match
   follow_traj_distance_between_poses: 0.02 # The minimum distance between poses to imitate when following a trajectory. This helps filter noise from object tracking.
   cart_path_eef_threshold: 0.02 # The maximum step size between end effector positions when following a trajectory
   cart_path_jump_threshold: 4 # The jump_threshold for planning paths when following a trajectory (measured in joint space distance)
