@@ -114,6 +114,8 @@ class DemoRuntime {
 
   // Object model cache
   std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_models_;
+  // Maps mesh names to whether or not the object is circular
+  std::map<std::string, bool> is_object_circular_;
   ContactDetection contact_detection_;
 
   // Execution state

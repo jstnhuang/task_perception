@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   mongodb_store
   pcl_conversions
   rapid_collision
+  rapid_viz
   robot_markers
   rosbag
   roscpp
@@ -35,6 +36,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(PCL REQUIRED)
+find_package(Eigen REQUIRED)
 #find_package(CUDA REQUIRED)
 #add_definitions(-DCUDA_BUILD)
 
@@ -139,6 +141,7 @@ catkin_package(
     pbi_pose_utils
     pbi_pr2_gripper_model
     pbi_record_video_action_server
+    pbi_shape_detection
     pbi_task_perception_context
     pbi_video_scrubber
   CATKIN_DEPENDS
@@ -167,6 +170,7 @@ catkin_package(
     visualization_msgs
   DEPENDS
     Boost
+    Eigen
     PCL
 )
 
@@ -224,7 +228,9 @@ target_link_libraries(pbi_demo_runtime
   pbi_default_skeleton
   pbi_demo_model
   pbi_demo_visualizer
+  pbi_lazy_object_model
   pbi_multi_object_tracker
+  pbi_shape_detection
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )
@@ -280,6 +286,13 @@ add_library(pbi_record_video_action_server src/record_video_action_server.cpp)
 add_dependencies(pbi_record_video_action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_record_video_action_server
   ${catkin_LIBRARIES}
+)
+
+add_library(pbi_shape_detection src/shape_detection.cpp)
+add_dependencies(pbi_shape_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pbi_shape_detection
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_library(pbi_task_perception_context src/task_perception_context.cpp)
