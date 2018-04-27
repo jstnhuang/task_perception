@@ -36,6 +36,11 @@ void MakeMeshMarker(const geometry_msgs::Pose& pose,
 
 void MakeDeleteMarker(const std::string& object_name,
                       visualization_msgs::Marker* marker);
+
+std::string AxesName(size_t obj_index);
+
+std::vector<visualization_msgs::Marker> MakeDeleteAxesMarkers(
+    const std::string& ns);
 }  // namespace pbi
 
 #endif  // _PBI_DEMO_VISUALIZER_H_

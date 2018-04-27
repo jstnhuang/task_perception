@@ -1,9 +1,11 @@
 #include "task_perception/demo_visualizer.h"
 
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "geometry_msgs/Pose.h"
+#include "rapid_viz/axes_markers.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "transform_graph/graph.h"
@@ -16,6 +18,7 @@
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 using visualization_msgs::Marker;
+using visualization_msgs::MarkerArray;
 
 namespace pbi {
 DemoVisualizer::DemoVisualizer()
@@ -33,6 +36,11 @@ void DemoVisualizer::ClearObjects(
     Marker marker;
     MakeDeleteMarker(state.name, &marker);
     objects_pub.publish(marker);
+
+    std::vector<Marker> del_axes = MakeDeleteAxesMarkers(AxesName(i));
+    for (size_t j = 0; j < del_axes.size(); ++j) {
+      objects_pub.publish(del_axes[j]);
+    }
   }
 }
 
@@ -44,6 +52,12 @@ void DemoVisualizer::PublishObjects(
     Marker marker;
     MakeMeshMarker(state.pose, frame_id, state.name, state.mesh_name, &marker);
     objects_pub.publish(marker);
+
+    MarkerArray axes =
+        rapid::AxesMarkerArray(AxesName(i), frame_id, state.pose, 0.05);
+    for (size_t j = 0; j < axes.markers.size(); ++j) {
+      objects_pub.publish(axes.markers[j]);
+    }
   }
 }
 
@@ -70,5 +84,21 @@ void MakeDeleteMarker(const std::string& object_name, Marker* marker) {
   marker->ns = object_name;
   marker->id = 0;
   marker->action = Marker::DELETE;
+}
+
+std::string AxesName(size_t obj_index) {
+  std::stringstream ss;
+  ss << "axes_" << obj_index;
+  return ss.str();
+}
+
+std::vector<Marker> MakeDeleteAxesMarkers(const std::string& ns) {
+  std::vector<Marker> result(3);
+  for (int i = 0; i < 3; ++i) {
+    result[i].ns = ns;
+    result[i].id = i;
+    result[i].action = Marker::DELETE;
+  }
+  return result;
 }
 }  // namespace pbi
