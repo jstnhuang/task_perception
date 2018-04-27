@@ -114,6 +114,11 @@ int MatchObject(
         *pose = object.pose_stamped.pose;
         *scale = object.dimensions;
       }
+    } else {
+      ROS_INFO(
+          "Model with dims %f %f %f did not match object with dims %f %f %f",
+          obj_scale.x, obj_scale.y, obj_scale.z, object.dimensions.x,
+          object.dimensions.y, object.dimensions.z);
     }
   }
   return best_index;
