@@ -4,7 +4,10 @@
 #include <string>
 #include <vector>
 
+#include "Eigen/Dense"
 #include "boost/shared_ptr.hpp"
+#include "eigen_conversions/eigen_msg.h"
+#include "rapid_viz/axes_markers.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -299,6 +302,35 @@ void DemoRuntime::StepObjectPose(
       if (prev_obj.name == object_name) {
         object_trackers_.Step(object_name, current_depth_image_);
         object_trackers_.GetPose(object_name, &object_state.pose);
+
+        if (is_object_circular_[object_state.mesh_name]) {
+          msgs::ObjectState prev_obj;
+          if (GetObjectState(frame_number - 1, object_name, &prev_obj)) {
+            Eigen::Affine3d prev_affine;
+            tf::poseMsgToEigen(prev_obj.pose, prev_affine);
+            Eigen::Vector3d prev_rpy =
+                prev_affine.rotation().eulerAngles(0, 1, 2);
+
+            Eigen::Affine3d current_affine;
+            tf::poseMsgToEigen(object_state.pose, current_affine);
+            Eigen::Vector3d current_rpy =
+                current_affine.rotation().eulerAngles(0, 1, 2);
+
+            Eigen::Matrix3d current_rot =
+                (Eigen::AngleAxisd(current_rpy[0], Eigen::Vector3d::UnitX()) *
+                 Eigen::AngleAxisd(current_rpy[1], Eigen::Vector3d::UnitY()) *
+                 Eigen::AngleAxisd(prev_rpy[2], Eigen::Vector3d::UnitZ()))
+                    .matrix();
+
+            Eigen::Affine3d updated_mat(Eigen::Affine3d::Identity());
+            updated_mat.translate(current_affine.translation());
+            updated_mat.rotate(current_rot);
+            geometry_msgs::Pose updated_pose;
+            tf::poseEigenToMsg(updated_mat, updated_pose);
+            object_state.pose = updated_pose;
+          }
+        }
+
         done = true;
         break;
       }
