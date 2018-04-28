@@ -517,7 +517,15 @@ std::vector<PlannedStep> PlanGraspStep(
   group.setStartState(*robot_state);
   group.setPoseTarget(pregrasp_in_planning.pose());
   moveit::planning_interface::MoveGroup::Plan pregrasp_plan;
-  MoveItErrorCode error_code = group.plan(pregrasp_plan);
+  MoveItErrorCode error_code;
+  for (int i = 0; i < 5; ++i) {
+    error_code = group.plan(pregrasp_plan);
+    if (rapid::IsSuccess(error_code)) {
+      break;
+    } else {
+      ROS_WARN("Planning attempt %d of %d failed", i + 1, 5);
+    }
+  }
   if (!rapid::IsSuccess(error_code)) {
     *error_out = rapid::ErrorString(error_code);
     return result;
