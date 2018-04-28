@@ -5,6 +5,8 @@
 #include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
+#include "task_perception/lazy_object_model.h"
+#include "task_perception/shape_detection.h"
 #include "task_perception_msgs/HandState.h"
 #include "task_perception_msgs/Step.h"
 #include "transform_graph/graph.h"
@@ -23,13 +25,16 @@ using geometry_msgs::Pose;
 namespace pbi {
 ProgramGenerator::ProgramGenerator(
     moveit::planning_interface::MoveGroup& left_group,
-    moveit::planning_interface::MoveGroup& right_group)
+    moveit::planning_interface::MoveGroup& right_group,
+    LazyObjectModel::ObjectModelCache* model_cache)
     : program_(),
       start_time_(0),
       left_group_(left_group),
       right_group_(right_group),
       planning_frame_(left_group_.getPlanningFrame()),
-      collision_checker_(planning_frame_) {}
+      collision_checker_(planning_frame_),
+      model_cache_(model_cache),
+      is_circular_() {}
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
@@ -49,6 +54,17 @@ msgs::Program ProgramGenerator::Generate(
   start_time_ = earliest;
 
   ObjectStateIndex initial_demo_objects = GetInitialDemoObjects(demo_states);
+  for (ObjectStateIndex::const_iterator it = initial_demo_objects.begin();
+       it != initial_demo_objects.end(); ++it) {
+    const msgs::ObjectState& obj = it->second;
+    if (is_circular_.find(obj.mesh_name) == is_circular_.end()) {
+      const std::string kUnusedFrame("");
+      Pose kUnusedPose;
+      LazyObjectModel model(obj.mesh_name, kUnusedFrame, kUnusedPose);
+      model.set_object_model_cache(model_cache_);
+      is_circular_[obj.mesh_name] = IsCircular(model.GetObjectModel());
+    }
+  }
 
   for (size_t i = 0; i < segments.size(); ++i) {
     ProcessSegment(segments[i], initial_runtime_objects, initial_demo_objects,
@@ -103,7 +119,7 @@ void ProgramGenerator::ProcessSegment(
   } else if (segment.type == msgs::Step::UNGRASP) {
     AddUngraspStep(segment);
   } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
-    AddMoveToStep(segment, initial_demo_objects);
+    AddMoveToStep(segment, initial_demo_objects, initial_runtime_objects);
   } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
     AddTrajectoryStep(segment, initial_runtime_objects);
   } else {
@@ -165,8 +181,8 @@ void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
 }
 
 void ProgramGenerator::AddMoveToStep(
-    const ProgramSegment& segment,
-    const ObjectStateIndex& initial_demo_objects) {
+    const ProgramSegment& segment, const ObjectStateIndex& initial_demo_objects,
+    const ObjectStateIndex& initial_runtime_objects) {
   // Get grasp pose
   int prev_grasp_i = GetMostRecentGraspStep(segment.arm_name);
   ROS_ASSERT(prev_grasp_i != -1);
@@ -201,13 +217,62 @@ void ProgramGenerator::AddMoveToStep(
   graph.ComputeDescription("gripper", tg::RefFrame("target object"),
                            &ee_in_target);
 
+  Pose final_ee_in_target = ee_in_target.pose();
+
+  // If the destination is unreachable and the object is circular, it might be
+  // the case that the object has the wrong yaw value. Try rotating the object
+  // about its local z-axis until we find a feasible location.
+  if (is_circular_[target_obj.mesh_name]) {
+    // Compute pose in planning frame
+    tg::Transform grasped_obj_in_target;
+    graph.ComputeDescription("grasped object", tg::RefFrame("target object"),
+                             &grasped_obj_in_target);
+
+    tg::Graph runtime_graph;
+    const msgs::ObjectState& runtime_target_obj =
+        initial_runtime_objects.at(target_obj.name);
+    runtime_graph.Add("target object", tg::RefFrame("planning"),
+                      runtime_target_obj.pose);
+    runtime_graph.Add("grasped object", tg::RefFrame("target object"),
+                      grasped_obj_in_target);
+    runtime_graph.Add("gripper", tg::RefFrame("rotated grasped object"),
+                      prev_grasp.ee_trajectory[0]);
+
+    bool found_ik = false;
+    for (int i = 0; i < 8; ++i) {
+      Eigen::AngleAxisd yaw(i * M_PI / 4, Eigen::Vector3d::UnitZ());
+      Eigen::Quaterniond yaw_q(yaw);
+      const double kYawDegrees = yaw.angle() * 180 / M_PI;
+      runtime_graph.Add("rotated grasped object",
+                        tg::RefFrame("grasped object"),
+                        tg::Transform(tg::Position(), yaw_q));
+      tg::Transform rotated_ee_in_planning;
+      runtime_graph.ComputeDescription("gripper", tg::RefFrame("planning"),
+                                       &rotated_ee_in_planning);
+      if (HasIk(segment.arm_name, rotated_ee_in_planning.pose())) {
+        ROS_INFO("IK found with yaw of %f", kYawDegrees);
+        tg::Transform rotated_ee_in_target;
+        runtime_graph.ComputeDescription(
+            "gripper", tg::RefFrame("target object"), &rotated_ee_in_target);
+        final_ee_in_target = rotated_ee_in_target.pose();
+        found_ik = true;
+        break;
+      } else {
+        ROS_WARN("No IK for yaw of %f", kYawDegrees);
+      }
+    }
+    if (!found_ik) {
+      ROS_ERROR("No IK solution found for MoveTo step!");
+    }
+  }
+
   const ros::Time step_start(segment.demo_states[0].stamp);
   msgs::Step move_step;
   move_step.start_time = step_start - start_time_ + ros::Duration(0.03);
   move_step.arm = segment.arm_name;
   move_step.type = msgs::Step::MOVE_TO_POSE;
   move_step.object_state = target_obj;
-  move_step.ee_trajectory.push_back(ee_in_target.pose());
+  move_step.ee_trajectory.push_back(final_ee_in_target);
   move_step.times_from_start.push_back(end_state.stamp - step_start);
   program_.steps.push_back(move_step);
 }
@@ -276,6 +341,17 @@ int ProgramGenerator::GetMostRecentGraspStep(const std::string& arm_name) {
     }
   }
   return -1;
+}
+
+bool ProgramGenerator::HasIk(const std::string& arm_name,
+                             const geometry_msgs::Pose& ee_pose) {
+  moveit::planning_interface::MoveGroup& group =
+      arm_name == msgs::Step::LEFT ? left_group_ : right_group_;
+  const std::string group_name =
+      arm_name == msgs::Step::LEFT ? "left_arm" : "right_arm";
+  robot_state::RobotState kinematic_state(group.getRobotModel());
+  return kinematic_state.setFromIK(
+      group.getRobotModel()->getJointModelGroup(group_name), ee_pose, 10, 0.1);
 }
 
 ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(

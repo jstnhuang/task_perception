@@ -199,7 +199,7 @@ std::string ProgramServer::GenerateProgramInternal(
   GetObjectPoses(demo_states, object_states, &table);
   ROS_INFO("All object states initialized.");
 
-  ProgramGenerator generator(left_group_, right_group_);
+  ProgramGenerator generator(left_group_, right_group_, &model_cache_);
   *program = generator.Generate(demo_states.demo_states, *object_states, table);
   program_pub_.publish(*program);
   return "";

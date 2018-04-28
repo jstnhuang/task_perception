@@ -6,6 +6,7 @@
 
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
+#include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
@@ -24,7 +25,8 @@ class ProgramGenerator {
       ObjectStateIndex;
 
   ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
-                   moveit::planning_interface::MoveGroup& right_group);
+                   moveit::planning_interface::MoveGroup& right_group,
+                   LazyObjectModel::ObjectModelCache* model_cache);
   task_perception_msgs::Program Generate(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
       const ObjectStateIndex& initial_objects, const Obb& table);
@@ -41,12 +43,15 @@ class ProgramGenerator {
                     const Obb& table);
   void AddUngraspStep(const ProgramSegment& segment);
   void AddMoveToStep(const ProgramSegment& segment,
-                     const ObjectStateIndex& initial_demo_objects);
+                     const ObjectStateIndex& initial_demo_objects,
+                     const ObjectStateIndex& initial_runtime_objects);
   void AddTrajectoryStep(const ProgramSegment& segment,
                          const ObjectStateIndex& initial_runtime_objects);
 
   int GetMostRecentGraspStep(const std::string& arm_name);
-  ros::Duration GetEndTime(const task_perception_msgs::Step& step);
+
+  // Checks for an IK solution. ee_pose is given in planning frame.
+  bool HasIk(const std::string& arm_name, const geometry_msgs::Pose& ee_pose);
 
   task_perception_msgs::Program program_;
 
@@ -58,6 +63,9 @@ class ProgramGenerator {
   std::string planning_frame_;
 
   CollisionChecker collision_checker_;
+  LazyObjectModel::ObjectModelCache* model_cache_;
+  // Maps mesh names to whether the object is circular or not.
+  std::map<std::string, bool> is_circular_;
 };
 
 // Gets the initial states of all the objects at the time of the demonstration.
