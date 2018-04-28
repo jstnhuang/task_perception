@@ -2,7 +2,7 @@ contact_detection:
   debug: true
 
   # How far an object can be from the person's wrist to be considered a grasp candidate.
-  close_to_wrist_distance: 0.15
+  close_to_wrist_distance: 0.1
 
   # How far an object can move for it to be considered moving.
   moving_object_distance: 0.0075
