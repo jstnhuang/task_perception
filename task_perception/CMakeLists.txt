@@ -230,7 +230,6 @@ target_link_libraries(pbi_demo_runtime
   pbi_demo_visualizer
   pbi_lazy_object_model
   pbi_multi_object_tracker
-  pbi_shape_detection
   pbi_video_scrubber
   ${catkin_LIBRARIES}
 )

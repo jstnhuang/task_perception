@@ -22,7 +22,6 @@
 #include "task_perception/demo_visualizer.h"
 #include "task_perception/lazy_object_model.h"
 #include "task_perception/multi_object_tracker.h"
-#include "task_perception/shape_detection.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
 #include "task_perception/video_scrubber.h"
@@ -47,7 +46,6 @@ DemoRuntime::DemoRuntime(const DemoVisualizer& viz,
       current_depth_image_(),
       camera_info_(),
       object_models_(),
-      is_object_circular_(),
       contact_detection_(),
       last_executed_frame_(-1),
       num_frames_(0),
@@ -227,21 +225,6 @@ void DemoRuntime::StepSpawnUnspawn(
       ROS_INFO("Reusing tracker for object \"%s\"", name.c_str());
       continue;
     }
-    if (is_object_circular_.find(spawn_event.object_mesh) ==
-        is_object_circular_.end()) {
-      const geometry_msgs::Pose kUnusedPose;
-      LazyObjectModel obj_model(spawn_event.object_mesh, "unused frame id",
-                                kUnusedPose);
-      obj_model.set_object_model_cache(&object_models_);
-      is_object_circular_[spawn_event.object_mesh] =
-          IsCircular(obj_model.GetObjectModel());
-      if (is_object_circular_[spawn_event.object_mesh]) {
-        ROS_INFO("Object \"%s\" is circular", spawn_event.object_name.c_str());
-      } else {
-        ROS_INFO("Object \"%s\" is not circular",
-                 spawn_event.object_name.c_str());
-      }
-    }
     object_trackers_.Create(name, spawn_event.object_mesh, camera_info_);
   }
 
@@ -302,35 +285,6 @@ void DemoRuntime::StepObjectPose(
       if (prev_obj.name == object_name) {
         object_trackers_.Step(object_name, current_depth_image_);
         object_trackers_.GetPose(object_name, &object_state.pose);
-
-        if (is_object_circular_[object_state.mesh_name]) {
-          msgs::ObjectState prev_obj;
-          if (GetObjectState(frame_number - 1, object_name, &prev_obj)) {
-            Eigen::Affine3d prev_affine;
-            tf::poseMsgToEigen(prev_obj.pose, prev_affine);
-            Eigen::Vector3d prev_rpy =
-                prev_affine.rotation().eulerAngles(0, 1, 2);
-
-            Eigen::Affine3d current_affine;
-            tf::poseMsgToEigen(object_state.pose, current_affine);
-            Eigen::Vector3d current_rpy =
-                current_affine.rotation().eulerAngles(0, 1, 2);
-
-            Eigen::Matrix3d current_rot =
-                (Eigen::AngleAxisd(current_rpy[0], Eigen::Vector3d::UnitX()) *
-                 Eigen::AngleAxisd(current_rpy[1], Eigen::Vector3d::UnitY()) *
-                 Eigen::AngleAxisd(prev_rpy[2], Eigen::Vector3d::UnitZ()))
-                    .matrix();
-
-            Eigen::Affine3d updated_mat(Eigen::Affine3d::Identity());
-            updated_mat.translate(current_affine.translation());
-            updated_mat.rotate(current_rot);
-            geometry_msgs::Pose updated_pose;
-            tf::poseEigenToMsg(updated_mat, updated_pose);
-            object_state.pose = updated_pose;
-          }
-        }
-
         done = true;
         break;
       }
