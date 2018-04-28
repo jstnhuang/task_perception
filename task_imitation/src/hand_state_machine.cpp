@@ -61,21 +61,22 @@ void HandStateMachine::NoneState(const msgs::DemoState& demo_state) {
     if (collidee == "") {
       working_move_ = NewMoveToSegment();
       working_move_.demo_states.push_back(demo_state);
-      ROS_INFO("%s transitioning from NONE to FREE_GRASP", arm_name_.c_str());
+      ROS_INFO("%d: %s transitioning from NONE to FREE_GRASP", index_,
+               arm_name_.c_str());
       state_ = FREE_GRASP;
     } else if (other_hand.current_action == msgs::HandState::GRASPING &&
                collidee == other_hand.object_name) {
       working_traj_ = NewTrajSegment();
       working_traj_.target_object =
           InferDoubleCollisionTarget(demo_states_, index_, collision_checker_);
-      ROS_INFO("%s transitioning from NONE to DOUBLE_COLLISION",
+      ROS_INFO("%d: %s transitioning from NONE to DOUBLE_COLLISION", index_,
                arm_name_.c_str());
       ROS_INFO("Target object is %s", working_traj_.target_object.c_str());
       state_ = DOUBLE_COLLISION;
     } else {
       working_traj_ = NewTrajSegment();
       working_traj_.target_object = collidee;
-      ROS_INFO("%s transitioning from NONE to STATIONARY_COLLISION",
+      ROS_INFO("%d: %s transitioning from NONE to STATIONARY_COLLISION", index_,
                arm_name_.c_str());
       state_ = STATIONARY_COLLISION;
     }
@@ -100,7 +101,8 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
     ungrasp_segment.demo_states.push_back(demo_state);
     segments_->push_back(ungrasp_segment);
 
-    ROS_INFO("%s transitioning from FREE_GRASP to NONE", arm_name_.c_str());
+    ROS_INFO("%d: %s transitioning from FREE_GRASP to NONE", index_,
+             arm_name_.c_str());
     state_ = NONE;
   }
 
@@ -133,8 +135,8 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
           working_traj_.target_object = target;
           working_traj_.demo_states.push_back(demo_state);
         }
-        ROS_INFO("%s transitioning from FREE_GRASP to DOUBLE_COLLISION",
-                 arm_name_.c_str());
+        ROS_INFO("%d: %s transitioning from FREE_GRASP to DOUBLE_COLLISION",
+                 index_, arm_name_.c_str());
         ROS_INFO("Target object is \"%s\"", target.c_str());
         state_ = DOUBLE_COLLISION;
       } else {
@@ -149,8 +151,8 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
         working_traj_ = NewTrajSegment();
         working_traj_.target_object = collidee;
         working_traj_.demo_states.push_back(demo_state);
-        ROS_INFO("%s transitioning from FREE_GRASP to STATIONARY_COLLISION",
-                 arm_name_.c_str());
+        ROS_INFO("%d: %s transitioning from FREE_GRASP to STATIONARY_COLLISION",
+                 index_, arm_name_.c_str());
         state_ = STATIONARY_COLLISION;
       }
     }
@@ -178,7 +180,7 @@ void HandStateMachine::StationaryCollisionState(
     ProgramSegment ungrasp_segment = NewUngraspSegment();
     ungrasp_segment.demo_states.push_back(demo_state);
     segments_->push_back(ungrasp_segment);
-    ROS_INFO("%s transitioning from STATIONARY_COLLISION to NONE",
+    ROS_INFO("%d: %s transitioning from STATIONARY_COLLISION to NONE", index_,
              arm_name_.c_str());
     state_ = NONE;
     return;
@@ -202,8 +204,8 @@ void HandStateMachine::StationaryCollisionState(
     working_traj_ = NewTrajSegment();
     working_move_ = NewMoveToSegment();
     working_move_.demo_states.push_back(demo_state);
-    ROS_INFO("%s transitioning from STATIONARY_COLLISION to FREE_GRASP",
-             arm_name_.c_str());
+    ROS_INFO("%d: %s transitioning from STATIONARY_COLLISION to FREE_GRASP",
+             index_, arm_name_.c_str());
     state_ = FREE_GRASP;
     return;
   }
@@ -233,8 +235,9 @@ void HandStateMachine::StationaryCollisionState(
       working_traj_.demo_states.push_back(demo_state);
     }
 
-    ROS_INFO("%s transitioning from STATIONARY_COLLISION to DOUBLE_COLLISION",
-             arm_name_.c_str());
+    ROS_INFO(
+        "%d: %s transitioning from STATIONARY_COLLISION to DOUBLE_COLLISION",
+        index_, arm_name_.c_str());
     ROS_INFO("Target object is %s", working_traj_.target_object.c_str());
     state_ = DOUBLE_COLLISION;
   } else {
@@ -283,7 +286,7 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
     }
     // Regardless of whether this hand is the master or the target, set state to
     // NONE since we ungrasped.
-    ROS_INFO("%s transitioning from DOUBLE_COLLISION to NONE",
+    ROS_INFO("%d: %s transitioning from DOUBLE_COLLISION to NONE", index_,
              arm_name_.c_str());
     state_ = NONE;
   } else if (other_hand.current_action == msgs::HandState::NONE) {
@@ -295,8 +298,9 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
       working_traj_.demo_states.push_back(demo_state);
     }
     // If the other hand ungrasps, then transition to STATIONARY COLLISION
-    ROS_INFO("%s transitioning from DOUBLE_COLLISION to STATIONARY_COLLISION",
-             arm_name_.c_str());
+    ROS_INFO(
+        "%d: %s transitioning from DOUBLE_COLLISION to STATIONARY_COLLISION",
+        index_, arm_name_.c_str());
 
     state_ = STATIONARY_COLLISION;
   } else {
@@ -317,8 +321,8 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
         working_move_ = NewMoveToSegment();
         working_move_.demo_states.push_back(demo_state);
       }
-      ROS_INFO("%s transitioning from DOUBLE_COLLISION to FREE_GRASP",
-               arm_name_.c_str());
+      ROS_INFO("%d: %s transitioning from DOUBLE_COLLISION to FREE_GRASP",
+               index_, arm_name_.c_str());
       state_ = FREE_GRASP;
     } else if (collidee == other_hand.object_name) {
       // Stay in double collision
@@ -337,8 +341,9 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
       working_traj_ = NewTrajSegment();
       working_traj_.target_object = collidee;
       working_traj_.demo_states.push_back(demo_state);
-      ROS_INFO("%s transitioning from DOUBLE_COLLISION to STATIONARY_COLLISION",
-               arm_name_.c_str());
+      ROS_INFO(
+          "%d: %s transitioning from DOUBLE_COLLISION to STATIONARY_COLLISION",
+          index_, arm_name_.c_str());
       state_ = STATIONARY_COLLISION;
     }
   }
