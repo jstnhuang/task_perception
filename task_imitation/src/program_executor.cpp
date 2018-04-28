@@ -105,6 +105,7 @@ std::string ProgramExecutor::Execute(
   PrintPlan(left_steps, right_steps);
 
   // Validate
+  ROS_INFO("Validating planned steps");
   error = ValidatePlannedSteps(left_steps);
   ROS_ASSERT_MSG(error == "", "%s", error.c_str());
   error = ValidatePlannedSteps(right_steps);
@@ -489,7 +490,6 @@ std::vector<PlannedStep> PlanSteps(
     prev_end = plan_start + GetEndTime(step);
   }
 
-  ROS_INFO("Validating planned steps");
   return result;
 }
 
