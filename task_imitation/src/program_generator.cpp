@@ -2,6 +2,7 @@
 // imitate the demonstration.
 #include "task_imitation/program_generator.h"
 
+#include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
@@ -63,6 +64,11 @@ msgs::Program ProgramGenerator::Generate(
       LazyObjectModel model(obj.mesh_name, kUnusedFrame, kUnusedPose);
       model.set_object_model_cache(model_cache_);
       is_circular_[obj.mesh_name] = IsCircular(model.GetObjectModel());
+      if (is_circular_[obj.mesh_name]) {
+        ROS_INFO("%s is circular", obj.name.c_str());
+      } else {
+        ROS_INFO("%s is not circular", obj.name.c_str());
+      }
     }
   }
 
@@ -296,8 +302,14 @@ void ProgramGenerator::AddTrajectoryStep(
   const msgs::Step prev_grasp = program_.steps[prev_grasp_i];
 
   tg::Graph graph;
-  graph.Add("gripper", tg::RefFrame("grasped object"),
+  graph.Add("gripper", tg::RefFrame("rotated grasped object"),
             prev_grasp.ee_trajectory[0]);
+  graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
+            tg::Transform());
+  const msgs::ObjectState& target_obj_at_runtime =
+      initial_runtime_objects.at(segment.target_object);
+  graph.Add("target object", tg::RefFrame("planning"),
+            target_obj_at_runtime.pose);
 
   // Compute trajectory relative to the target object
   ROS_ASSERT(!segment.demo_states.empty());
@@ -319,6 +331,50 @@ void ProgramGenerator::AddTrajectoryStep(
     tg::Transform ee_in_target;
     graph.ComputeDescription(tg::LocalFrame("gripper"),
                              tg::RefFrame("target object"), &ee_in_target);
+    if (is_circular_[grasped_obj.mesh_name]) {
+      // Check to see if IK failed. If so, try to correct it.
+      tg::Transform ee_in_planning;
+      graph.ComputeDescription("gripper", tg::RefFrame("planning"),
+                               &ee_in_planning);
+      if (!HasIk(segment.arm_name, ee_in_planning.pose())) {
+        ROS_WARN("No IK, searching...");
+        // If initial pose has no IK, then search for IK in both directions in
+        // order: +10, -10, +20, -20, ..., +170, -170.
+        bool found_ik = false;
+        for (int yaw_i = 0; yaw_i < 17; ++yaw_i) {
+          Eigen::AngleAxisd yaw(yaw_i * 10 * M_PI / 180,
+                                Eigen::Vector3d::UnitZ());
+          Eigen::Quaterniond yaw_q(yaw);
+          const double kYawDegrees = yaw.angle() * 180 / M_PI;
+          graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
+                    tg::Transform(tg::Position(), yaw_q));
+          graph.ComputeDescription("gripper", tg::RefFrame("planning"),
+                                   &ee_in_planning);
+          if (HasIk(segment.arm_name, ee_in_planning.pose())) {
+            ROS_INFO("IK found with yaw of %f", kYawDegrees);
+            found_ik = true;
+            break;
+          }
+
+          Eigen::AngleAxisd neg_yaw(yaw_i * M_PI / 10,
+                                    Eigen::Vector3d::UnitZ());
+          Eigen::Quaterniond neg_yaw_q(yaw);
+          const double kNegYawDegrees = neg_yaw.angle() * 180 / M_PI;
+          graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
+                    tg::Transform(tg::Position(), neg_yaw_q));
+          graph.ComputeDescription("gripper", tg::RefFrame("planning"),
+                                   &ee_in_planning);
+          if (HasIk(segment.arm_name, ee_in_planning.pose())) {
+            ROS_INFO("IK found with yaw of %f", kNegYawDegrees);
+            found_ik = true;
+            break;
+          }
+        }
+        if (!found_ik) {
+          ROS_ERROR("Failed to find IK for trajectory point.");
+        }
+      }
+    }
     traj_step.ee_trajectory.push_back(ee_in_target.pose());
     if (i == 0) {
       traj_step.times_from_start.push_back(ros::Duration(0));
