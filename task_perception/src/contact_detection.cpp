@@ -106,10 +106,10 @@ void ContactDetection::CheckGrasp(const msgs::HandState& prev_state,
     }
     int num_touching_points = NumHandPointsOnObject(
         object, left_or_right, context, context->kTouchingObjectDistance);
-    // if (num_touching_points > 0 && context->kDebug) {
-    //  ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
-    //           num_touching_points);
-    //}
+    if (num_touching_points > 0 && context->kDebug) {
+      ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
+               num_touching_points);
+    }
     is_touching = num_touching_points >= context->kTouchingObjectPoints;
 
     if (is_moving || is_touching) {
@@ -148,6 +148,13 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
     return;
   }
 
+  geometry_msgs::Pose wrist_pose;
+  if (left_or_right == "left") {
+    wrist_pose = context->GetLeftWristPose();
+  } else {
+    wrist_pose = context->GetRightWristPose();
+  }
+
   // If not enough object points are close to hand points, set state to NONE
   // When we check for a release, we use more conservative parameters, since
   // sometimes the hand segmentation can flicker or the hand can be occluded
@@ -160,15 +167,20 @@ void ContactDetection::CheckRelease(const msgs::HandState& prev_state,
   }
   int num_touching_points = NumHandPointsOnObject(
       object, left_or_right, context, context->kTouchingReleasedObjectDistance);
-  // if (num_touching_points > 0 && context->kDebug) {
-  //  ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
-  //           num_touching_points);
-  //}
+  if (num_touching_points > 0 && context->kDebug) {
+    ROS_INFO("# hand points on object \"%s\": %d", object.name.c_str(),
+             num_touching_points);
+  }
 
   PointCloudP::Ptr object_cloud = context->GetObjectCloud(object.name);
   PublishPointCloud(obj_viz_, *object_cloud);
 
-  if (num_touching_points <= context->kTouchingReleasedObjectPoints) {
+  bool not_enough_points =
+      num_touching_points <= context->kTouchingReleasedObjectPoints;
+  bool is_close_to_wrist =
+      IsObjectCurrentlyCloseToWrist(wrist_pose, object.name, context);
+
+  if (not_enough_points && !is_close_to_wrist) {
     ROS_INFO("Changed %s hand state to NONE (%d out of %d points)",
              left_or_right.c_str(), num_touching_points,
              context->kTouchingReleasedObjectPoints);
@@ -199,7 +211,8 @@ bool ContactDetection::IsObjectCurrentlyCloseToWrist(
   object_tree->nearestKSearch(wrist_point, 1, indices, sq_distances);
   float wrist_threshold =
       context->kCloseToWristDistance * context->kCloseToWristDistance;
-  return sq_distances[0] <= wrist_threshold;
+  bool is_close = sq_distances[0] <= wrist_threshold;
+  return is_close;
 }
 
 int ContactDetection::NumHandPointsOnObject(
