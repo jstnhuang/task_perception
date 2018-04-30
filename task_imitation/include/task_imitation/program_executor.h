@@ -145,6 +145,19 @@ trajectory_msgs::JointTrajectory RetimeTrajectory(
     const trajectory_msgs::JointTrajectory& traj,
     moveit::planning_interface::MoveGroup& group,
     moveit::core::RobotStatePtr start_state);
+
+// Plans a trajectory to a pose using MoveIt.
+// group: The MoveGroup instance to use
+// start_state: The start state of the robot for this pose
+// gripper_pose: The pose of the end-effector to plan for
+// num_tries: The maximum number of times to try planning
+// plan: The output plan, if successful.
+//
+// Returns "" if a plan was found, error string otherwise.
+std::string PlanToPose(moveit::planning_interface::MoveGroup& group,
+                       const robot_state::RobotState& start_state,
+                       const geometry_msgs::Pose& gripper_pose, int num_tries,
+                       moveit::planning_interface::MoveGroup::Plan* plan);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_
