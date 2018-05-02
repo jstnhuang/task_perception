@@ -70,6 +70,21 @@ class GraspPlanner {
   // Computes the initial grasp to optimize around.
   geometry_msgs::Pose ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
                                           const GraspPlanningContext& context);
+
+  // GRASPING 2.0
+  // Returns N closest points on object to the grasp center.
+  std::vector<int> SampleObject(const GraspPlanningContext& context,
+                                const int num_samples);
+  // Move the grasp such that the given point is in the center of the grasp.
+  geometry_msgs::Pose CenterGraspOnPoint(const Pr2GripperModel& gripper_model,
+                                         const GraspPlanningContext& context,
+                                         const int index);
+  // Finds a grasp centered on a given point and with the the y-axis of the
+  // gripper aligned with the normal of the point.
+  geometry_msgs::Pose AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
+                                          const GraspPlanningContext& context,
+                                          const int index);
+
   geometry_msgs::Pose OrientTowardsWrist(const Pr2GripperModel& gripper_model,
                                          const GraspPlanningContext& context);
   geometry_msgs::Pose OptimizeOrientation(const Pr2GripperModel& gripper_model,
@@ -95,6 +110,8 @@ class GraspPlanner {
   // Weights and params
   GraspFeatureWeights weights_;
   double kAntipodalCos;
+
+  ros::Publisher debug_cloud_pub_;
 };
 
 bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
