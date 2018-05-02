@@ -59,7 +59,7 @@ Vector3 GraspRegionDims() {
   Vector3 vec;
   vec.x = 0.085;
   vec.y = 0.085;
-  vec.z = 0.03;
+  vec.z = 0.025;
   return vec;
 }
 }
