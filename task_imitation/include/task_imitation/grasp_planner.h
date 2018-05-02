@@ -47,6 +47,15 @@ class GraspEvaluation {
   GraspFeatureWeights weights;
 };
 
+class ScoredGrasp {
+ public:
+  ScoredGrasp();
+  inline bool IsValid();
+
+  double score;
+  geometry_msgs::Pose pose;
+};
+
 // PR2 grasp planner that adapts human grasping configurations to robot grasps.
 class GraspPlanner {
  public:
@@ -75,18 +84,33 @@ class GraspPlanner {
   // Returns N closest points on object to the grasp center.
   std::vector<int> SampleObject(const GraspPlanningContext& context,
                                 const int num_samples);
+
   // Publishes a visualization of the normal vector of an object point.
   void VisualizePointNormal(const GraspPlanningContext& context,
                             const int index);
+
   // Move the grasp such that the given point is in the center of the grasp.
   geometry_msgs::Pose CenterGraspOnPoint(const Pr2GripperModel& gripper_model,
                                          const GraspPlanningContext& context,
                                          const int index);
+
   // Finds a grasp centered on a given point and with the the y-axis of the
   // gripper aligned with the normal of the point.
   geometry_msgs::Pose AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
                                           const GraspPlanningContext& context,
                                           const int index);
+
+  // Try a number of different pitch angles and choose the best one.
+  // The best pitch meets the following constraints:
+  // 1) There are object points in the the grasp region
+  // 2) The gripper is not in collision with any obstacles
+  //
+  // It also optimizes over ScoreGrasp.
+  ScoredGrasp OptimizePitch(const Pr2GripperModel& gripper_model,
+                            const GraspPlanningContext& context);
+
+  ScoredGrasp EscapeCollision(const Pr2GripperModel& gripper_model,
+                              const GraspPlanningContext& context);
 
   geometry_msgs::Pose OrientTowardsWrist(const Pr2GripperModel& gripper_model,
                                          const GraspPlanningContext& context);
