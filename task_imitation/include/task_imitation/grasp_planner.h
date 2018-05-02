@@ -95,6 +95,7 @@ class GraspPlanner {
   GraspEvaluation ScoreGrasp(const Eigen::Affine3d& pose,
                              const Eigen::Vector3d& wrist_pos,
                              const GraspPlanningContext& context);
+  // Translates the gripper pose to collect points in the grasp region.
   geometry_msgs::Pose OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                                         const GraspPlanningContext& context,
                                         int max_iters);

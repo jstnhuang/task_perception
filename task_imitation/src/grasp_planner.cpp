@@ -720,6 +720,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
         Eigen::Vector3d pt_vec;
         pt_vec << pt.x, pt.y, pt.z;
         Eigen::Vector3d center_to_pt = pt_vec - gripper_center;
+        center_to_pt.x() = 0;
         total += center_to_pt;
         ++num_pts_in_grasp;
       }
