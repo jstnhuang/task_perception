@@ -463,22 +463,7 @@ Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
   graph.DescribePose(gripper_in_grasp_center,
                      tg::Source("rotated grasp center"),
                      tg::Target("gripper base"), &rotated_tf);
-
-  Pose final_pose = rotated_tf.pose();
-
-  if (debug_) {
-    Pose center_pose;
-    tf::poseEigenToMsg(center_affine, center_pose);
-    gripper_pub_.publish(rapid::AxesMarkerArray(
-        "rotated_axes", context.planning_frame_id(), center_pose, 0.015));
-
-    VisualizeGripper("optimization", final_pose, context.planning_frame_id());
-
-    ROS_INFO("Showing aligned pose");
-    ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-  }
-
-  return final_pose;
+  return rotated_tf.pose();
 }
 
 Pose GraspPlanner::OrientTowardsWrist(const Pr2GripperModel& gripper_model,
