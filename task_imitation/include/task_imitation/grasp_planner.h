@@ -75,6 +75,9 @@ class GraspPlanner {
   // Returns N closest points on object to the grasp center.
   std::vector<int> SampleObject(const GraspPlanningContext& context,
                                 const int num_samples);
+  // Publishes a visualization of the normal vector of an object point.
+  void VisualizePointNormal(const GraspPlanningContext& context,
+                            const int index);
   // Move the grasp such that the given point is in the center of the grasp.
   geometry_msgs::Pose CenterGraspOnPoint(const Pr2GripperModel& gripper_model,
                                          const GraspPlanningContext& context,

@@ -171,6 +171,11 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   for (int i = 0; i < num_samples; ++i) {
     const int sample_index = sample_indices->at(i);
 
+    // Visualize the object normal
+    if (debug_) {
+      VisualizePointNormal(context, sample_index);
+    }
+
     Pr2GripperModel model;
     model.set_pose(gripper_model.pose());
 
@@ -375,6 +380,34 @@ std::vector<int> GraspPlanner::SampleObject(const GraspPlanningContext& context,
   return indices;
 }
 
+void GraspPlanner::VisualizePointNormal(const GraspPlanningContext& context,
+                                        const int index) {
+  const pcl::PointNormal& obj_pt =
+      context.object_cloud_with_normals()->at(index);
+  Eigen::Vector3d normal(obj_pt.normal_x, obj_pt.normal_y, obj_pt.normal_z);
+  visualization_msgs::Marker arrow;
+  arrow.header.frame_id = context.planning_frame_id();
+  arrow.ns = "normals";
+  arrow.type = visualization_msgs::Marker::ARROW;
+  arrow.scale.x = 0.0025;
+  arrow.scale.y = 0.005;
+  arrow.color.g = 1;
+  arrow.color.a = 1;
+  geometry_msgs::Point normal_start;
+  normal_start.x = obj_pt.x;
+  normal_start.y = obj_pt.y;
+  normal_start.z = obj_pt.z;
+  geometry_msgs::Point normal_end;
+  normal_end.x = obj_pt.x + obj_pt.normal_x * 0.025;
+  normal_end.y = obj_pt.y + obj_pt.normal_y * 0.025;
+  normal_end.z = obj_pt.z + obj_pt.normal_z * 0.025;
+  arrow.points.push_back(normal_start);
+  arrow.points.push_back(normal_end);
+  visualization_msgs::MarkerArray normal_arr;
+  normal_arr.markers.push_back(arrow);
+  gripper_pub_.publish(normal_arr);
+}
+
 Pose GraspPlanner::CenterGraspOnPoint(const Pr2GripperModel& gripper_model,
                                       const GraspPlanningContext& context,
                                       const int index) {
@@ -395,42 +428,13 @@ Pose GraspPlanner::CenterGraspOnPoint(const Pr2GripperModel& gripper_model,
 Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
                                        const GraspPlanningContext& context,
                                        const int index) {
-  // Visualize the object normal
-  pcl::PointNormal obj_pt = context.object_cloud_with_normals()->at(index);
-  Eigen::Vector3d normal;
-  normal << obj_pt.normal_x, obj_pt.normal_y, obj_pt.normal_z;
-
-  if (debug_) {
-    visualization_msgs::Marker arrow;
-    arrow.header.frame_id = context.planning_frame_id();
-    arrow.ns = "normals";
-    arrow.type = visualization_msgs::Marker::ARROW;
-    arrow.scale.x = 0.0025;
-    arrow.scale.y = 0.005;
-    arrow.color.g = 1;
-    arrow.color.a = 1;
-    geometry_msgs::Point normal_start;
-    normal_start.x = obj_pt.x;
-    normal_start.y = obj_pt.y;
-    normal_start.z = obj_pt.z;
-    geometry_msgs::Point normal_end;
-    normal_end.x = obj_pt.x + obj_pt.normal_x * 0.025;
-    normal_end.y = obj_pt.y + obj_pt.normal_y * 0.025;
-    normal_end.z = obj_pt.z + obj_pt.normal_z * 0.025;
-    arrow.points.push_back(normal_start);
-    arrow.points.push_back(normal_end);
-    visualization_msgs::MarkerArray normal_arr;
-    normal_arr.markers.push_back(arrow);
-    gripper_pub_.publish(normal_arr);
-    ROS_INFO("Obj pt: %f %f %f, normal: %f %f %f", obj_pt.x, obj_pt.y, obj_pt.z,
-             obj_pt.normal_x, obj_pt.normal_y, obj_pt.normal_z);
-  }
-
+  // Compute rotation
+  const pcl::PointNormal& obj_pt =
+      context.object_cloud_with_normals()->at(index);
+  Eigen::Vector3d normal(obj_pt.normal_x, obj_pt.normal_y, obj_pt.normal_z);
   Eigen::Quaterniond grasp_orientation;
   tf::quaternionMsgToEigen(gripper_model.pose().orientation, grasp_orientation);
-  tg::Graph graph = gripper_model.tf_graph();
 
-  // Compute rotation
   Eigen::Vector3d gripper_y_axis = grasp_orientation.toRotationMatrix().col(1);
   Eigen::AngleAxisd rotation1(
       Eigen::Quaterniond::FromTwoVectors(gripper_y_axis, normal));
@@ -439,6 +443,8 @@ Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
   bool is_rotation1 = rotation1.angle() < rotation2.angle();
   Eigen::Quaterniond rotation(is_rotation1 ? rotation1 : rotation2);
 
+  // Compute pose of the grasp center after rotation
+  tg::Graph graph = gripper_model.tf_graph();
   tg::Transform center_in_planning;
   graph.ComputeDescription("grasp center", tg::RefFrame("gripper base"),
                            &center_in_planning);
@@ -468,7 +474,7 @@ Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
 
     VisualizeGripper("optimization", final_pose, context.planning_frame_id());
 
-    ROS_INFO("showing final pose");
+    ROS_INFO("Showing aligned pose");
     ros::topic::waitForMessage<std_msgs::Bool>("trigger");
   }
 
