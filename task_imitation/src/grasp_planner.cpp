@@ -183,7 +183,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     model.set_pose(centered);
     if (debug_) {
       VisualizeGripper("optimization", centered, context.planning_frame_id());
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     Pose aligned = AlignGraspWithPoint(model, context, sample_index);
