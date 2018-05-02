@@ -200,14 +200,14 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     if (debug_) {
       VisualizeGripper("optimization", aligned, context.planning_frame_id());
       ROS_INFO("Aligned with normal");
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     Pose placed = OptimizePlacement(aligned, context, kMaxPlacementIterations);
     if (debug_) {
       ROS_INFO("Placed");
       VisualizeGripper("optimization", placed, context.planning_frame_id());
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     model.set_pose(placed);
@@ -215,7 +215,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     if (debug_) {
       VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
       ROS_INFO("Pitched");
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     // Try to improve if in collision or generally bad
@@ -244,7 +244,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     if (debug_) {
       VisualizeGripper("optimization_best", best.pose,
                        context.planning_frame_id());
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
   }
   VisualizeGripper("optimization_best", best.pose, context.planning_frame_id());
