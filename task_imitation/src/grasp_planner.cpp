@@ -430,22 +430,6 @@ Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
   tf::quaternionMsgToEigen(gripper_model.pose().orientation, grasp_orientation);
   tg::Graph graph = gripper_model.tf_graph();
 
-  // Visualize the gripper's current pose
-  // if (debug_) {
-  //  tg::Transform center_in_planning;
-  //  graph.ComputeDescription("grasp center", tg::RefFrame("gripper base"),
-  //                           &center_in_planning);
-  //  gripper_pub_.publish(
-  //      rapid::AxesMarkerArray("rotated_axes", context.planning_frame_id(),
-  //                             center_in_planning.pose(), 0.015));
-
-  //  tg::Transform gripper_in_planning;
-  //  graph.ComputeDescription("gripper", tg::RefFrame("gripper base"),
-  //                           &gripper_in_planning);
-  //  VisualizeGripper("optimization", gripper_in_planning.pose(),
-  //                   context.planning_frame_id());
-  //}
-
   // Compute rotation
   Eigen::Vector3d gripper_y_axis = grasp_orientation.toRotationMatrix().col(1);
   Eigen::AngleAxisd rotation1(
@@ -454,42 +438,6 @@ Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
       Eigen::Quaterniond::FromTwoVectors(gripper_y_axis, -normal));
   bool is_rotation1 = rotation1.angle() < rotation2.angle();
   Eigen::Quaterniond rotation(is_rotation1 ? rotation1 : rotation2);
-  Eigen::AngleAxisd rotation_aa(is_rotation1 ? rotation1 : rotation2);
-
-  if (debug_) {
-    if (is_rotation1) {
-      ROS_INFO("using rotation 1");
-    } else {
-      ROS_INFO("using rotation 2");
-    }
-    ROS_INFO("rotation 1 angle: %f, axis: %f %f %f",
-             rotation1.angle() * 180 / M_PI, rotation1.axis().x(),
-             rotation1.axis().y(), rotation1.axis().z());
-    ROS_INFO("rotation 2 angle: %f, axis: %f %f %f",
-             rotation2.angle() * 180 / M_PI, rotation2.axis().x(),
-             rotation2.axis().y(), rotation2.axis().z());
-  }
-
-  Eigen::Vector3d obj_pt_vec;
-  obj_pt_vec << obj_pt.x, obj_pt.y, obj_pt.z;
-  // for (int i = 1; i < 10; ++i) {
-  //  tg::Transform center_in_planning;
-  //  graph.ComputeDescription("grasp center", tg::RefFrame("gripper base"),
-  //                           &center_in_planning);
-  //  Eigen::Affine3d center_affine = center_in_planning.affine();
-  //  center_affine.pretranslate(-gripper_model.grasp_center());
-
-  //  Eigen::AngleAxisd partial_rot(rotation_aa.angle() * i / 10,
-  //                                rotation_aa.axis().normalized());
-  //  center_affine.prerotate(partial_rot);
-  //  center_affine.pretranslate(gripper_model.grasp_center());
-  //  Pose rotated_pose;
-  //  tf::poseEigenToMsg(center_affine, rotated_pose);
-  //  gripper_pub_.publish(rapid::AxesMarkerArray(
-  //      "rotated_axes", context.planning_frame_id(), rotated_pose, 0.015));
-  //  ROS_INFO("i: %d, angle: %f", i, rotation_aa.angle() * i / 10);
-  //  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-  //}
 
   tg::Transform center_in_planning;
   graph.ComputeDescription("grasp center", tg::RefFrame("gripper base"),
