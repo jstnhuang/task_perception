@@ -130,6 +130,7 @@ void ProgramServer::Start() {
 
 void ProgramServer::GenerateProgram(
     const msgs::GenerateProgramGoalConstPtr& goal) {
+  object_states_.clear();
   std::string error =
       GenerateProgramInternal(goal->bag_path, &program_, &object_states_);
   if (error != "") {
@@ -147,6 +148,7 @@ void ProgramServer::GenerateProgram(
 
 void ProgramServer::ExecuteImitation(
     const msgs::ImitateDemoGoalConstPtr& goal) {
+  object_states_.clear();
   std::string error =
       GenerateProgramInternal(goal->bag_path, &program_, &object_states_);
   if (error != "") {
