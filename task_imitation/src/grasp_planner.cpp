@@ -173,7 +173,9 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   }
 
   // Sample some points
-  int num_samples = context.object_cloud()->size() * 0.1;
+  const double sample_ratio =
+      rapid::GetDoubleParamOrThrow("grasp_planner/sample_ratio");
+  int num_samples = context.object_cloud()->size() * sample_ratio;
   boost::shared_ptr<std::vector<int> > sample_indices(new std::vector<int>());
   *sample_indices = SampleObject(context, num_samples);
   if (debug_) {
