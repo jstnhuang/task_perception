@@ -22,11 +22,15 @@ class Pr2GripperModel {
   void ToMarkerArray(const std::string& frame_id,
                      visualization_msgs::MarkerArray* marker_arr) const;
 
-  // Returns the "center" of the gripper's grasp region.
+  // Returns the "center" of the gripper's grasp region in the world frame.
   Eigen::Vector3d grasp_center() const;
 
+  // Returns the center of the palm in the world frame.
+  // This can be a good proxy for a human wrist.
+  Eigen::Vector3d palm_center() const;
+
   // Defines the following frames:
-  // gripper base: The fixed frame (e.g., camera frame)
+  // gripper base: The world frame (e.g., camera frame or planning frame)
   // gripper: The gripper link
   // palm: The palm link
   // l_finger: The left finger link
