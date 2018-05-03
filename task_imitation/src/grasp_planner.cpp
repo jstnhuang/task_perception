@@ -241,9 +241,9 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       best = grasp;
       ROS_INFO("Best score: %f", best.score);
     }
+    VisualizeGripper("optimization_best", best.pose,
+                     context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization_best", best.pose,
-                       context.planning_frame_id());
       // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
   }
