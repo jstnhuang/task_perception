@@ -501,7 +501,7 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
     if (debug_) {
       VisualizeGripper("optimization", rotated_pose,
                        context.planning_frame_id());
-      ros::Duration(0.01).sleep();
+      // ros::Duration(0.01).sleep();
     }
 
     // Optimize soft constraints
