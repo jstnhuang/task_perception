@@ -256,16 +256,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     Pose blank;
     return blank;
   }
-
-  // Pose final_pose =
-  //    OptimizePlacement(next_pose, context, kMaxPlacementIterations);
-  // VisualizeGripper("optimization", final_pose, context.planning_frame_id());
-  // if (debug_) {
-  //  ROS_INFO("Done planning grasp");
-  //  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-  //}
-
-  // return final_pose;
 }
 
 void GraspPlanner::InitGripperMarkers() {
@@ -652,8 +642,6 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       wrist_pose.position.z;
 
   Pose best_pose = gripper_model.pose();
-  // Eigen::Affine3d initial_mat;
-  // tf::poseMsgToEigen(best_pose, initial_mat);
   GraspEvaluation initial_eval = ScoreGrasp(gripper_model, wrist_pos, context);
   double best_score = initial_eval.score();
   if (debug_) {
