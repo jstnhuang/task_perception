@@ -199,14 +199,14 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     Pose aligned = AlignGraspWithPoint(model, context, sample_index);
     if (debug_) {
       VisualizeGripper("optimization", aligned, context.planning_frame_id());
-      ROS_INFO("Aligned with normal");
+      // ROS_INFO("Aligned with normal");
       // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     Pose placed = OptimizePlacement(aligned, context, kMaxPlacementIterations);
     if (debug_) {
-      ROS_INFO("Placed");
       VisualizeGripper("optimization", placed, context.planning_frame_id());
+      // ROS_INFO("Placed");
       // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
@@ -214,13 +214,12 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     ScoredGrasp grasp = OptimizePitch(model, context);
     if (debug_) {
       VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
-      ROS_INFO("Pitched");
+      // ROS_INFO("Pitched");
       // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
-    // Try to improve if in collision or generally bad
     model.set_pose(grasp.pose);
-    if (grasp.score < 0) {
+    if (IsGripperCollidingWithObstacles(model, context)) {
       ScoredGrasp escaped = EscapeCollision(model, context);
       if (escaped.IsValid()) {
         if (debug_) {
@@ -240,6 +239,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
 
     if (grasp.score > best.score) {
       best = grasp;
+      ROS_INFO("Best score: %f", best.score);
     }
     if (debug_) {
       VisualizeGripper("optimization_best", best.pose,
@@ -249,6 +249,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   }
   VisualizeGripper("optimization_best", best.pose, context.planning_frame_id());
   if (best.IsValid()) {
+    ROS_INFO("Planned grasp with score: %f", best.score);
     return best.pose;
   } else {
     ROS_ERROR("Unable to plan grasp");
@@ -512,7 +513,7 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
     }
 
     // Optimize soft constraints
-    GraspEvaluation grasp_eval = ScoreGrasp(rotated_mat, wrist_pos, context);
+    GraspEvaluation grasp_eval = ScoreGrasp(candidate, wrist_pos, context);
     double score = grasp_eval.score();
 
     if (score > best.score) {
@@ -574,7 +575,7 @@ ScoredGrasp GraspPlanner::EscapeCollision(const Pr2GripperModel& gripper_model,
     }
 
     // If we are not colliding with anything, return.
-    GraspEvaluation grasp_eval = ScoreGrasp(moved, wrist_pos, context);
+    GraspEvaluation grasp_eval = ScoreGrasp(model, wrist_pos, context);
     double score = grasp_eval.score();
 
     if (score > best.score) {
@@ -651,9 +652,9 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       wrist_pose.position.z;
 
   Pose best_pose = gripper_model.pose();
-  Eigen::Affine3d initial_mat;
-  tf::poseMsgToEigen(best_pose, initial_mat);
-  GraspEvaluation initial_eval = ScoreGrasp(initial_mat, wrist_pos, context);
+  // Eigen::Affine3d initial_mat;
+  // tf::poseMsgToEigen(best_pose, initial_mat);
+  GraspEvaluation initial_eval = ScoreGrasp(gripper_model, wrist_pos, context);
   double best_score = initial_eval.score();
   if (debug_) {
     ROS_INFO("Initial score: %s", initial_eval.ToString().c_str());
@@ -700,7 +701,7 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
       Pr2GripperModel candidate;
       candidate.set_pose(rotated_pose);
 
-      GraspEvaluation grasp_eval = ScoreGrasp(rotated_mat, wrist_pos, context);
+      GraspEvaluation grasp_eval = ScoreGrasp(candidate, wrist_pos, context);
       double score = grasp_eval.score();
 
       if (score > best_score) {
@@ -737,7 +738,7 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
     Pr2GripperModel candidate;
     candidate.set_pose(rotated_pose);
 
-    GraspEvaluation grasp_eval = ScoreGrasp(rotated_mat, wrist_pos, context);
+    GraspEvaluation grasp_eval = ScoreGrasp(candidate, wrist_pos, context);
     double score = grasp_eval.score();
 
     if (score > best_score) {
@@ -755,17 +756,19 @@ Pose GraspPlanner::OptimizeOrientation(const Pr2GripperModel& gripper_model,
   return best_pose;
 }
 
-GraspEvaluation GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
+GraspEvaluation GraspPlanner::ScoreGrasp(const Pr2GripperModel& model,
                                          const Eigen::Vector3d& wrist_pos,
                                          const GraspPlanningContext& context) {
   GraspEvaluation eval;
   eval.weights = weights_;
 
   // Transform object points into rotated gripper frame.
+  Eigen::Affine3d pose_affine;
+  tf::poseMsgToEigen(model.pose(), pose_affine);
   PointCloudN::Ptr object_cloud = context.object_cloud_with_normals();
   PointCloudN::Ptr transformed_cloud(new PointCloudN);
   pcl::transformPointCloudWithNormals(*object_cloud, *transformed_cloud,
-                                      gripper_pose.inverse());
+                                      pose_affine.inverse());
 
   // For all points in the grasp region, measure antipodality (i.e., how
   // collinear the normal is with the finger normals). Instead of
@@ -795,12 +798,8 @@ GraspEvaluation GraspPlanner::ScoreGrasp(const Eigen::Affine3d& gripper_pose,
   }
 
   eval.features.sq_wrist_distance =
-      (gripper_pose.translation() - wrist_pos).squaredNorm();
+      (model.palm_center() - wrist_pos).squaredNorm();
 
-  Pose pose;
-  tf::poseEigenToMsg(gripper_pose, pose);
-  Pr2GripperModel model;
-  model.set_pose(pose);
   eval.features.is_colliding_with_obstacle =
       IsGripperCollidingWithObstacles(model, context);
   return eval;
