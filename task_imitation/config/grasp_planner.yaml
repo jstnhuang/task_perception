@@ -1,12 +1,12 @@
 grasp_planner:
-  debug: true
+  debug: false
 
   # Scoring weights
   antipodal_grasp_weight: 3
   non_antipodal_grasp_weight: 1
   antipodal_collision_weight: -1
   non_antipodal_collision_weight: -3
-  sq_wrist_distance_weight: -500
+  sq_wrist_distance_weight: -2000
   obstacle_collision_weight: -1000000
 
   # Termination criteria
@@ -27,4 +27,4 @@ grasp_planner:
   max_placement_iterations: 10
 
   # How many random offsets to try to escape collision
-  max_escape_attempts: 20
+  max_escape_attempts: 100
