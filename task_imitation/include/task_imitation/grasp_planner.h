@@ -53,6 +53,7 @@ class ScoredGrasp {
   inline bool IsValid();
 
   double score;
+  GraspEvaluation eval;
   geometry_msgs::Pose pose;
 };
 

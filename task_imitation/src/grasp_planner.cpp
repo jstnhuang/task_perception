@@ -241,7 +241,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
 
     if (grasp.score > best.score) {
       best = grasp;
-      ROS_INFO("Best score: %f", best.score);
+      ROS_INFO("Best score: %s", best.eval.ToString().c_str());
     }
     VisualizeGripper("optimization_best", best.pose,
                      context.planning_frame_id());
@@ -251,7 +251,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   }
   VisualizeGripper("optimization_best", best.pose, context.planning_frame_id());
   if (best.IsValid()) {
-    ROS_INFO("Planned grasp with score: %f", best.score);
+    ROS_INFO("Planned grasp with score: %f", best.eval.score());
     return best.pose;
   } else {
     ROS_ERROR("Unable to plan grasp");
@@ -510,10 +510,11 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
 
     if (score > best.score) {
       best.score = score;
+      best.eval = grasp_eval;
       best.pose = rotated_pose;
       if (debug_) {
-        ROS_INFO("p: %f: %s", pitch_angle * 180 / M_PI,
-                 grasp_eval.ToString().c_str());
+        // ROS_INFO("p: %f: %s", pitch_angle * 180 / M_PI,
+        //         grasp_eval.ToString().c_str());
       }
     }
   }
@@ -572,11 +573,12 @@ ScoredGrasp GraspPlanner::EscapeCollision(const Pr2GripperModel& gripper_model,
 
     if (score > best.score) {
       best.score = score;
+      best.eval = grasp_eval;
       best.pose = moved_pose;
-      if (debug_) {
-        ROS_INFO("[Escape] Best score so far: %s",
-                 grasp_eval.ToString().c_str());
-      }
+      // if (debug_) {
+      //  ROS_INFO("[Escape] Best score so far: %s",
+      //           grasp_eval.ToString().c_str());
+      //}
     }
   }
 
