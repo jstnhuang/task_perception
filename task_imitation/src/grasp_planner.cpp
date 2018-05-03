@@ -224,14 +224,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     if (IsGripperCollidingWithObstacles(model, context)) {
       ScoredGrasp escaped = EscapeCollision(model, context);
       if (escaped.IsValid()) {
-        if (debug_) {
-          ROS_INFO("Escaped");
-        }
         grasp = escaped;
-      } else {
-        if (debug_) {
-          ROS_WARN("Unable to escape collision");
-        }
       }
       if (debug_) {
         VisualizeGripper("optimization", grasp.pose,
