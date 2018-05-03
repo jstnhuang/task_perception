@@ -187,10 +187,15 @@ const tg::Graph& Pr2GripperModel::tf_graph() const { return tf_graph_; }
 
 bool Pr2GripperModel::IsCollidingWithObb(const Pose& pose,
                                          const Vector3& dims) const {
+  return CheckCollisionWithObb(pose, dims) != NONE;
+}
+
+int Pr2GripperModel::CheckCollisionWithObb(const Pose& pose,
+                                           const Vector3& dims) const {
   tg::Transform palm_tf;
   tf_graph_.ComputeDescription("palm", tg::RefFrame("gripper base"), &palm_tf);
   if (rapid::AreObbsInCollision(pose, dims, palm_tf.pose(), kPalmDims)) {
-    return true;
+    return PALM;
   }
 
   tg::Transform grasp_tf;
@@ -198,24 +203,24 @@ bool Pr2GripperModel::IsCollidingWithObb(const Pose& pose,
                                &grasp_tf);
   if (rapid::AreObbsInCollision(pose, dims, grasp_tf.pose(),
                                 kGraspRegionDims)) {
-    return true;
+    return GRASP_REGION;
   }
 
   tg::Transform l_finger_tf;
   tf_graph_.ComputeDescription("l_finger", tg::RefFrame("gripper base"),
                                &l_finger_tf);
   if (rapid::AreObbsInCollision(pose, dims, l_finger_tf.pose(), kFingerDims)) {
-    return true;
+    return L_FINGER;
   }
 
   tg::Transform r_finger_tf;
   tf_graph_.ComputeDescription("r_finger", tg::RefFrame("gripper base"),
                                &r_finger_tf);
   if (rapid::AreObbsInCollision(pose, dims, r_finger_tf.pose(), kFingerDims)) {
-    return true;
+    return R_FINGER;
   }
 
-  return false;
+  return NONE;
 }
 
 bool Pr2GripperModel::IsGripperFramePtInGraspRegion(double x, double y,

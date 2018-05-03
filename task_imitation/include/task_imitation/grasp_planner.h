@@ -120,6 +120,7 @@ class GraspPlanner {
   GraspEvaluation ScoreGrasp(const Pr2GripperModel& model,
                              const Eigen::Vector3d& wrist_pos,
                              const GraspPlanningContext& context);
+
   // Translates the gripper pose to collect points in the grasp region.
   geometry_msgs::Pose OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                                         const GraspPlanningContext& context,
@@ -145,6 +146,8 @@ class GraspPlanner {
 
 bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
                                      const GraspPlanningContext& context);
+bool IsPalmCollidingWithObstacles(const Pr2GripperModel& gripper,
+                                  const GraspPlanningContext& context);
 int NumCollisions(
     const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper);
 int NumPointsInGraspRegion(

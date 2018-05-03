@@ -497,6 +497,9 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
       // ros::Duration(0.01).sleep();
     }
 
+    if (IsPalmCollidingWithObstacles(candidate, context)) {
+      continue;
+    }
     // Optimize soft constraints
     GraspEvaluation grasp_eval = ScoreGrasp(candidate, wrist_pos, context);
     double score = grasp_eval.score();
@@ -879,6 +882,19 @@ bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
   for (size_t i = 0; i < obstacles.size(); ++i) {
     const Obb& obstacle = obstacles[i];
     if (gripper.IsCollidingWithObb(obstacle.pose, obstacle.dims)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool IsPalmCollidingWithObstacles(const Pr2GripperModel& gripper,
+                                  const GraspPlanningContext& context) {
+  const std::vector<Obb>& obstacles = context.obstacles();
+  for (size_t i = 0; i < obstacles.size(); ++i) {
+    const Obb& obstacle = obstacles[i];
+    if (gripper.CheckCollisionWithObb(obstacle.pose, obstacle.dims) ==
+        Pr2GripperModel::PALM) {
       return true;
     }
   }

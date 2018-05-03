@@ -40,6 +40,10 @@ class Pr2GripperModel {
 
   bool IsCollidingWithObb(const geometry_msgs::Pose& pose,
                           const geometry_msgs::Vector3& dims) const;
+  // Returns NONE, PALM, GRASP_REGION, L_FINGER, R_FINGER. Checks in that order
+  // and returns immediately on the first collision.
+  int CheckCollisionWithObb(const geometry_msgs::Pose& pose,
+                            const geometry_msgs::Vector3& dims) const;
 
   // These functions assume that X/Y/Z have already been transformed into the
   // gripper frame, which differs from other methods in this class. This is
@@ -55,6 +59,11 @@ class Pr2GripperModel {
   const static geometry_msgs::Vector3 kPalmDims;
   const static geometry_msgs::Vector3 kFingerDims;
   const static geometry_msgs::Vector3 kGraspRegionDims;
+  const static int NONE = 0;
+  const static int PALM = 1;
+  const static int GRASP_REGION = 2;
+  const static int L_FINGER = 3;
+  const static int R_FINGER = 4;
 
  private:
   geometry_msgs::Pose pose_;
