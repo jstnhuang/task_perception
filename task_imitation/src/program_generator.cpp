@@ -245,8 +245,8 @@ void ProgramGenerator::AddMoveToStep(
                       prev_grasp.ee_trajectory[0]);
 
     bool found_ik = false;
-    for (int i = 0; i < 8; ++i) {
-      Eigen::AngleAxisd yaw(i * M_PI / 4, Eigen::Vector3d::UnitZ());
+    for (int i = 0; i < 20; ++i) {
+      Eigen::AngleAxisd yaw(i * M_PI / 10, Eigen::Vector3d::UnitZ());
       Eigen::Quaterniond yaw_q(yaw);
       const double kYawDegrees = yaw.angle() * 180 / M_PI;
       runtime_graph.Add("rotated grasped object",
