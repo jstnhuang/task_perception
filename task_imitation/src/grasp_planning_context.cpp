@@ -1,12 +1,5 @@
 #include "task_imitation/grasp_planning_context.h"
 
-#include <string>
-#include <vector>
-
-#include "geometry_msgs/Pose.h"
-#include "pcl/point_cloud.h"
-#include "pcl/point_types.h"
-#include "pcl/search/kdtree.h"
 #include "task_perception/pcl_typedefs.h"
 
 using geometry_msgs::Pose;
