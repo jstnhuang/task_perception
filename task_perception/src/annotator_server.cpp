@@ -21,13 +21,8 @@
 #include "task_perception_msgs/ObjectState.h"
 #include "task_utils/bag_utils.h"
 
-#include "task_perception/database.h"
-#include "task_perception/demo_model.h"
-#include "task_perception/demo_runtime.h"
-#include "task_perception/demo_visualizer.h"
 #include "task_perception/multi_object_tracker.h"
 #include "task_perception/names.h"
-#include "task_perception/skeleton_services.h"
 
 namespace msgs = task_perception_msgs;
 namespace ss_msgs = skin_segmentation_msgs;

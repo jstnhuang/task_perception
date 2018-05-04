@@ -1,7 +1,6 @@
 #ifndef _PBI_ANNOTATOR_SERVER_H_
 #define _PBI_ANNOTATOR_SERVER_H_
 
-#include <map>
 #include <string>
 
 #include "actionlib/client/simple_action_client.h"
@@ -15,7 +14,6 @@
 #include "task_db/demo_states_db.h"
 #include "task_perception_msgs/AnnotatorEvent.h"
 #include "task_perception_msgs/AnnotatorState.h"
-#include "task_perception_msgs/Demonstration.h"
 
 #include "task_perception/database.h"
 #include "task_perception/demo_model.h"
