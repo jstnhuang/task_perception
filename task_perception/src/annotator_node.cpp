@@ -1,6 +1,5 @@
 #include <string>
 
-#include "dbot_ros_msgs/MultiTrack.h"
 #include "mongodb_store/message_store.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
