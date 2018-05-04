@@ -62,8 +62,8 @@ class ProgramGenerator {
   moveit::planning_interface::MoveGroup& right_group_;
   std::string planning_frame_;
 
-  CollisionChecker collision_checker_;
   ObjectModelCache* model_cache_;
+  CollisionChecker collision_checker_;
 };
 
 // Gets the initial states of all the objects at the time of the demonstration.

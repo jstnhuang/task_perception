@@ -16,8 +16,9 @@ namespace msgs = task_perception_msgs;
 using geometry_msgs::Pose;
 
 namespace pbi {
-CollisionChecker::CollisionChecker(const std::string& planning_frame)
-    : planning_frame_(planning_frame), model_cache_() {}
+CollisionChecker::CollisionChecker(const std::string& planning_frame,
+                                   ObjectModelCache* model_cache)
+    : planning_frame_(planning_frame), model_cache_(model_cache) {}
 
 std::string CollisionChecker::Check(
     const task_perception_msgs::ObjectState& object,
@@ -26,7 +27,7 @@ std::string CollisionChecker::Check(
       rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
   LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
                                  object.pose);
-  held_obj_model.set_object_model_cache(&model_cache_);
+  held_obj_model.set_object_model_cache(model_cache_);
   const Pose& held_obj_pose = held_obj_model.pose();
   Eigen::Vector3d held_obj_vec = rapid::AsVector3d(held_obj_pose.position);
   geometry_msgs::Vector3 held_obj_scale =
@@ -38,7 +39,7 @@ std::string CollisionChecker::Check(
       continue;
     }
     LazyObjectModel other_model(other.mesh_name, planning_frame_, other.pose);
-    other_model.set_object_model_cache(&model_cache_);
+    other_model.set_object_model_cache(model_cache_);
     if (rapid::AreObbsInCollision(
             held_obj_pose, held_obj_scale, other_model.pose(),
             InflateScale(other_model.scale(), kInflationSize))) {
@@ -57,9 +58,9 @@ std::string CollisionChecker::Check(
 bool CollisionChecker::Check(const msgs::ObjectState& obj1,
                              const msgs::ObjectState& obj2) const {
   LazyObjectModel obj1_model(obj1.mesh_name, planning_frame_, obj1.pose);
+  obj1_model.set_object_model_cache(model_cache_);
   LazyObjectModel obj2_model(obj2.mesh_name, planning_frame_, obj2.pose);
-  obj1_model.set_object_model_cache(&model_cache_);
-  obj2_model.set_object_model_cache(&model_cache_);
+  obj2_model.set_object_model_cache(model_cache_);
   const double kInflationSize =
       rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
 

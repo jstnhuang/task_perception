@@ -12,7 +12,8 @@ namespace pbi {
 // Collision checking class with an object model cache.
 class CollisionChecker {
  public:
-  CollisionChecker(const std::string& planning_frame);
+  CollisionChecker(const std::string& planning_frame,
+                   ObjectModelCache* model_cache);
   std::string Check(const task_perception_msgs::ObjectState& object,
                     const std::vector<task_perception_msgs::ObjectState>&
                         other_objects) const;
@@ -21,7 +22,7 @@ class CollisionChecker {
 
  private:
   std::string planning_frame_;
-  mutable ObjectModelCache model_cache_;
+  mutable ObjectModelCache* model_cache_;
 };
 
 // Add a constant to a vector3.

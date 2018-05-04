@@ -33,8 +33,8 @@ ProgramGenerator::ProgramGenerator(
       left_group_(left_group),
       right_group_(right_group),
       planning_frame_(left_group_.getPlanningFrame()),
-      collision_checker_(planning_frame_),
-      model_cache_(model_cache) {}
+      model_cache_(model_cache),
+      collision_checker_(planning_frame_, model_cache_) {}
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
