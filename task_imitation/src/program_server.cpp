@@ -1,38 +1,23 @@
 #include "task_imitation/program_server.h"
 
-#include <limits.h>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "actionlib/client/simple_action_client.h"
-#include "actionlib/server/simple_action_server.h"
 #include "boost/optional.hpp"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "eigen_conversions/eigen_msg.h"
-#include "geometry_msgs/Pose.h"
 #include "moveit/robot_state/conversions.h"
 #include "moveit_msgs/DisplayTrajectory.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "rapid_utils/pcl_typedefs.h"
-#include "robot_markers/builder.h"
-#include "ros/ros.h"
-#include "surface_perception/visualization.h"
 #include "task_perception/lazy_object_model.h"
-#include "task_perception_msgs/DemoStates.h"
-#include "task_perception_msgs/GenerateProgramAction.h"
-#include "task_perception_msgs/GetDemoStates.h"
-#include "task_perception_msgs/ImitateDemoAction.h"
-#include "task_perception_msgs/ImitationEvent.h"
-#include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/ProgramSlice.h"
 #include "task_utils/bag_utils.h"
 #include "transform_graph/graph.h"
 #include "visualization_msgs/Marker.h"
 
-#include "task_imitation/obb.h"
 #include "task_imitation/object_initialization.h"
-#include "task_imitation/program_executor.h"
 #include "task_imitation/program_generator.h"
 
 namespace msgs = task_perception_msgs;
@@ -65,7 +50,7 @@ ProgramServer::ProgramServer(
       cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>(
           "pbi_imitation/point_cloud", 1, true)),
       segmentation_pub_(nh_.advertise<visualization_msgs::Marker>(
-          "pbi_imitation/surface_segmentation", 10)),
+          "pbi_imitation/surface_segmentation", 100)),
       segmentation_viz_(segmentation_pub_),
       model_cache_(),
       planning_frame_(left_group_.getPlanningFrame()),
@@ -309,11 +294,34 @@ void ProgramServer::GetObjectPoses(
 
       LazyObjectModel rough_obj_model(obj_state.mesh_name, planning_frame_,
                                       rough_obj_pose);
-      obj_model.set_object_model_cache(&model_cache_);
+      rough_obj_model.set_object_model_cache(&model_cache_);
 
       ROS_ASSERT(surface_objects->size() == 1);  // MatchObject enforces this
+
       geometry_msgs::Pose aligned_pose = AlignObject(
           rough_obj_model, surface_objects->at(0).objects[obj_index]);
+
+      // If the object is circular, orient the model so its x-axis is aligned
+      // with the x-axis of the planning frame.
+      if (rough_obj_model.IsCircular()) {
+        const surface_perception::Surface& surface =
+            surface_objects->at(0).surface;
+        Eigen::Quaterniond surface_quat;
+        tf::quaternionMsgToEigen(surface.pose_stamped.pose.orientation,
+                                 surface_quat);
+        Eigen::Matrix3d surface_rotation_matrix(surface_quat);
+        Eigen::Matrix3d updated_orientation = Eigen::Matrix3d::Identity();
+        Eigen::Vector3d surface_x_axis = surface_rotation_matrix.col(0);
+        Eigen::Vector3d updated_x(surface_x_axis.x(), 0, surface_x_axis.z());
+        updated_x.normalize();
+        updated_orientation.col(0) = updated_x;
+        updated_orientation.col(2) = surface_rotation_matrix.col(2);
+        updated_orientation.col(1) =
+            updated_orientation.col(2).cross(updated_x);
+
+        Eigen::Quaterniond updated_quat(updated_orientation);
+        tf::quaternionEigenToMsg(updated_quat, aligned_pose.orientation);
+      }
 
       init_goal.initial_pose = aligned_pose;
     } else {
