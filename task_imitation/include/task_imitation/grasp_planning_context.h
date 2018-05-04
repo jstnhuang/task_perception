@@ -10,6 +10,7 @@
 #include "pcl/point_types.h"
 #include "pcl/search/kdtree.h"
 #include "task_perception/lazy_object_model.h"
+#include "task_perception/object_model_cache.h"
 
 #include "task_imitation/obb.h"
 
@@ -22,7 +23,8 @@ class GraspPlanningContext {
                        const std::string& planning_frame_id,
                        const std::string& object_name,
                        const std::string& object_mesh,
-                       const geometry_msgs::Pose& object_pose);
+                       const geometry_msgs::Pose& object_pose,
+                       ObjectModelCache* model_cache);
   geometry_msgs::Pose wrist_pose() const;
   std::string planning_frame_id() const;
   pcl::PointCloud<pcl::PointXYZ>::Ptr object_cloud() const;
@@ -38,6 +40,8 @@ class GraspPlanningContext {
   std::string object_name_;
   std::string object_mesh_;
   geometry_msgs::Pose object_pose_;
+
+  mutable ObjectModelCache* model_cache_;
   LazyObjectModel lazy_model_;
   std::vector<Obb> obstacles_;
 };

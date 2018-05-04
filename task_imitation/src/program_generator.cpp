@@ -145,7 +145,7 @@ void ProgramGenerator::AddGraspStep(
 
   GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
                                object_name, grasp_step.object_state.mesh_name,
-                               current_obj_pose);
+                               current_obj_pose, model_cache_);
   context.AddObstacle(table);
 
   GraspPlanner grasp_planner;
