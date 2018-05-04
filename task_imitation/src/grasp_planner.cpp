@@ -2,7 +2,6 @@
 
 #include <limits.h>
 #include <math.h>
-#include <iostream>
 #include <map>
 #include <set>
 #include <sstream>
@@ -10,31 +9,22 @@
 #include <vector>
 
 #include "eigen_conversions/eigen_msg.h"
-#include "geometry_msgs/Pose.h"
 #include "pcl/common/transforms.h"
 #include "pcl/filters/random_sample.h"
 #include "pcl/kdtree/kdtree.h"
+#include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
-#include "pcl_conversions/pcl_conversions.h"
-#include "rapid_collision/collision_checks.h"
 #include "rapid_ros/params.h"
 #include "rapid_viz/axes_markers.h"
 #include "robot_markers/builder.h"
-#include "ros/ros.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "std_msgs/Bool.h"
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/pcl_utils.h"
-#include "task_perception/pr2_gripper_model.h"
-#include "task_perception_msgs/DemoState.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
-#include "visualization_msgs/MarkerArray.h"
-
-#include "task_imitation/grasp_planning_context.h"
 
 namespace tg = transform_graph;
-namespace msgs = task_perception_msgs;
 using geometry_msgs::Pose;
 using rapid::GetDoubleParamOrThrow;
 

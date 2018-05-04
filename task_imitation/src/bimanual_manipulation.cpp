@@ -1,13 +1,10 @@
 #include "task_imitation/bimanual_manipulation.h"
 
 #include <limits.h>
+#include <string>
 #include <vector>
 
-#include "moveit/move_group_interface/move_group.h"
 #include "moveit/robot_state/robot_state.h"
-#include "moveit_msgs/RobotTrajectory.h"
-#include "trajectory_msgs/JointTrajectory.h"
-#include "trajectory_msgs/JointTrajectoryPoint.h"
 
 using moveit_msgs::RobotTrajectory;
 using trajectory_msgs::JointTrajectory;

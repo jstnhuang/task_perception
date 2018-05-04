@@ -15,7 +15,6 @@
 #include "task_perception_msgs/ProgramSlice.h"
 #include "trajectory_msgs/JointTrajectory.h"
 
-#include "task_imitation/grasp_planner.h"
 #include "task_imitation/program_slice.h"
 
 namespace pbi {

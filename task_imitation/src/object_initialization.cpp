@@ -4,7 +4,6 @@
 #include <math.h>
 
 #include "Eigen/Dense"
-#include "boost/optional.hpp"
 #include "eigen_conversions/eigen_msg.h"
 #include "pcl/filters/crop_box.h"
 #include "pcl/registration/icp.h"

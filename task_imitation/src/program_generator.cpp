@@ -7,12 +7,9 @@
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
 #include "task_perception/lazy_object_model.h"
-#include "task_perception/shape_detection.h"
 #include "task_perception_msgs/HandState.h"
-#include "task_perception_msgs/Step.h"
 #include "transform_graph/graph.h"
 
-#include "task_imitation/collision_checker.h"
 #include "task_imitation/demo_state.h"
 #include "task_imitation/grasp_planner.h"
 #include "task_imitation/grasp_planning_context.h"

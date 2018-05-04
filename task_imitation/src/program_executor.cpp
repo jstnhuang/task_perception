@@ -6,7 +6,6 @@
 #include "boost/optional.hpp"
 #include "moveit/robot_state/conversions.h"
 #include "moveit/trajectory_processing/iterative_time_parameterization.h"
-#include "moveit_msgs/DisplayTrajectory.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
 #include "moveit_msgs/RobotTrajectory.h"
 #include "rapid_manipulation/moveit_error_code.h"
@@ -16,13 +15,11 @@
 #include "task_perception_msgs/ProgramSlice.h"
 #include "task_perception_msgs/ProgramSlices.h"
 #include "task_perception_msgs/Step.h"
-#include "task_utils/pr2_gripper_viz.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 #include "transform_graph/graph.h"
 
 #include "task_imitation/bimanual_manipulation.h"
 #include "task_imitation/program_constants.h"
-#include "task_imitation/program_slice.h"
 #include "task_imitation/program_step.h"
 
 namespace msgs = task_perception_msgs;

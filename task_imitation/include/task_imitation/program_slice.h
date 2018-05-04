@@ -1,7 +1,7 @@
 #ifndef _PBI_PROGRAM_SLICE_H_
 #define _PBI_PROGRAM_SLICE_H_
 
-#include "ros/duration.h"
+#include "ros/time.h"
 #include "task_perception_msgs/ProgramSlice.h"
 #include "trajectory_msgs/JointTrajectory.h"
 

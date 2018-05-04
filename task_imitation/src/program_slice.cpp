@@ -2,11 +2,8 @@
 
 #include <stdexcept>
 
-#include "task_perception_msgs/ProgramSlice.h"
-#include "trajectory_msgs/JointTrajectory.h"
-#include "trajectory_msgs/JointTrajectoryPoint.h"
-
 #include "ros/ros.h"
+#include "trajectory_msgs/JointTrajectoryPoint.h"
 
 using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;

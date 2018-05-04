@@ -2,12 +2,12 @@
 #define _TASK_IMITATION_GRASP_PLANNER_H_
 
 #include <string>
+#include <vector>
 
 #include "Eigen/Eigen"
 #include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
 #include "task_perception/pr2_gripper_model.h"
-#include "task_perception/task_perception_context.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "task_imitation/grasp_planning_context.h"

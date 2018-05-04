@@ -1,12 +1,16 @@
 #ifndef _PBI_OBJECT_INITIALIZATION_H_
 #define _PBI_OBJECT_INITIALIZATION_H_
 
+#include <string>
+#include <vector>
+
 #include "boost/optional.hpp"
 #include "geometry_msgs/Point.h"
 #include "geometry_msgs/Vector3.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "rapid_robot/camera_interface.h"
+#include "surface_perception/object.h"
 #include "surface_perception/surface_objects.h"
 #include "task_perception/lazy_object_model.h"
 
@@ -44,7 +48,6 @@ int MatchObject(
 geometry_msgs::Pose AlignObject(
     const LazyObjectModel& object_model,
     const surface_perception::Object& target_object);
-
 }  // namespace pbi
 
 #endif  // _PBI_OBJECT_INITIALIZATION_H_
