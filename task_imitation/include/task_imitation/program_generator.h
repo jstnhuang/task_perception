@@ -6,7 +6,6 @@
 
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
-#include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
@@ -15,6 +14,7 @@
 #include "task_imitation/collision_checker.h"
 #include "task_imitation/obb.h"
 #include "task_imitation/program_segment.h"
+#include "task_perception/object_model_cache.h"
 
 namespace pbi {
 // Generates an executable robot program given a sequence of states extracted
@@ -26,7 +26,7 @@ class ProgramGenerator {
 
   ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
                    moveit::planning_interface::MoveGroup& right_group,
-                   LazyObjectModel::ObjectModelCache* model_cache);
+                   ObjectModelCache* model_cache);
   task_perception_msgs::Program Generate(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
       const ObjectStateIndex& initial_objects, const Obb& table);
@@ -63,9 +63,7 @@ class ProgramGenerator {
   std::string planning_frame_;
 
   CollisionChecker collision_checker_;
-  LazyObjectModel::ObjectModelCache* model_cache_;
-  // Maps mesh names to whether the object is circular or not.
-  std::map<std::string, bool> is_circular_;
+  ObjectModelCache* model_cache_;
 };
 
 // Gets the initial states of all the objects at the time of the demonstration.

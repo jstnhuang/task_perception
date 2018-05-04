@@ -16,6 +16,7 @@
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
 #include "task_perception/multi_object_tracker.h"
+#include "task_perception/object_model_cache.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/video_scrubber.h"
 
@@ -113,7 +114,7 @@ class DemoRuntime {
   sensor_msgs::CameraInfo camera_info_;
 
   // Object model cache
-  std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> object_models_;
+  ObjectModelCache object_models_;
   // Maps mesh names to whether or not the object is circular
   ContactDetection contact_detection_;
 

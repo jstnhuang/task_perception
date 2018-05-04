@@ -13,14 +13,13 @@
 #include "task_perception_msgs/DemoState.h"
 
 #include "task_perception/lazy_object_model.h"
+#include "task_perception/object_model_cache.h"
 #include "task_perception/skeleton_services.h"
 
 namespace pbi {
 // Lazily computes context for a single frame of a demonstration.
 class TaskPerceptionContext {
  public:
-  typedef std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>
-      ObjectModelCache;
   TaskPerceptionContext(pbi::SkeletonServices& skel_services,
                         ros::ServiceClient& predict_hands,
                         const task_perception_msgs::DemoState& current_state,
@@ -92,7 +91,7 @@ class TaskPerceptionContext {
   bool are_objects_indexed_;
   std::map<std::string, task_perception_msgs::ObjectState> current_objects_;
   std::map<std::string, task_perception_msgs::ObjectState> prev_objects_;
-  std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>* object_models_;
+  ObjectModelCache* object_models_;
   std::map<std::string, LazyObjectModel> lazy_objects_;
 
   // Hand segmentation

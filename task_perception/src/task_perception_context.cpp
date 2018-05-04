@@ -33,8 +33,7 @@ TaskPerceptionContext::TaskPerceptionContext(
     const msgs::DemoState& current_state, const msgs::DemoState& prev_state,
     const sensor_msgs::Image& color_image,
     const sensor_msgs::Image& depth_image,
-    const sensor_msgs::CameraInfo& camera_info,
-    std::map<string, PointCloudP::Ptr>* object_models)
+    const sensor_msgs::CameraInfo& camera_info, ObjectModelCache* object_models)
     : kDebug(false),
       kCloseToWristDistance(0),
       kMovingObjectDistance(0),

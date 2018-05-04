@@ -9,13 +9,12 @@
 #include "pcl/point_types.h"
 #include "pcl/search/kdtree.h"
 
+#include "task_perception/object_model_cache.h"
+
 namespace pbi {
 // Uses lazily computation to compute object models, normals, and KD-trees.
 class LazyObjectModel {
  public:
-  typedef std::map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr>
-      ObjectModelCache;
-
   // Constructor
   //
   // mesh_name is the name of the mesh file, like "pringles_1k.obj". This class
@@ -38,6 +37,8 @@ class LazyObjectModel {
 
   geometry_msgs::Pose pose() const;
   geometry_msgs::Vector3 scale() const;
+
+  bool IsCircular() const;
 
  private:
   std::string mesh_name_;

@@ -10,6 +10,8 @@
 #include "rapid_ros/params.h"
 #include "rapid_utils/vector3.hpp"
 
+#include "task_perception/lazy_object_model.h"
+
 namespace msgs = task_perception_msgs;
 using geometry_msgs::Pose;
 

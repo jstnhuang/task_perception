@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "geometry_msgs/Vector3.h"
-#include "task_perception/lazy_object_model.h"
+#include "task_perception/object_model_cache.h"
 #include "task_perception_msgs/ObjectState.h"
 
 namespace pbi {
@@ -21,7 +21,7 @@ class CollisionChecker {
 
  private:
   std::string planning_frame_;
-  mutable LazyObjectModel::ObjectModelCache model_cache_;
+  mutable ObjectModelCache model_cache_;
 };
 
 // Add a constant to a vector3.

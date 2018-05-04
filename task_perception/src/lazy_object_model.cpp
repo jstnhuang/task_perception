@@ -14,7 +14,9 @@
 #include "ros/package.h"
 #include "ros/ros.h"
 
+#include "task_perception/object_model_cache.h"
 #include "task_perception/pcl_typedefs.h"
+#include "task_perception/shape_detection.h"
 
 namespace pbi {
 LazyObjectModel::LazyObjectModel(const std::string& mesh_name,
@@ -40,8 +42,9 @@ void LazyObjectModel::set_object_model_cache(ObjectModelCache* cache) {
 PointCloudP::Ptr LazyObjectModel::GetObjectModel() const {
   if (!object_model_) {
     // Get from cache if possible
-    if (cache_ != NULL && cache_->find(mesh_name_) != cache_->end()) {
-      object_model_ = cache_->at(mesh_name_);
+    if (cache_ != NULL &&
+        cache_->clouds.find(mesh_name_) != cache_->clouds.end()) {
+      object_model_ = cache_->clouds.at(mesh_name_);
       return object_model_;
     }
     // Otherwise, load the model and insert into the cache if possible
@@ -49,7 +52,7 @@ PointCloudP::Ptr LazyObjectModel::GetObjectModel() const {
     path = ReplaceObjWithPcd(path);
     object_model_ = LoadModel(path);
     if (cache_ != NULL) {
-      cache_->insert(
+      cache_->clouds.insert(
           std::pair<std::string, PointCloudP::Ptr>(mesh_name_, object_model_));
     }
     return object_model_;
@@ -109,6 +112,16 @@ geometry_msgs::Vector3 LazyObjectModel::scale() const {
     scale_.z = max.z - min.z;
   }
   return scale_;
+}
+
+bool LazyObjectModel::IsCircular() const {
+  if (cache_->is_circular.find(mesh_name_) == cache_->is_circular.end()) {
+    bool is_circular = ::pbi::IsCircular(GetObjectModel());
+    cache_->is_circular[mesh_name_] = is_circular;
+    return is_circular;
+  } else {
+    return cache_->is_circular.at(mesh_name_);
+  }
 }
 
 PointCloudP::Ptr LoadModel(const std::string& mesh_path) {

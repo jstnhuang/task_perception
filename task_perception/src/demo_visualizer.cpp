@@ -12,9 +12,6 @@
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
 
-#include "task_perception/pr2_gripper_model.h"
-#include "task_perception/task_perception_context.h"
-
 namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 using visualization_msgs::Marker;

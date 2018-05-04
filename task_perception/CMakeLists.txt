@@ -251,6 +251,7 @@ target_link_libraries(pbi_default_skeleton
 add_library(pbi_lazy_object_model src/lazy_object_model.cpp)
 add_dependencies(pbi_lazy_object_model ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pbi_lazy_object_model
+  pbi_shape_detection
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )

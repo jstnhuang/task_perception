@@ -20,8 +20,8 @@
 #include "task_perception/default_skeleton.h"
 #include "task_perception/demo_model.h"
 #include "task_perception/demo_visualizer.h"
-#include "task_perception/lazy_object_model.h"
 #include "task_perception/multi_object_tracker.h"
+#include "task_perception/object_model_cache.h"
 #include "task_perception/skeleton_services.h"
 #include "task_perception/task_perception_context.h"
 #include "task_perception/video_scrubber.h"
@@ -299,7 +299,6 @@ void DemoRuntime::StepObjectPose(
 }
 
 void DemoRuntime::ResetState() {
-  object_models_.clear();
   std::vector<std::string> tracked_objects = object_trackers_.TrackedObjects();
   for (size_t i = 0; i < tracked_objects.size(); ++i) {
     const std::string& name = tracked_objects[i];

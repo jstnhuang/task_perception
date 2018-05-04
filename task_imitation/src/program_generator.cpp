@@ -27,15 +27,14 @@ namespace pbi {
 ProgramGenerator::ProgramGenerator(
     moveit::planning_interface::MoveGroup& left_group,
     moveit::planning_interface::MoveGroup& right_group,
-    LazyObjectModel::ObjectModelCache* model_cache)
+    ObjectModelCache* model_cache)
     : program_(),
       start_time_(0),
       left_group_(left_group),
       right_group_(right_group),
       planning_frame_(left_group_.getPlanningFrame()),
       collision_checker_(planning_frame_),
-      model_cache_(model_cache),
-      is_circular_() {}
+      model_cache_(model_cache) {}
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
@@ -55,22 +54,6 @@ msgs::Program ProgramGenerator::Generate(
   start_time_ = earliest;
 
   ObjectStateIndex initial_demo_objects = GetInitialDemoObjects(demo_states);
-  for (ObjectStateIndex::const_iterator it = initial_demo_objects.begin();
-       it != initial_demo_objects.end(); ++it) {
-    const msgs::ObjectState& obj = it->second;
-    if (is_circular_.find(obj.mesh_name) == is_circular_.end()) {
-      const std::string kUnusedFrame("");
-      Pose kUnusedPose;
-      LazyObjectModel model(obj.mesh_name, kUnusedFrame, kUnusedPose);
-      model.set_object_model_cache(model_cache_);
-      is_circular_[obj.mesh_name] = IsCircular(model.GetObjectModel());
-      if (is_circular_[obj.mesh_name]) {
-        ROS_INFO("%s is circular", obj.name.c_str());
-      } else {
-        ROS_INFO("%s is not circular", obj.name.c_str());
-      }
-    }
-  }
 
   for (size_t i = 0; i < segments.size(); ++i) {
     ProcessSegment(segments[i], initial_runtime_objects, initial_demo_objects,
@@ -228,7 +211,11 @@ void ProgramGenerator::AddMoveToStep(
   // If the destination is unreachable and the object is circular, it might be
   // the case that the object has the wrong yaw value. Try rotating the object
   // about its local z-axis until we find a feasible location.
-  if (is_circular_[target_obj.mesh_name]) {
+  const std::string unused_frame("");
+  LazyObjectModel target_model(target_obj.mesh_name, unused_frame,
+                               target_obj.pose);
+  target_model.set_object_model_cache(model_cache_);
+  if (target_model.IsCircular()) {
     // Compute pose in planning frame
     tg::Transform grasped_obj_in_target;
     graph.ComputeDescription("grasped object", tg::RefFrame("target object"),
@@ -331,7 +318,9 @@ void ProgramGenerator::AddTrajectoryStep(
     tg::Transform ee_in_target;
     graph.ComputeDescription(tg::LocalFrame("gripper"),
                              tg::RefFrame("target object"), &ee_in_target);
-    if (is_circular_[grasped_obj.mesh_name]) {
+    LazyObjectModel grasped_model(grasped_obj.mesh_name, "", grasped_obj.pose);
+    grasped_model.set_object_model_cache(model_cache_);
+    if (grasped_model.IsCircular()) {
       // Check to see if IK failed. If so, try to correct it.
       tg::Transform ee_in_planning;
       graph.ComputeDescription("gripper", tg::RefFrame("planning"),

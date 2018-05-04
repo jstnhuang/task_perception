@@ -18,6 +18,7 @@
 #include "surface_perception/surface_objects.h"
 #include "surface_perception/visualization.h"
 #include "task_perception/lazy_object_model.h"
+#include "task_perception/object_model_cache.h"
 #include "task_perception_msgs/DemoStates.h"
 #include "task_perception_msgs/GenerateProgramAction.h"
 #include "task_perception_msgs/GetDemoStates.h"
@@ -79,7 +80,7 @@ class ProgramServer {
   ros::Publisher cloud_pub_;
   ros::Publisher segmentation_pub_;
   surface_perception::SurfaceViz segmentation_viz_;
-  LazyObjectModel::ObjectModelCache model_cache_;
+  ObjectModelCache model_cache_;
   std::string planning_frame_;
 
   // Most recent program and object states, used for visualization
