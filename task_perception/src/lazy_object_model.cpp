@@ -40,6 +40,7 @@ void LazyObjectModel::set_object_model_cache(ObjectModelCache* cache) {
 }
 
 PointCloudP::Ptr LazyObjectModel::GetObjectModel() const {
+  ROS_ASSERT(cache_ != NULL);
   if (!object_model_) {
     // Get from cache if possible
     if (cache_ != NULL &&
@@ -115,13 +116,16 @@ geometry_msgs::Vector3 LazyObjectModel::scale() const {
 }
 
 bool LazyObjectModel::IsCircular() const {
-  if (cache_->is_circular.find(mesh_name_) == cache_->is_circular.end()) {
-    bool is_circular = ::pbi::IsCircular(GetObjectModel());
-    cache_->is_circular[mesh_name_] = is_circular;
-    return is_circular;
-  } else {
+  ROS_ASSERT(cache_ != NULL);
+  if (cache_ != NULL &&
+      cache_->is_circular.find(mesh_name_) != cache_->is_circular.end()) {
     return cache_->is_circular.at(mesh_name_);
   }
+  bool is_circular = ::pbi::IsCircular(GetObjectModel());
+  if (cache_ != NULL) {
+    cache_->is_circular[mesh_name_] = is_circular;
+  }
+  return is_circular;
 }
 
 PointCloudP::Ptr LoadModel(const std::string& mesh_path) {
