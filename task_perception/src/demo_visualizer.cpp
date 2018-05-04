@@ -8,12 +8,10 @@
 #include "rapid_viz/axes_markers.h"
 #include "ros/ros.h"
 #include "task_perception_msgs/ObjectState.h"
-#include "transform_graph/graph.h"
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
 
 namespace msgs = task_perception_msgs;
-namespace tg = transform_graph;
 using visualization_msgs::Marker;
 using visualization_msgs::MarkerArray;
 

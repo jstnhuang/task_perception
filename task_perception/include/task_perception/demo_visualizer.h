@@ -9,8 +9,6 @@
 #include "task_perception_msgs/ObjectState.h"
 #include "visualization_msgs/Marker.h"
 
-#include "task_perception/task_perception_context.h"
-
 namespace pbi {
 class DemoVisualizer {
  public:
