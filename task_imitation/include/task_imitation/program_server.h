@@ -9,7 +9,6 @@
 #include "actionlib/server/simple_action_server.h"
 #include "dbot_ros_msgs/InitializeObjectAction.h"
 #include "geometry_msgs/Pose.h"
-#include "geometry_msgs/Vector3.h"
 #include "moveit/move_group_interface/move_group.h"
 #include "rapid_manipulation/moveit_planning_scene.h"
 #include "rapid_robot/camera_interface.h"
