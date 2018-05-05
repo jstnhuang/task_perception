@@ -52,9 +52,9 @@ particle_filter:
   # where Gaussian noise is injected into the velocities
   object_transition:
     # the parameters below define the noise magnitue (standard deviation)
-    linear_sigma_x: 0.0025
-    linear_sigma_y: 0.0025
-    linear_sigma_z: 0.0025
+    linear_sigma_x: 0.0055 # 0.0025
+    linear_sigma_y: 0.0055 # 0.0025
+    linear_sigma_z: 0.0055 # 0.0025
     angular_sigma_x: 0.02
     angular_sigma_y: 0.02
     angular_sigma_z: 0.02
