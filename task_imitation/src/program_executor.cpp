@@ -825,13 +825,19 @@ bool IsValidTrajectory(const JointTrajectory& traj) {
     const JointTrajectoryPoint& pt = traj.points[i];
     const JointTrajectoryPoint& next_pt = traj.points[i + 1];
     // Verify timestamps are monotonically increasing
-    if (next_pt.time_from_start <= pt.time_from_start) {
+    if (next_pt.time_from_start < pt.time_from_start) {
       ROS_ERROR(
-          "Timestamps are not monotonically increasing: pt %zu at %fs >= pt "
+          "Timestamps are not monotonically increasing: pt %zu at %fs > pt "
           "%zu at %fs",
           i, pt.time_from_start.toSec(), i + 1,
           next_pt.time_from_start.toSec());
       return false;
+    } else if (next_pt.time_from_start == pt.time_from_start) {
+      ROS_WARN(
+          "Timestamps are not monotonically increasing: pt %zu at %fs == pt "
+          "%zu at %fs",
+          i, pt.time_from_start.toSec(), i + 1,
+          next_pt.time_from_start.toSec());
     }
   }
 
