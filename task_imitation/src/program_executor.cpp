@@ -871,7 +871,7 @@ std::string ValidatePlannedSteps(
                            prev_step.traj.points.back().time_from_start;
       if (prev_end > step.traj.header.stamp) {
         std::stringstream ss;
-        ss << "Step " << i << " of left trajectory starts ("
+        ss << "Step " << i << " of trajectory starts ("
            << step.traj.header.stamp.toSec() << ") before " << i - 1
            << " ends (" << prev_end.toSec() << ")!";
         return ss.str();
