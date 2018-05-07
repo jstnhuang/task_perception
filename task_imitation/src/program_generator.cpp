@@ -107,7 +107,9 @@ void ProgramGenerator::ProcessSegment(
   } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
     AddMoveToStep(segment, initial_demo_objects, initial_runtime_objects);
   } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
-    AddTrajectoryStep(segment, initial_runtime_objects);
+    if (segment.demo_states.size() > 1) {
+      AddTrajectoryStep(segment, initial_runtime_objects);
+    }
   } else {
     ROS_ASSERT(false);
   }
@@ -323,41 +325,41 @@ void ProgramGenerator::AddTrajectoryStep(
       graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                &ee_in_planning);
       if (!HasIk(segment.arm_name, ee_in_planning.pose())) {
-        ROS_WARN("No IK, searching...");
+        ROS_WARN("pt %zu: No IK, searching...", i + 1);
         // If initial pose has no IK, then search for IK in both directions in
         // order: +10, -10, +20, -20, ..., +170, -170.
         bool found_ik = false;
-        for (int yaw_i = 0; yaw_i < 17; ++yaw_i) {
+        for (int yaw_i = 0; yaw_i < 18; ++yaw_i) {
           Eigen::AngleAxisd yaw(yaw_i * 10 * M_PI / 180,
                                 Eigen::Vector3d::UnitZ());
           Eigen::Quaterniond yaw_q(yaw);
-          const double kYawDegrees = yaw.angle() * 180 / M_PI;
           graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
                     tg::Transform(tg::Position(), yaw_q));
           graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                    &ee_in_planning);
           if (HasIk(segment.arm_name, ee_in_planning.pose())) {
+            const double kYawDegrees = yaw.angle() * 180 / M_PI;
             ROS_INFO("IK found with yaw of %f", kYawDegrees);
             found_ik = true;
             break;
           }
 
-          Eigen::AngleAxisd neg_yaw(yaw_i * M_PI / 10,
+          Eigen::AngleAxisd neg_yaw(-yaw_i * 10 * M_PI / 180,
                                     Eigen::Vector3d::UnitZ());
-          Eigen::Quaterniond neg_yaw_q(yaw);
-          const double kNegYawDegrees = neg_yaw.angle() * 180 / M_PI;
+          Eigen::Quaterniond neg_yaw_q(neg_yaw);
           graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
                     tg::Transform(tg::Position(), neg_yaw_q));
           graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                    &ee_in_planning);
           if (HasIk(segment.arm_name, ee_in_planning.pose())) {
+            const double kNegYawDegrees = neg_yaw.angle() * 180 / M_PI;
             ROS_INFO("IK found with yaw of %f", kNegYawDegrees);
             found_ik = true;
             break;
           }
         }
         if (!found_ik) {
-          ROS_ERROR("Failed to find IK for trajectory point.");
+          ROS_ERROR("Failed to find IK for trajectory point %zu", i + 1);
         }
       }
     }
