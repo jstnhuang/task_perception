@@ -2,6 +2,8 @@
 
 #include <limits.h>
 #include <math.h>
+#include <algorithm>
+#include <utility>
 
 #include "Eigen/Dense"
 #include "eigen_conversions/eigen_msg.h"
@@ -10,6 +12,7 @@
 #include "pcl_ros/transforms.h"
 #include "rapid_ros/params.h"
 #include "rapid_utils/pcl_typedefs.h"
+#include "rapid_utils/vector3.hpp"
 #include "ros/ros.h"
 #include "surface_perception/segmentation.h"
 
@@ -88,18 +91,61 @@ int MatchObject(
     return -1;
   }
 
+  // Pick the one closest in size
+  // If there are multiple objects close in size (ambiguity threshold), pick the
+  // one closest to the demonstrated starting position.
+  // Final check that the object dimensions are not completely terrible.
+
+  double size_ambiguity_threshold =
+      rapid::GetDoubleParamOrThrow("task_imitation/size_ambiguity_threshold");
   double match_dim_tolerance =
       rapid::GetDoubleParamOrThrow("task_imitation/match_dim_tolerance");
-  double best_sq_dist = std::numeric_limits<double>::max();
-  int best_index = -1;
   const surface_perception::SurfaceObjects& surface = surface_objects[0];
+  std::vector<std::pair<double, int> > size_match_scores;
   for (size_t j = 0; j < surface.objects.size(); ++j) {
     const surface_perception::Object& object = surface.objects[j];
     double dim_dx = fabs(object.dimensions.x - obj_scale.x);
     double dim_dy = fabs(object.dimensions.y - obj_scale.y);
     double dim_dz = fabs(object.dimensions.z - obj_scale.z);
-    if (dim_dx < match_dim_tolerance && dim_dy < match_dim_tolerance &&
-        dim_dz < match_dim_tolerance) {
+    // Check that the sizes are approximately equal in at least two dimensions
+    int num_matching_dims = (dim_dx < match_dim_tolerance) +
+                            (dim_dy < match_dim_tolerance) +
+                            (dim_dz < match_dim_tolerance);
+    if (num_matching_dims < 2) {
+      ROS_INFO(
+          "Model with dims %f %f %f did not match object with dims %f %f %f",
+          obj_scale.x, obj_scale.y, obj_scale.z, object.dimensions.x,
+          object.dimensions.y, object.dimensions.z);
+      continue;
+    }
+    double sq_dim_dist = dim_dx * dim_dx + dim_dy * dim_dy + dim_dz * dim_dz;
+    size_match_scores.push_back(std::make_pair<double, int>(sq_dim_dist, j));
+  }
+
+  std::sort(size_match_scores.begin(), size_match_scores.end());
+  double best_sq_dim_dist = size_match_scores[0].first;
+
+  if (size_match_scores.size() == 0) {
+    return -1;
+  }
+
+  const surface_perception::Object& best_object =
+      surface.objects[size_match_scores[0].second];
+  int best_index = size_match_scores[0].second;
+  *pose = best_object.pose_stamped.pose;
+  *scale = best_object.dimensions;
+
+  double best_sq_dist = std::numeric_limits<double>::max();
+  for (size_t j = 0; j < size_match_scores.size(); ++j) {
+    const std::pair<double, int>& size_match_score = size_match_scores[j];
+    const surface_perception::Object& object =
+        surface.objects[size_match_scores[j].second];
+
+    ROS_INFO(
+        "Best object has ambiguity score with rank #%zu (dims %f %f %f) of %f",
+        j + 1, object.dimensions.x, object.dimensions.y, object.dimensions.z,
+        best_sq_dim_dist / size_match_score.first);
+    if (best_sq_dim_dist / size_match_score.first > size_ambiguity_threshold) {
       double dx =
           fabs(initial_obj_position.x - object.pose_stamped.pose.position.x);
       double dy =
@@ -109,17 +155,15 @@ int MatchObject(
       double sq_dist = dx * dx + dy * dy + dz * dz;
       if (sq_dist < best_sq_dist) {
         best_sq_dist = sq_dist;
-        best_index = static_cast<int>(j);
+        best_index = size_match_scores[j].second;
         *pose = object.pose_stamped.pose;
         *scale = object.dimensions;
       }
     } else {
-      ROS_INFO(
-          "Model with dims %f %f %f did not match object with dims %f %f %f",
-          obj_scale.x, obj_scale.y, obj_scale.z, object.dimensions.x,
-          object.dimensions.y, object.dimensions.z);
+      break;
     }
   }
+
   return best_index;
 }
 
