@@ -192,14 +192,13 @@ void ProgramGenerator::AddMoveToStep(
   const msgs::ObjectState grasped_obj =
       GetObjectState(end_state, hand.object_name);
   msgs::ObjectState target_obj;
-  target_obj = initial_demo_objects.at(hand.object_name);
-  // if (hand.object_name == segment.target_object) {
-  //  // If a "move-to" is relative to itself, then move the object relative to
-  //  // its initial pose at the time of the demonstration.
-  //  target_obj = initial_demo_objects.at(hand.object_name);
-  //} else {
-  //  target_obj = GetObjectState(end_state, segment.target_object);
-  //}
+  if (hand.object_name == segment.target_object) {
+    // If a "move-to" is relative to itself, then move the object relative to
+    // its initial pose at the time of the demonstration.
+    target_obj = initial_demo_objects.at(hand.object_name);
+  } else {
+    target_obj = initial_demo_objects.at(segment.target_object);
+  }
   graph.Add("grasped object", tg::RefFrame("camera"), grasped_obj.pose);
   graph.Add("target object", tg::RefFrame("camera"), target_obj.pose);
   tg::Transform ee_in_target;
