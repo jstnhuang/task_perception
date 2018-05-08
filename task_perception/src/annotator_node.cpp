@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   demo_viz.state_pub =
       nh.advertise<msgs::AnnotatorState>("pbi_annotator/state", 10, true);
   demo_viz.objects_pub = nh.advertise<visualization_msgs::Marker>(
-      "pbi_annotator/objects", 10, true);
+      "pbi_annotator/objects", 100, true);
   demo_viz.gripper_pub = nh.advertise<visualization_msgs::MarkerArray>(
       "pbi_annotator/grippers", 10, true);
 
