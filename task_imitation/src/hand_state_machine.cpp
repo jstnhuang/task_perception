@@ -56,16 +56,20 @@ void HandStateMachine::NoneState(const msgs::DemoState& demo_state) {
 
     const msgs::ObjectState object =
         GetObjectState(demo_state, hand.object_name);
-    std::string collidee(
+    std::vector<std::string> collidees(
         collision_checker_.Check(object, demo_state.object_states));
-    if (collidee == "") {
+    if (collidees.size() == 0) {
       working_move_ = NewMoveToSegment();
       working_move_.demo_states.push_back(demo_state);
       ROS_INFO("%d: %s transitioning from NONE to FREE_GRASP", index_,
                arm_name_.c_str());
       state_ = FREE_GRASP;
-    } else if (other_hand.current_action == msgs::HandState::GRASPING &&
-               collidee == other_hand.object_name) {
+      return;
+    }
+
+    std::string collidee = collidees[0];
+    if (other_hand.current_action == msgs::HandState::GRASPING &&
+        collidee == other_hand.object_name) {
       working_traj_ = NewTrajSegment();
       working_traj_.target_object =
           InferDoubleCollisionTarget(demo_states_, index_, collision_checker_);
@@ -113,9 +117,10 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
   else {
     const msgs::ObjectState object =
         GetObjectState(demo_state, hand.object_name);
-    std::string collidee(
+    std::vector<std::string> collidees(
         collision_checker_.Check(object, demo_state.object_states));
-    if (collidee != "") {
+    if (collidees.size() > 0) {
+      std::string collidee(collidees[0]);
       if (other_hand.current_action == msgs::HandState::GRASPING &&
           collidee == other_hand.object_name) {
         // If double collision, then the hand holding the target does nothing.
@@ -193,10 +198,10 @@ void HandStateMachine::StationaryCollisionState(
   //    2. We stay in single collision with the same object
   //    3. We enter single collision with a new object (rare)
   const msgs::ObjectState object = GetObjectState(demo_state, hand.object_name);
-  std::string collidee(
+  std::vector<std::string> collidees(
       collision_checker_.Check(object, demo_state.object_states));
   // Exiting collision
-  if (collidee == "") {
+  if (collidees.empty()) {
     if (working_traj_.demo_states.size() > 0) {
       ROS_ASSERT(working_traj_.target_object != "");
       segments_->push_back(working_traj_);
@@ -210,29 +215,31 @@ void HandStateMachine::StationaryCollisionState(
     return;
   }
 
+  // If we are still colliding with the same object, stay in single collision
+  // with that object.
+  bool is_same_object =
+      std::find(collidees.begin(), collidees.end(),
+                working_traj_.target_object) != collidees.end();
+  if (is_same_object) {
+    working_traj_.demo_states.push_back(demo_state);
+    return;
+  }
+
+  // Otherwise, we are in collision with a different object. Either this object
+  // is being held by the other hand (double collision), or it is not (single
+  // collision with a new object).
+  std::string collidee(collidees[0]);
   bool is_double_collision =
       other_hand.current_action == msgs::HandState::GRASPING &&
       collidee == other_hand.object_name;
-  bool is_same_object = collidee == working_traj_.target_object;
   if (is_double_collision) {
-    const std::string target =
+    std::string target =
         InferDoubleCollisionTarget(demo_states_, index_, collision_checker_);
-
-    // If the target is the same object as before, continue the trajectory.
-    // Otherwise, commit this segment and start a new one.
-    if (target == working_traj_.target_object) {
-      working_traj_.demo_states.push_back(demo_state);
-    } else {
+    bool is_master = hand.object_name != target;
+    if (is_master) {
       ROS_ASSERT(working_traj_.target_object != "");
       segments_->push_back(working_traj_);
       working_traj_ = NewTrajSegment();
-    }
-
-    // Only the master hand actually records the trajectory.
-    bool is_master = hand.object_name != target;
-    if (is_master) {
-      working_traj_.target_object = target;
-      working_traj_.demo_states.push_back(demo_state);
     }
 
     ROS_INFO(
@@ -241,25 +248,15 @@ void HandStateMachine::StationaryCollisionState(
     ROS_INFO("Target object is %s", working_traj_.target_object.c_str());
     state_ = DOUBLE_COLLISION;
   } else {
-    if (is_same_object) {
-      working_traj_.demo_states.push_back(demo_state);
-    } else {
-      if (working_traj_.target_object != "") {
-        ROS_WARN(
-            "Ignoring change in stationary collision from \"%s\" to \"%s\"",
-            working_traj_.target_object.c_str(), collidee.c_str());
-      }
-      /*
-      ROS_INFO("Colliding with a different object %s", collidee.c_str());
-      if (working_traj_.demo_states.size() > 0) {
-        ROS_ASSERT(working_traj_.target_object != "");
-        segments_->push_back(working_traj_);
-      }
-      working_traj_ = NewTrajSegment();
-      working_traj_.target_object = collidee;
-      working_traj_.demo_states.push_back(demo_state);
-      */
+    // Single collision with a different object
+    ROS_INFO("Colliding with a different object %s", collidee.c_str());
+    if (working_traj_.demo_states.size() > 0) {
+      ROS_ASSERT(working_traj_.target_object != "");
+      segments_->push_back(working_traj_);
     }
+    working_traj_ = NewTrajSegment();
+    working_traj_.target_object = collidee;
+    working_traj_.demo_states.push_back(demo_state);
   }
 }
 
@@ -308,10 +305,10 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
     // not.
     const msgs::ObjectState object =
         GetObjectState(demo_state, hand.object_name);
-    std::string collidee(
+    std::vector<std::string> collidees(
         collision_checker_.Check(object, demo_state.object_states));
 
-    if (collidee == "") {
+    if (collidees.empty()) {
       // Free grasping
       if (working_traj_.demo_states.size() > 0) {
         ROS_ASSERT(working_traj_.target_object != "");
@@ -324,7 +321,14 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
       ROS_INFO("%d: %s transitioning from DOUBLE_COLLISION to FREE_GRASP",
                index_, arm_name_.c_str());
       state_ = FREE_GRASP;
-    } else if (collidee == other_hand.object_name) {
+      return;
+    }
+
+    std::string collidee("");
+    bool is_colliding_with_other_hand =
+        std::find(collidees.begin(), collidees.end(), other_hand.object_name) !=
+        collidees.end();
+    if (is_colliding_with_other_hand) {
       // Stay in double collision
       // Update trajectory of master object.
       bool is_master = working_traj_.target_object != "";
@@ -333,7 +337,8 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
         working_traj_.demo_states.push_back(demo_state);
       }
     } else {
-      // Stationary collision
+      // We are colliding with something, but not with the object held in the
+      // other hand. Move to stationary collision.
       if (working_traj_.demo_states.size() > 0) {
         ROS_ASSERT(working_traj_.target_object != "");
         segments_->push_back(working_traj_);
