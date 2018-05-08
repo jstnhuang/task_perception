@@ -54,11 +54,9 @@ void ContactDetection::Predict(TaskPerceptionContext* context,
   }
 
   // Create point cloud for hands
-  if (context->kDebug) {
-    PointCloudP::Ptr hand_cloud = context->BothHandsCloud();
-    PublishPointCloud(left_hand_viz_, hand_cloud, context->LeftHandIndices());
-    PublishPointCloud(right_hand_viz_, hand_cloud, context->RightHandIndices());
-  }
+  PointCloudP::Ptr hand_cloud = context->BothHandsCloud();
+  PublishPointCloud(left_hand_viz_, hand_cloud, context->LeftHandIndices());
+  PublishPointCloud(right_hand_viz_, hand_cloud, context->RightHandIndices());
 }
 
 void ContactDetection::PredictHandState(const msgs::HandState& prev_state,
