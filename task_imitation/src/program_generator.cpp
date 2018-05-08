@@ -108,7 +108,7 @@ void ProgramGenerator::ProcessSegment(
     AddMoveToStep(segment, initial_demo_objects, initial_runtime_objects);
   } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
     if (segment.demo_states.size() > 1) {
-      AddTrajectoryStep(segment, initial_runtime_objects);
+      AddTrajectoryStep(segment, initial_demo_objects, initial_runtime_objects);
     }
   } else {
     ROS_ASSERT(false);
@@ -192,13 +192,14 @@ void ProgramGenerator::AddMoveToStep(
   const msgs::ObjectState grasped_obj =
       GetObjectState(end_state, hand.object_name);
   msgs::ObjectState target_obj;
-  if (hand.object_name == segment.target_object) {
-    // If a "move-to" is relative to itself, then move the object relative to
-    // its initial pose at the time of the demonstration.
-    target_obj = initial_demo_objects.at(hand.object_name);
-  } else {
-    target_obj = GetObjectState(end_state, segment.target_object);
-  }
+  target_obj = initial_demo_objects.at(hand.object_name);
+  // if (hand.object_name == segment.target_object) {
+  //  // If a "move-to" is relative to itself, then move the object relative to
+  //  // its initial pose at the time of the demonstration.
+  //  target_obj = initial_demo_objects.at(hand.object_name);
+  //} else {
+  //  target_obj = GetObjectState(end_state, segment.target_object);
+  //}
   graph.Add("grasped object", tg::RefFrame("camera"), grasped_obj.pose);
   graph.Add("target object", tg::RefFrame("camera"), target_obj.pose);
   tg::Transform ee_in_target;
@@ -223,8 +224,12 @@ void ProgramGenerator::AddMoveToStep(
     tg::Graph runtime_graph;
     const msgs::ObjectState& runtime_target_obj =
         initial_runtime_objects.at(target_obj.name);
-    runtime_graph.Add("target object", tg::RefFrame("planning"),
-                      runtime_target_obj.pose);
+    LazyObjectModel target_model(runtime_target_obj.mesh_name, unused_frame,
+                                 runtime_target_obj.pose);
+    target_model.set_object_model_cache(model_cache_);
+    Pose target_pose = GetTargetPose(target_model);
+
+    runtime_graph.Add("target object", tg::RefFrame("planning"), target_pose);
     runtime_graph.Add("grasped object", tg::RefFrame("target object"),
                       grasped_obj_in_target);
     runtime_graph.Add("gripper", tg::RefFrame("rotated grasped object"),
@@ -270,7 +275,7 @@ void ProgramGenerator::AddMoveToStep(
 }
 
 void ProgramGenerator::AddTrajectoryStep(
-    const ProgramSegment& segment,
+    const ProgramSegment& segment, const ObjectStateIndex& initial_demo_objects,
     const ObjectStateIndex& initial_runtime_objects) {
   ROS_ASSERT(segment.demo_states.size() > 0);
   const msgs::DemoState& start_state = segment.demo_states[0];
@@ -294,8 +299,11 @@ void ProgramGenerator::AddTrajectoryStep(
             tg::Transform());
   const msgs::ObjectState& target_obj_at_runtime =
       initial_runtime_objects.at(segment.target_object);
+  LazyObjectModel target_model(target_obj_at_runtime.mesh_name, "",
+                               target_obj_at_runtime.pose);
+  target_model.set_object_model_cache(model_cache_);
   graph.Add("target object", tg::RefFrame("planning"),
-            target_obj_at_runtime.pose);
+            GetTargetPose(target_model));
 
   // Compute trajectory relative to the target object
   ROS_ASSERT(!segment.demo_states.empty());
@@ -310,8 +318,10 @@ void ProgramGenerator::AddTrajectoryStep(
   for (size_t i = 0; i < segment.demo_states.size(); ++i) {
     const msgs::DemoState state = segment.demo_states[i];
     const msgs::ObjectState grasped_obj = GetObjectState(state, hand_obj_name);
+    // const msgs::ObjectState target_obj =
+    //    GetObjectState(state, segment.target_object);
     const msgs::ObjectState target_obj =
-        GetObjectState(state, segment.target_object);
+        initial_demo_objects.at(segment.target_object);
     graph.Add("grasped object", tg::RefFrame("camera"), grasped_obj.pose);
     graph.Add("target object", tg::RefFrame("camera"), target_obj.pose);
     tg::Transform ee_in_target;
@@ -411,5 +421,24 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
     }
   }
   return index;
+}
+
+Pose GetTargetPose(const LazyObjectModel& model) {
+  if (model.IsCircular()) {
+    Pose pose = model.pose();
+    Eigen::Quaterniond original_q;
+    tf::quaternionMsgToEigen(pose.orientation, original_q);
+    const Eigen::Matrix3d original_rot(original_q);
+    Eigen::Matrix3d updated_rot = original_rot;
+    updated_rot(1, 0) = 0;
+    if (updated_rot(0, 0) < 0) {
+      updated_rot.col(0) *= -1;
+    }
+    updated_rot.col(1) = updated_rot.col(2).cross(updated_rot.col(0));
+    tf::quaternionEigenToMsg(Eigen::Quaterniond(updated_rot), pose.orientation);
+    return pose;
+  } else {
+    return model.pose();
+  }
 }
 }  // namespace pbi

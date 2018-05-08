@@ -6,6 +6,7 @@
 
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
+#include "task_perception/lazy_object_model.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
@@ -46,6 +47,7 @@ class ProgramGenerator {
                      const ObjectStateIndex& initial_demo_objects,
                      const ObjectStateIndex& initial_runtime_objects);
   void AddTrajectoryStep(const ProgramSegment& segment,
+                         const ObjectStateIndex& initial_demo_objects,
                          const ObjectStateIndex& initial_runtime_objects);
 
   int GetMostRecentGraspStep(const std::string& arm_name);
@@ -71,6 +73,11 @@ class ProgramGenerator {
 // poses of "runtime objects" are given in the robot's planning/base frame.
 ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
     const std::vector<task_perception_msgs::DemoState>& demo_states);
+
+// Gets the pose of a target object. If the object is circular, it will be
+// rotated so that its x-axis points in the x direction of the planning
+// frame.
+geometry_msgs::Pose GetTargetPose(const LazyObjectModel& model);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_GENERATOR_H_
