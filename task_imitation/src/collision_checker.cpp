@@ -1,6 +1,8 @@
 #include "task_imitation/collision_checker.h"
 
 #include <limits.h>
+#include <algorithm>
+#include <utility>
 
 #include "Eigen/Dense"
 #include "boost/foreach.hpp"
@@ -20,7 +22,7 @@ CollisionChecker::CollisionChecker(const std::string& planning_frame,
                                    ObjectModelCache* model_cache)
     : planning_frame_(planning_frame), model_cache_(model_cache) {}
 
-std::string CollisionChecker::Check(
+std::vector<std::string> CollisionChecker::Check(
     const task_perception_msgs::ObjectState& object,
     const std::vector<task_perception_msgs::ObjectState>& other_objects) const {
   const double kInflationSize =
@@ -32,8 +34,7 @@ std::string CollisionChecker::Check(
   Eigen::Vector3d held_obj_vec = rapid::AsVector3d(held_obj_pose.position);
   geometry_msgs::Vector3 held_obj_scale =
       InflateScale(held_obj_model.scale(), kInflationSize);
-  double closest_sq_distance = std::numeric_limits<double>::max();
-  std::string closest_collidee("");
+  std::vector<std::pair<double, std::string> > scored_collidees;
   BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
     if (other.name == object.name) {
       continue;
@@ -46,13 +47,16 @@ std::string CollisionChecker::Check(
       Eigen::Vector3d other_vec =
           rapid::AsVector3d(other_model.pose().position);
       double sq_distance = (held_obj_vec - other_vec).squaredNorm();
-      if (sq_distance < closest_sq_distance) {
-        closest_sq_distance = sq_distance;
-        closest_collidee = other.name;
-      }
+      scored_collidees.push_back(
+          std::make_pair<double, std::string>(sq_distance, other.name));
     }
   }
-  return closest_collidee;
+  std::sort(scored_collidees.begin(), scored_collidees.end());
+  std::vector<std::string> collidees(scored_collidees.size());
+  for (size_t i = 0; i < scored_collidees.size(); ++i) {
+    collidees[i] = scored_collidees[i].second;
+  }
+  return collidees;
 }
 
 bool CollisionChecker::Check(const msgs::ObjectState& obj1,

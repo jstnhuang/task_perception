@@ -14,9 +14,12 @@ class CollisionChecker {
  public:
   CollisionChecker(const std::string& planning_frame,
                    ObjectModelCache* model_cache);
-  std::string Check(const task_perception_msgs::ObjectState& object,
-                    const std::vector<task_perception_msgs::ObjectState>&
-                        other_objects) const;
+  // Returns list of other objects colliding with the given object, sorted by
+  // distance between object frames.
+  std::vector<std::string> Check(
+      const task_perception_msgs::ObjectState& object,
+      const std::vector<task_perception_msgs::ObjectState>& other_objects)
+      const;
   bool Check(const task_perception_msgs::ObjectState& obj1,
              const task_perception_msgs::ObjectState& obj2) const;
 
