@@ -1,5 +1,5 @@
 contact_detection:
-  debug: true
+  debug: false
 
   # How far an object can be from the person's wrist to be considered a grasp candidate.
   close_to_wrist_distance: 0.1
