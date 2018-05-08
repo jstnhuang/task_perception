@@ -10,5 +10,5 @@ surface_segmentation:
   cluster_distance: 0.035
   min_cluster_size: 100
   max_cluster_size: 10000
-  min_surface_size: 8000
+  min_surface_size: 20000
   max_point_distance: 0.01
