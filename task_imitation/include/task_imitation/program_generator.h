@@ -7,15 +7,16 @@
 #include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
 #include "task_perception/lazy_object_model.h"
+#include "task_perception/object_model_cache.h"
 #include "task_perception_msgs/DemoState.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
 #include "task_perception_msgs/Step.h"
+#include "task_utils/pr2_gripper_viz.h"
 
 #include "task_imitation/collision_checker.h"
 #include "task_imitation/obb.h"
 #include "task_imitation/program_segment.h"
-#include "task_perception/object_model_cache.h"
 
 namespace pbi {
 // Generates an executable robot program given a sequence of states extracted
@@ -27,7 +28,8 @@ class ProgramGenerator {
 
   ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
                    moveit::planning_interface::MoveGroup& right_group,
-                   ObjectModelCache* model_cache);
+                   ObjectModelCache* model_cache,
+                   const Pr2GripperViz& gripper_viz);
   task_perception_msgs::Program Generate(
       const std::vector<task_perception_msgs::DemoState>& demo_states,
       const ObjectStateIndex& initial_objects, const Obb& table);
@@ -66,6 +68,7 @@ class ProgramGenerator {
 
   ObjectModelCache* model_cache_;
   CollisionChecker collision_checker_;
+  const Pr2GripperViz& gripper_viz_;
 };
 
 // Gets the initial states of all the objects at the time of the demonstration.

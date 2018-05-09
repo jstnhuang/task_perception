@@ -24,14 +24,15 @@ namespace pbi {
 ProgramGenerator::ProgramGenerator(
     moveit::planning_interface::MoveGroup& left_group,
     moveit::planning_interface::MoveGroup& right_group,
-    ObjectModelCache* model_cache)
+    ObjectModelCache* model_cache, const Pr2GripperViz& gripper_viz)
     : program_(),
       start_time_(0),
       left_group_(left_group),
       right_group_(right_group),
       planning_frame_(left_group_.getPlanningFrame()),
       model_cache_(model_cache),
-      collision_checker_(planning_frame_, model_cache_) {}
+      collision_checker_(planning_frame_, model_cache_),
+      gripper_viz_(gripper_viz) {}
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
@@ -147,7 +148,7 @@ void ProgramGenerator::AddGraspStep(
                                current_obj_pose, model_cache_);
   context.AddObstacle(table);
 
-  GraspPlanner grasp_planner;
+  GraspPlanner grasp_planner(gripper_viz_);
   Pose grasp_in_planning = grasp_planner.Plan(context);
   graph.Add("grasp", tg::RefFrame("planning"), grasp_in_planning);
   tg::Transform grasp_in_obj;

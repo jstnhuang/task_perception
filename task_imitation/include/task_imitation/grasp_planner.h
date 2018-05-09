@@ -8,6 +8,7 @@
 #include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
 #include "task_perception/pr2_gripper_model.h"
+#include "task_utils/pr2_gripper_viz.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "task_imitation/grasp_planning_context.h"
@@ -60,7 +61,7 @@ class ScoredGrasp {
 // PR2 grasp planner that adapts human grasping configurations to robot grasps.
 class GraspPlanner {
  public:
-  GraspPlanner();
+  GraspPlanner(const Pr2GripperViz& gripper_viz);
 
   // Adapts the human grasping configuration to a robot grasping configuration.
   // Output pose is in the camera frame.
@@ -71,8 +72,6 @@ class GraspPlanner {
                            const GraspPlanningContext& context);
 
  private:
-  // Initialize kGripperMarkers.
-  void InitGripperMarkers();
   // Visualize a gripper in the given namespace.
   void VisualizeGripper(const std::string& ns, const geometry_msgs::Pose& pose,
                         const std::string& frame_id);
@@ -134,7 +133,7 @@ class GraspPlanner {
 
   // PR2 gripper marker, with wrist_roll_link at the origin and identity
   // orientation.
-  visualization_msgs::MarkerArray kGripperMarkers;
+  const Pr2GripperViz& gripper_viz_;
   bool debug_;
 
   // Weights and params

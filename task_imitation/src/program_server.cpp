@@ -57,53 +57,14 @@ ProgramServer::ProgramServer(
       program_(),
       object_states_(),
       marker_arr_(),
-      kGripperMarkers(),
       marker_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
           "pbi_imitation/markers", 100)),
       traj_pub_(nh_.advertise<moveit_msgs::DisplayTrajectory>(
-          "pbi_imitation/display_traj", 1)) {}
+          "pbi_imitation/display_traj", 1)),
+      gripper_viz_() {}
 
 void ProgramServer::Start() {
-  urdf::Model model;
-  model.initParam("robot_description");
-  robot_markers::Builder builder(model);
-  builder.Init();
-  std::map<std::string, double> joint_positions;
-  joint_positions["l_gripper_joint"] = 0.088;
-  joint_positions["l_gripper_l_finger_joint"] = 0.514;
-  joint_positions["l_gripper_l_finger_tip_joint"] = 0.514;
-  joint_positions["l_gripper_r_finger_joint"] = 0.514;
-  joint_positions["l_gripper_r_finger_tip_joint"] = 0.514;
-  builder.SetJointPositions(joint_positions);
-
-  std::set<std::string> gripper_links;
-  gripper_links.insert("l_gripper_palm_link");
-  gripper_links.insert("l_gripper_l_finger_link");
-  gripper_links.insert("l_gripper_l_finger_tip_link");
-  gripper_links.insert("l_gripper_r_finger_link");
-  gripper_links.insert("l_gripper_r_finger_tip_link");
-
-  builder.Build(gripper_links, &kGripperMarkers);
-
-  // Shift palm to origin / identity orientation.
-  geometry_msgs::Pose root_pose;
-  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
-    if (kGripperMarkers.markers[i].mesh_resource.find("palm") !=
-        std::string::npos) {
-      root_pose = kGripperMarkers.markers[i].pose;
-      break;
-    }
-  }
-  Eigen::Affine3d gripper_pose;
-  tf::poseMsgToEigen(root_pose, gripper_pose);
-
-  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
-    visualization_msgs::Marker& marker = kGripperMarkers.markers[i];
-    Eigen::Affine3d marker_pose;
-    tf::poseMsgToEigen(marker.pose, marker_pose);
-    Eigen::Affine3d shifted_pose = gripper_pose.inverse() * marker_pose;
-    tf::poseEigenToMsg(shifted_pose, marker.pose);
-  }
+  gripper_viz_.Init();
 
   generate_program_server_.start();
   imitate_demo_server_.start();
@@ -186,7 +147,8 @@ std::string ProgramServer::GenerateProgramInternal(
   GetObjectPoses(demo_states, object_states, &table);
   ROS_INFO("All object states initialized.");
 
-  ProgramGenerator generator(left_group_, right_group_, &model_cache_);
+  ProgramGenerator generator(left_group_, right_group_, &model_cache_,
+                             gripper_viz_);
   *program = generator.Generate(demo_states.demo_states, *object_states, table);
   program_pub_.publish(*program);
   return "";
@@ -364,7 +326,7 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
     tg::Transform pregrasp_in_planning;
     graph.ComputeDescription("pregrasp", tg::RefFrame("planning"),
                              &pregrasp_in_planning);
-    MarkerArray pregrasp_markers = GripperMarkers(
+    MarkerArray pregrasp_markers = gripper_viz_.markers(
         "pregrasp", pregrasp_in_planning.pose(), planning_frame_);
     marker_arr_.markers.insert(marker_arr_.markers.end(),
                                pregrasp_markers.markers.begin(),
@@ -373,8 +335,8 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
     tg::Transform grasp_in_planning;
     graph.ComputeDescription("grasp", tg::RefFrame("planning"),
                              &grasp_in_planning);
-    MarkerArray grasp_markers =
-        GripperMarkers("grasp", grasp_in_planning.pose(), planning_frame_);
+    MarkerArray grasp_markers = gripper_viz_.markers(
+        "grasp", grasp_in_planning.pose(), planning_frame_);
     marker_arr_.markers.insert(marker_arr_.markers.end(),
                                grasp_markers.markers.begin(),
                                grasp_markers.markers.end());
@@ -390,7 +352,7 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
       tg::Transform ee_in_planning;
       graph.ComputeDescription("ee", tg::RefFrame("planning"), &ee_in_planning);
       MarkerArray ee_markers =
-          GripperMarkers("traj", ee_in_planning.pose(), planning_frame_);
+          gripper_viz_.markers("traj", ee_in_planning.pose(), planning_frame_);
       for (size_t j = 0; j < ee_markers.markers.size(); ++j) {
         ee_markers.markers[j].lifetime = ros::Duration(0.05);
       }
@@ -407,7 +369,7 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
     graph.ComputeDescription("dest", tg::RefFrame("planning"),
                              &dest_in_planning);
     MarkerArray pregrasp_markers =
-        GripperMarkers("dest", dest_in_planning.pose(), planning_frame_);
+        gripper_viz_.markers("dest", dest_in_planning.pose(), planning_frame_);
     marker_arr_.markers.insert(marker_arr_.markers.end(),
                                pregrasp_markers.markers.begin(),
                                pregrasp_markers.markers.end());
@@ -452,25 +414,5 @@ void ProgramServer::VisualizeSlice(
   display_traj.trajectory.push_back(right_traj);
 
   traj_pub_.publish(display_traj);
-}
-
-MarkerArray ProgramServer::GripperMarkers(const std::string& ns,
-                                          const geometry_msgs::Pose& pose,
-                                          const std::string& frame_id) {
-  MarkerArray result;
-  Eigen::Affine3d pose_transform;
-  tf::poseMsgToEigen(pose, pose_transform);
-  for (size_t i = 0; i < kGripperMarkers.markers.size(); ++i) {
-    visualization_msgs::Marker marker = kGripperMarkers.markers[i];
-    marker.header.frame_id = frame_id;
-    marker.ns = ns;
-
-    Eigen::Affine3d marker_pose;
-    tf::poseMsgToEigen(marker.pose, marker_pose);
-    Eigen::Affine3d shifted_pose = pose_transform * marker_pose;
-    tf::poseEigenToMsg(shifted_pose, marker.pose);
-    result.markers.push_back(marker);
-  }
-  return result;
 }
 }  // namespace pbi

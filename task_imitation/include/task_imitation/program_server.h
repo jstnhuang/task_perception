@@ -22,6 +22,7 @@
 #include "task_perception_msgs/ImitateDemoAction.h"
 #include "task_perception_msgs/ImitationEvent.h"
 #include "task_perception_msgs/Program.h"
+#include "task_utils/pr2_gripper_viz.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "task_imitation/obb.h"
@@ -51,9 +52,6 @@ class ProgramServer {
       Obb* table);
   void VisualizeStep(const task_perception_msgs::Step& step);
   void VisualizeSlice(const task_perception_msgs::ProgramSlice& slice);
-  visualization_msgs::MarkerArray GripperMarkers(
-      const std::string& ns, const geometry_msgs::Pose& pose,
-      const std::string& frame_id);
 
   ros::ServiceClient db_client_;
   const rapid::PointCloudCameraInterface& cam_interface_;
@@ -85,9 +83,9 @@ class ProgramServer {
 
   // Program visualizers
   visualization_msgs::MarkerArray marker_arr_;
-  visualization_msgs::MarkerArray kGripperMarkers;
   ros::Publisher marker_pub_;
   ros::Publisher traj_pub_;
+  Pr2GripperViz gripper_viz_;
 };
 }  // namespace pbi
 
