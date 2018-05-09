@@ -22,8 +22,8 @@ grasp_planner:
   yaw_resolution_degrees: 10
   roll_range_degrees: 120
   roll_resolution_degrees: 10
-  pitch_range_degrees: 180
-  pitch_resolution_degrees: 9
+  pitch_range_degrees: 270
+  pitch_resolution_degrees: 10
   antipodal_degrees: 15
 
   # How many iterations to try adjusting the gripper placement
