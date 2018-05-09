@@ -249,14 +249,16 @@ void HandStateMachine::StationaryCollisionState(
     state_ = DOUBLE_COLLISION;
   } else {
     // Single collision with a different object
-    ROS_INFO("Colliding with a different object %s", collidee.c_str());
-    if (working_traj_.demo_states.size() > 0) {
-      ROS_ASSERT(working_traj_.target_object != "");
-      segments_->push_back(working_traj_);
+    if (working_traj_.target_object != "") {
+      ROS_INFO("Colliding with a different object \"%s\" -> \"%s\"",
+               working_traj_.target_object.c_str(), collidee.c_str());
+      if (working_traj_.demo_states.size() > 0) {
+        segments_->push_back(working_traj_);
+      }
+      working_traj_ = NewTrajSegment();
+      working_traj_.target_object = collidee;
+      working_traj_.demo_states.push_back(demo_state);
     }
-    working_traj_ = NewTrajSegment();
-    working_traj_.target_object = collidee;
-    working_traj_.demo_states.push_back(demo_state);
   }
 }
 
@@ -340,8 +342,11 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
       // We are colliding with something, but not with the object held in the
       // other hand. Move to stationary collision.
       if (working_traj_.demo_states.size() > 0) {
-        ROS_ASSERT(working_traj_.target_object != "");
-        segments_->push_back(working_traj_);
+        bool is_master = working_traj_.target_object != "";
+        if (is_master) {
+          ROS_ASSERT(working_traj_.target_object != "");
+          segments_->push_back(working_traj_);
+        }
       }
       working_traj_ = NewTrajSegment();
       working_traj_.target_object = collidee;
