@@ -10,16 +10,13 @@ namespace pbi {
 class Pr2GripperViz {
  public:
   Pr2GripperViz();
-  void set_frame_id(const std::string& frame_id);
-  void set_pose(const geometry_msgs::Pose& pose);
-  visualization_msgs::MarkerArray markers(const std::string& ns);
+  void Init();
+  visualization_msgs::MarkerArray markers(const std::string& ns,
+                                          const geometry_msgs::Pose& pose,
+                                          const std::string& frame_id) const;
 
  private:
-  void InitMarkers();
-
   visualization_msgs::MarkerArray markers_;
-  std::string frame_id_;
-  geometry_msgs::Pose pose_;
 };
 }  // namespace pbi
 

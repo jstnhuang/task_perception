@@ -10,25 +10,18 @@
 #include "visualization_msgs/MarkerArray.h"
 
 namespace pbi {
-Pr2GripperViz::Pr2GripperViz() : markers_(), frame_id_(""), pose_() {
-  pose_.orientation.w = 1;
-  InitMarkers();
-}
+Pr2GripperViz::Pr2GripperViz() : markers_() {}
 
-void Pr2GripperViz::set_frame_id(const std::string& frame_id) {
-  frame_id_ = frame_id;
-}
-
-void Pr2GripperViz::set_pose(const geometry_msgs::Pose& pose) { pose_ = pose; }
-
-visualization_msgs::MarkerArray Pr2GripperViz::markers(const std::string& ns) {
+visualization_msgs::MarkerArray Pr2GripperViz::markers(
+    const std::string& ns, const geometry_msgs::Pose& pose,
+    const std::string& frame_id) const {
   Eigen::Affine3d pose_matrix;
-  tf::poseMsgToEigen(pose_, pose_matrix);
+  tf::poseMsgToEigen(pose, pose_matrix);
 
   visualization_msgs::MarkerArray result = markers_;
   for (size_t i = 0; i < result.markers.size(); ++i) {
     result.markers[i].ns = ns;
-    result.markers[i].header.frame_id = frame_id_;
+    result.markers[i].header.frame_id = frame_id;
     Eigen::Affine3d mesh_pose_matrix;
     tf::poseMsgToEigen(result.markers[i].pose, mesh_pose_matrix);
     tf::poseEigenToMsg(pose_matrix * mesh_pose_matrix, result.markers[i].pose);
@@ -36,7 +29,7 @@ visualization_msgs::MarkerArray Pr2GripperViz::markers(const std::string& ns) {
   return result;
 }
 
-void Pr2GripperViz::InitMarkers() {
+void Pr2GripperViz::Init() {
   urdf::Model model;
   model.initParam("robot_description");
   robot_markers::Builder builder(model);
