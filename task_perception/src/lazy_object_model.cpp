@@ -124,6 +124,11 @@ bool LazyObjectModel::IsCircular() const {
   bool is_circular = ::pbi::IsCircular(GetObjectModel());
   if (cache_ != NULL) {
     cache_->is_circular[mesh_name_] = is_circular;
+    if (is_circular) {
+      ROS_INFO("%s is circular", mesh_name_.c_str());
+    } else {
+      ROS_INFO("%s is not circular", mesh_name_.c_str());
+    }
   }
   return is_circular;
 }
