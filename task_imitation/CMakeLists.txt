@@ -137,6 +137,7 @@ catkin_package(
     task_imitation_grasp_planner
     task_imitation_grasp_planning_context
     task_imitation_hand_state_machine
+    task_imitation_ik
     task_imitation_object_initialization
     task_imitation_program_executor
     task_imitation_program_generator
@@ -207,6 +208,7 @@ add_library(task_imitation_grasp_planner src/grasp_planner.cpp)
 add_dependencies(task_imitation_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_grasp_planner
   task_imitation_grasp_planning_context
+  task_imitation_ik
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
@@ -223,6 +225,12 @@ add_dependencies(task_imitation_hand_state_machine ${${PROJECT_NAME}_EXPORTED_TA
 target_link_libraries(task_imitation_hand_state_machine
   task_imitation_collision_checker
   task_imitation_demo_state
+  ${catkin_LIBRARIES}
+)
+
+add_library(task_imitation_ik src/ik.cpp)
+add_dependencies(task_imitation_ik ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_ik
   ${catkin_LIBRARIES}
 )
 
@@ -250,6 +258,7 @@ target_link_libraries(task_imitation_program_generator
   task_imitation_grasp_planner
   task_imitation_grasp_planning_context
   task_imitation_hand_state_machine
+  task_imitation_ik
   ${catkin_LIBRARIES}
 )
 
