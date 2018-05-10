@@ -54,7 +54,7 @@ msgs::Program ProgramGenerator::Generate(
   ObjectStateIndex initial_demo_objects = GetInitialDemoObjects(demo_states);
 
   for (size_t i = 0; i < segments.size(); ++i) {
-    ProcessSegment(segments[i], initial_runtime_objects, initial_demo_objects,
+    ProcessSegment(segments, i, initial_runtime_objects, initial_demo_objects,
                    table);
   }
 
@@ -98,11 +98,12 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
 }
 
 void ProgramGenerator::ProcessSegment(
-    const ProgramSegment& segment,
+    const std::vector<ProgramSegment>& segments, const size_t index,
     const ObjectStateIndex& initial_runtime_objects,
     const ObjectStateIndex& initial_demo_objects, const Obb& table) {
+  const ProgramSegment& segment = segments[index];
   if (segment.type == msgs::Step::GRASP) {
-    AddGraspStep(segment, initial_runtime_objects, table);
+    AddGraspStep(segments, index, initial_runtime_objects, table);
   } else if (segment.type == msgs::Step::UNGRASP) {
     AddUngraspStep(segment);
   } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
@@ -117,8 +118,9 @@ void ProgramGenerator::ProcessSegment(
 }
 
 void ProgramGenerator::AddGraspStep(
-    const ProgramSegment& segment,
+    const std::vector<ProgramSegment>& segments, const size_t index,
     const ObjectStateIndex& initial_runtime_objects, const Obb& table) {
+  const ProgramSegment& segment = segments[index];
   const msgs::DemoState& state = segment.demo_states[0];
 
   msgs::HandState hand;

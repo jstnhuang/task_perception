@@ -37,11 +37,13 @@ class ProgramGenerator {
  private:
   std::vector<ProgramSegment> Segment(
       const std::vector<task_perception_msgs::DemoState>& demo_states);
-  void ProcessSegment(const ProgramSegment& state,
+  void ProcessSegment(const std::vector<ProgramSegment>& segments,
+                      const size_t index,
                       const ObjectStateIndex& initial_runtime_objects,
                       const ObjectStateIndex& initial_demo_objects,
                       const Obb& table);
-  void AddGraspStep(const ProgramSegment& segment,
+  void AddGraspStep(const std::vector<ProgramSegment>& segments,
+                    const size_t index,
                     const ObjectStateIndex& initial_runtime_objects,
                     const Obb& table);
   void AddUngraspStep(const ProgramSegment& segment);
