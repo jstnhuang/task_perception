@@ -2,6 +2,7 @@
 // imitate the demonstration.
 #include "task_imitation/program_generator.h"
 
+#include "boost/foreach.hpp"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
 #include "ros/ros.h"
@@ -14,6 +15,7 @@
 #include "task_imitation/grasp_planner.h"
 #include "task_imitation/grasp_planning_context.h"
 #include "task_imitation/hand_state_machine.h"
+#include "task_imitation/ik.h"
 #include "task_imitation/program_constants.h"
 
 namespace msgs = task_perception_msgs;
@@ -22,8 +24,8 @@ using geometry_msgs::Pose;
 
 namespace pbi {
 ProgramGenerator::ProgramGenerator(
-    moveit::planning_interface::MoveGroup& left_group,
-    moveit::planning_interface::MoveGroup& right_group,
+    const moveit::planning_interface::MoveGroup& left_group,
+    const moveit::planning_interface::MoveGroup& right_group,
     ObjectModelCache* model_cache, const Pr2GripperViz& gripper_viz)
     : program_(),
       start_time_(0),
@@ -62,28 +64,48 @@ msgs::Program ProgramGenerator::Generate(
     ProcessSegmentWithoutGrasps(segments, i, initial_runtime_objects,
                                 initial_demo_objects);
   }
-  for (size_t i = 0; i < segments.size(); ++i) {
+
+  // Segment index is not necessarily the same as step index, since single-point
+  // trajectories are skipped and do not turn into steps.
+
+  for (size_t i = 0, step_i = 0; i < segments.size(); i++) {
     const ProgramSegment& segment = segments[i];
-    if (segment.type == msgs::Step::GRASP) {
-      program_.steps[i] = PlanGrasp(segments, i, program_.steps[i], table);
+    // Skip trajectories with 1 or fewer points
+    if (segment.type == msgs::Step::FOLLOW_TRAJECTORY &&
+        segment.demo_states.size() <= 1) {
+      continue;
     }
-  }
-  Pose gripper_in_obj;
-  for (size_t i = 0; i < segments.size(); ++i) {
-    const ProgramSegment& segment = segments[i];
-    const msgs::Step& step = program_.steps[i];
     if (segment.type == msgs::Step::GRASP) {
-      ROS_ASSERT(segment.type == step.type);
+      const msgs::DemoState& state = segment.demo_states[0];
+      const msgs::HandState& hand(segment.arm_name == msgs::Step::LEFT
+                                      ? state.left_hand
+                                      : state.right_hand);
+      program_.steps[step_i] =
+          PlanGrasp(program_.steps, step_i, hand.wrist_pose, table);
+    }
+    step_i++;
+  }
+
+  Pose gripper_in_obj;
+  for (size_t i = 0, step_i = 0; i < segments.size(); ++i) {
+    const ProgramSegment& segment = segments[i];
+    if (segment.type == msgs::Step::FOLLOW_TRAJECTORY &&
+        segment.demo_states.size() <= 1) {
+      continue;
+    }
+
+    const msgs::Step& step = program_.steps[step_i];
+    ROS_ASSERT(segment.type == step.type);
+    if (segment.type == msgs::Step::GRASP) {
       gripper_in_obj = step.ee_trajectory[0];
     } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
-      ROS_ASSERT(segment.type == step.type);
-      program_.steps[i] =
+      program_.steps[step_i] =
           ParameterizeMoveToWithGrasp(segment, step, gripper_in_obj);
     } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
-      ROS_ASSERT(segment.type == step.type);
-      program_.steps[i] =
+      program_.steps[step_i] =
           ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj);
     }
+    step_i++;
   }
 
   ROS_INFO("Generated program");
@@ -148,27 +170,24 @@ void ProgramGenerator::ProcessSegmentWithoutGrasps(
   }
 }
 
-msgs::Step ProgramGenerator::PlanGrasp(
-    const std::vector<ProgramSegment>& segments, const size_t index,
-    const msgs::Step& grasp_step, const Obb& table) {
-  const ProgramSegment& segment = segments[index];
-  const msgs::DemoState& state = segment.demo_states[0];
-  const msgs::HandState& hand(segment.arm_name == msgs::Step::LEFT
-                                  ? state.left_hand
-                                  : state.right_hand);
-
+msgs::Step ProgramGenerator::PlanGrasp(const std::vector<msgs::Step>& steps,
+                                       const size_t index,
+                                       const Pose& wrist_in_obj,
+                                       const Obb& table) {
+  const msgs::Step& grasp_step = steps[index];
   tg::Graph graph;
   graph.Add("object", tg::RefFrame("planning"), grasp_step.object_state.pose);
   tg::Transform wrist_in_planning;
-  graph.DescribePose(hand.wrist_pose, tg::Source("object"),
-                     tg::Target("planning"), &wrist_in_planning);
+  graph.DescribePose(wrist_in_obj, tg::Source("object"), tg::Target("planning"),
+                     &wrist_in_planning);
 
-  // TODO: implement and do something with this.
-  std::vector<Pose> future_poses = GetFutureObjectPoses(segments, index);
-
+  const moveit::planning_interface::MoveGroup& group =
+      grasp_step.arm == msgs::Step::LEFT ? left_group_ : right_group_;
+  const std::vector<Pose> future_poses = GetFutureObjectPoses(steps, index);
   GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
                                grasp_step.object_state.mesh_name,
-                               grasp_step.object_state.pose, model_cache_);
+                               grasp_step.object_state.pose, future_poses,
+                               group, model_cache_);
   context.AddObstacle(table);
 
   GraspPlanner grasp_planner(gripper_viz_);
@@ -275,6 +294,8 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
                                move_step.object_state.pose);
   target_model.set_object_model_cache(model_cache_);
   if (target_model.IsCircular()) {
+    const moveit::planning_interface::MoveGroup& move_group(
+        move_step.arm == msgs::Step::LEFT ? left_group_ : right_group_);
     bool found_ik = false;
     for (int i = 0; i < 11 && !found_ik; i++) {
       for (int sign = 1; sign >= -1; sign -= 2) {
@@ -285,7 +306,7 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
         tg::Transform rotated_ee_in_planning;
         ROS_ASSERT(graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                             &rotated_ee_in_planning));
-        if (HasIk(segment.arm_name, rotated_ee_in_planning.pose())) {
+        if (HasIk(move_group, rotated_ee_in_planning.pose())) {
           const double yaw_degrees = yaw.angle() * 180 / M_PI;
           if (yaw_degrees != 0) {
             ROS_INFO("[MoveTo] IK found with yaw of %f", yaw_degrees);
@@ -386,6 +407,8 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     is_grasped_obj_circular = grasped_model.IsCircular();
   }
 
+  const moveit::planning_interface::MoveGroup& move_group(
+      segment.arm_name == msgs::Step::LEFT ? left_group_ : right_group_);
   msgs::Step updated_step = traj_step;
   for (size_t i = 0; i < traj_step.ee_trajectory.size(); ++i) {
     graph.Add("grasped object", tg::RefFrame("target object"),
@@ -409,7 +432,7 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
           tg::Transform ee_in_planning;
           graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                    &ee_in_planning);
-          if (HasIk(segment.arm_name, ee_in_planning.pose())) {
+          if (HasIk(move_group, ee_in_planning.pose())) {
             const double yaw_degrees = yaw.angle() * 180 / M_PI;
             if (yaw_degrees != 0) {
               ROS_INFO("IK found with yaw of %f", yaw_degrees);
@@ -437,27 +460,6 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
   return updated_step;
 }
 
-int ProgramGenerator::GetMostRecentGraspStep(const std::string& arm_name) {
-  for (int i = program_.steps.size() - 1; i >= 0; --i) {
-    const msgs::Step& step = program_.steps[i];
-    if (step.arm == arm_name && step.type == msgs::Step::GRASP) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-bool ProgramGenerator::HasIk(const std::string& arm_name,
-                             const geometry_msgs::Pose& ee_pose) {
-  moveit::planning_interface::MoveGroup& group =
-      arm_name == msgs::Step::LEFT ? left_group_ : right_group_;
-  const std::string group_name =
-      arm_name == msgs::Step::LEFT ? "left_arm" : "right_arm";
-  robot_state::RobotState kinematic_state(group.getRobotModel());
-  return kinematic_state.setFromIK(
-      group.getRobotModel()->getJointModelGroup(group_name), ee_pose, 10, 0.1);
-}
-
 ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
     const std::vector<msgs::DemoState>& demo_states) {
   ProgramGenerator::ObjectStateIndex index;
@@ -473,29 +475,57 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
   return index;
 }
 
-Pose GetTargetPose(const LazyObjectModel& model) {
-  if (model.IsCircular()) {
-    Pose pose = model.pose();
-    Eigen::Quaterniond original_q;
-    tf::quaternionMsgToEigen(pose.orientation, original_q);
-    const Eigen::Matrix3d original_rot(original_q);
-    Eigen::Matrix3d updated_rot = original_rot;
-    updated_rot(1, 0) = 0;
-    if (updated_rot(0, 0) < 0) {
-      updated_rot.col(0) *= -1;
-    }
-    updated_rot.col(1) = updated_rot.col(2).cross(updated_rot.col(0));
-    tf::quaternionEigenToMsg(Eigen::Quaterniond(updated_rot), pose.orientation);
-    return pose;
-  } else {
-    return model.pose();
-  }
-}
+// Pose GetTargetPose(const LazyObjectModel& model) {
+//  if (model.IsCircular()) {
+//    Pose pose = model.pose();
+//    Eigen::Quaterniond original_q;
+//    tf::quaternionMsgToEigen(pose.orientation, original_q);
+//    const Eigen::Matrix3d original_rot(original_q);
+//    Eigen::Matrix3d updated_rot = original_rot;
+//    updated_rot(1, 0) = 0;
+//    if (updated_rot(0, 0) < 0) {
+//      updated_rot.col(0) *= -1;
+//    }
+//    updated_rot.col(1) = updated_rot.col(2).cross(updated_rot.col(0));
+//    tf::quaternionEigenToMsg(Eigen::Quaterniond(updated_rot),
+//    pose.orientation);
+//    return pose;
+//  } else {
+//    return model.pose();
+//  }
+//}
 
-std::vector<Pose> GetFutureObjectPoses(
-    const std::vector<ProgramSegment>& segments, const size_t index) {
-  // TODO: implement
+std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
+                                       const size_t index) {
   std::vector<Pose> future_poses;
+  BOOST_FOREACH (const msgs::Step& step, steps) {
+    if (step.type == msgs::Step::UNGRASP) {
+      break;
+    }
+    if (step.type == msgs::Step::GRASP) {
+      future_poses.push_back(step.object_state.pose);
+    } else if (step.type == msgs::Step::MOVE_TO_POSE) {
+      tg::Graph graph;
+      graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
+      const Pose& obj_in_target = step.ee_trajectory[0];
+      graph.Add("grasped object", tg::RefFrame("target"), obj_in_target);
+      tg::Transform obj_in_planning;
+      graph.ComputeDescription("grasped object", tg::RefFrame("planning"),
+                               &obj_in_planning);
+      future_poses.push_back(obj_in_planning.pose());
+    } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
+      tg::Graph graph;
+      graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
+      for (size_t i = 0; i < step.ee_trajectory.size(); i += 10) {
+        const Pose& obj_in_target = step.ee_trajectory[i];
+        graph.Add("grasped object", tg::RefFrame("target"), obj_in_target);
+        tg::Transform obj_in_planning;
+        graph.ComputeDescription("grasped object", tg::RefFrame("planning"),
+                                 &obj_in_planning);
+        future_poses.push_back(obj_in_planning.pose());
+      }
+    }
+  }
   return future_poses;
 }
 }  // namespace pbi

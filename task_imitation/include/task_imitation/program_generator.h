@@ -26,8 +26,8 @@ class ProgramGenerator {
   typedef std::map<std::string, task_perception_msgs::ObjectState>
       ObjectStateIndex;
 
-  ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
-                   moveit::planning_interface::MoveGroup& right_group,
+  ProgramGenerator(const moveit::planning_interface::MoveGroup& left_group,
+                   const moveit::planning_interface::MoveGroup& right_group,
                    ObjectModelCache* model_cache,
                    const Pr2GripperViz& gripper_viz);
   task_perception_msgs::Program Generate(
@@ -47,9 +47,12 @@ class ProgramGenerator {
       const std::vector<ProgramSegment>& segments, const size_t index,
       const ObjectStateIndex& initial_runtime_objects,
       const ObjectStateIndex& initial_demo_objects);
+
+  // index is the index of the grasp step to plan. All steps are passed in so
+  // that the grasp planner can plan a grasp for future steps.
   task_perception_msgs::Step PlanGrasp(
-      const std::vector<ProgramSegment>& segments, const size_t index,
-      const task_perception_msgs::Step& grasp_step, const Obb& table);
+      const std::vector<task_perception_msgs::Step>& steps, const size_t index,
+      const geometry_msgs::Pose& wrist_in_obj, const Obb& table);
 
   // Populate the grasp step with everything except the actual grasp pose.
   void AddGraspStep(const ProgramSegment& segments,
@@ -71,18 +74,13 @@ class ProgramGenerator {
       const task_perception_msgs::Step& traj_step,
       const geometry_msgs::Pose& gripper_in_obj);
 
-  int GetMostRecentGraspStep(const std::string& arm_name);
-
-  // Checks for an IK solution. ee_pose is given in planning frame.
-  bool HasIk(const std::string& arm_name, const geometry_msgs::Pose& ee_pose);
-
   task_perception_msgs::Program program_;
 
   // The real-world timestamp of first step we take.
   ros::Time start_time_;
 
-  moveit::planning_interface::MoveGroup& left_group_;
-  moveit::planning_interface::MoveGroup& right_group_;
+  const moveit::planning_interface::MoveGroup& left_group_;
+  const moveit::planning_interface::MoveGroup& right_group_;
   std::string planning_frame_;
 
   ObjectModelCache* model_cache_;
@@ -99,7 +97,7 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
 // Gets the pose of a target object. If the object is circular, it will be
 // rotated so that its x-axis points in the x direction of the planning
 // frame.
-geometry_msgs::Pose GetTargetPose(const LazyObjectModel& model);
+// geometry_msgs::Pose GetTargetPose(const LazyObjectModel& model);
 
 // Sample object poses starting from index (inclusive) until the next ungrasp.
 // All MoveTo poses and some subset of FollowTrajectory poses will be
@@ -107,7 +105,7 @@ geometry_msgs::Pose GetTargetPose(const LazyObjectModel& model);
 // This is used for grasp planning: the grasp should have IK solutions for
 // future poses. All returned poses are in the planning frame.
 std::vector<geometry_msgs::Pose> GetFutureObjectPoses(
-    const std::vector<ProgramSegment>& segments, const size_t index);
+    const std::vector<task_perception_msgs::Step>& steps, const size_t index);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_GENERATOR_H_
