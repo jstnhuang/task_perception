@@ -21,7 +21,6 @@ class GraspPlanningContext {
  public:
   GraspPlanningContext(const geometry_msgs::Pose& wrist_pose,
                        const std::string& planning_frame_id,
-                       const std::string& object_name,
                        const std::string& object_mesh,
                        const geometry_msgs::Pose& object_pose,
                        ObjectModelCache* model_cache);
@@ -37,7 +36,6 @@ class GraspPlanningContext {
  private:
   geometry_msgs::Pose wrist_pose_;
   std::string planning_frame_id_;
-  std::string object_name_;
   std::string object_mesh_;
   geometry_msgs::Pose object_pose_;
 

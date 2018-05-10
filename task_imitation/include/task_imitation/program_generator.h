@@ -37,22 +37,39 @@ class ProgramGenerator {
  private:
   std::vector<ProgramSegment> Segment(
       const std::vector<task_perception_msgs::DemoState>& demo_states);
-  void ProcessSegment(const std::vector<ProgramSegment>& segments,
-                      const size_t index,
-                      const ObjectStateIndex& initial_runtime_objects,
-                      const ObjectStateIndex& initial_demo_objects,
-                      const Obb& table);
-  void AddGraspStep(const std::vector<ProgramSegment>& segments,
-                    const size_t index,
-                    const ObjectStateIndex& initial_runtime_objects,
-                    const Obb& table);
+
+  // First, process as much as possible without knowing the grasp. This means
+  // computing and storing the object trajectories in the ee_trajectory field of
+  // each Step. Later, PlanGrasps will plan the grasps and
+  // ParameterizeStepsWithGrasps will update all the steps with the planned
+  // grasps.
+  void ProcessSegmentWithoutGrasps(
+      const std::vector<ProgramSegment>& segments, const size_t index,
+      const ObjectStateIndex& initial_runtime_objects,
+      const ObjectStateIndex& initial_demo_objects);
+  task_perception_msgs::Step PlanGrasp(
+      const std::vector<ProgramSegment>& segments, const size_t index,
+      const task_perception_msgs::Step& grasp_step, const Obb& table);
+
+  // Populate the grasp step with everything except the actual grasp pose.
+  void AddGraspStep(const ProgramSegment& segments,
+                    const ObjectStateIndex& initial_runtime_objects);
+  // Adds an ungrasp step to the program based on the given segment.
   void AddUngraspStep(const ProgramSegment& segment);
   void AddMoveToStep(const ProgramSegment& segment,
                      const ObjectStateIndex& initial_demo_objects,
                      const ObjectStateIndex& initial_runtime_objects);
+  task_perception_msgs::Step ParameterizeMoveToWithGrasp(
+      const ProgramSegment& segment,
+      const task_perception_msgs::Step& move_step,
+      const geometry_msgs::Pose& gripper_in_obj);
   void AddTrajectoryStep(const ProgramSegment& segment,
                          const ObjectStateIndex& initial_demo_objects,
                          const ObjectStateIndex& initial_runtime_objects);
+  task_perception_msgs::Step ParameterizeTrajectoryWithGrasp(
+      const ProgramSegment& segment,
+      const task_perception_msgs::Step& traj_step,
+      const geometry_msgs::Pose& gripper_in_obj);
 
   int GetMostRecentGraspStep(const std::string& arm_name);
 
@@ -83,6 +100,14 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
 // rotated so that its x-axis points in the x direction of the planning
 // frame.
 geometry_msgs::Pose GetTargetPose(const LazyObjectModel& model);
+
+// Sample object poses starting from index (inclusive) until the next ungrasp.
+// All MoveTo poses and some subset of FollowTrajectory poses will be
+// included.
+// This is used for grasp planning: the grasp should have IK solutions for
+// future poses. All returned poses are in the planning frame.
+std::vector<geometry_msgs::Pose> GetFutureObjectPoses(
+    const std::vector<ProgramSegment>& segments, const size_t index);
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_GENERATOR_H_
