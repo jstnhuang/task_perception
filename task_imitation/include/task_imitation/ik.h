@@ -8,7 +8,7 @@
 
 namespace pbi {
 // Checks for an IK solution. ee_pose is given in planning frame.
-bool HasIk(const moveit::planning_interface::MoveGroup& move_group,
+bool HasIk(moveit::planning_interface::MoveGroup& move_group,
            const geometry_msgs::Pose& ee_pose);
 }  // namespace pbi
 

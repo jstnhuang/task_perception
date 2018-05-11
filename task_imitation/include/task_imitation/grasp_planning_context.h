@@ -25,16 +25,18 @@ class GraspPlanningContext {
                        const std::string& object_mesh,
                        const geometry_msgs::Pose& object_pose,
                        const std::vector<geometry_msgs::Pose>& future_poses,
-                       const moveit::planning_interface::MoveGroup& move_group,
+                       moveit::planning_interface::MoveGroup* move_group,
                        ObjectModelCache* model_cache);
   geometry_msgs::Pose wrist_pose() const;
   std::string planning_frame_id() const;
+  geometry_msgs::Pose object_pose() const;
   pcl::PointCloud<pcl::PointXYZ>::Ptr object_cloud() const;
   pcl::PointCloud<pcl::PointNormal>::Ptr object_cloud_with_normals() const;
   pcl::search::KdTree<pcl::PointXYZ>::Ptr object_tree() const;
   std::vector<Obb> obstacles() const;
   const std::vector<geometry_msgs::Pose>& future_poses() const;
-  const moveit::planning_interface::MoveGroup& move_group() const;
+  moveit::planning_interface::MoveGroup* move_group() const;
+  bool IsObjectCircular() const;
 
   void AddObstacle(const Obb& obstacle);
 
@@ -44,7 +46,7 @@ class GraspPlanningContext {
   std::string object_mesh_;
   geometry_msgs::Pose object_pose_;
   std::vector<geometry_msgs::Pose> future_poses_;
-  const moveit::planning_interface::MoveGroup& move_group_;
+  moveit::planning_interface::MoveGroup* move_group_;
 
   mutable ObjectModelCache* model_cache_;
   LazyObjectModel lazy_model_;

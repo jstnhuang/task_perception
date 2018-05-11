@@ -124,6 +124,12 @@ class GraspPlanner {
   geometry_msgs::Pose OptimizePlacement(const geometry_msgs::Pose& gripper_pose,
                                         const GraspPlanningContext& context,
                                         int max_iters);
+
+  // Returns the number of future poses that can be reached with the given
+  // grasp.
+  int EvaluateFuturePoses(const Pr2GripperModel& model,
+                          const GraspPlanningContext& context);
+
   void UpdateParams();
 
   // Internal visualization publishers

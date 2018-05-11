@@ -10,7 +10,7 @@ GraspPlanningContext::GraspPlanningContext(
     const Pose& wrist_pose, const string& planning_frame_id,
     const string& object_mesh, const Pose& object_pose,
     const std::vector<Pose>& future_poses,
-    const moveit::planning_interface::MoveGroup& move_group,
+    moveit::planning_interface::MoveGroup* move_group,
     ObjectModelCache* model_cache)
     : wrist_pose_(wrist_pose),
       planning_frame_id_(planning_frame_id),
@@ -27,6 +27,8 @@ Pose GraspPlanningContext::wrist_pose() const { return wrist_pose_; }
 std::string GraspPlanningContext::planning_frame_id() const {
   return planning_frame_id_;
 }
+
+Pose GraspPlanningContext::object_pose() const { return object_pose_; }
 
 PointCloudP::Ptr GraspPlanningContext::object_cloud() const {
   return lazy_model_.GetObjectCloud();
@@ -47,9 +49,13 @@ const std::vector<geometry_msgs::Pose>& GraspPlanningContext::future_poses()
   return future_poses_;
 }
 
-const moveit::planning_interface::MoveGroup& GraspPlanningContext::move_group()
+moveit::planning_interface::MoveGroup* GraspPlanningContext::move_group()
     const {
   return move_group_;
+}
+
+bool GraspPlanningContext::IsObjectCircular() const {
+  return lazy_model_.IsCircular();
 }
 
 void GraspPlanningContext::AddObstacle(const Obb& obstacle) {

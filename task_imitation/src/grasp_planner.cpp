@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "boost/foreach.hpp"
 #include "eigen_conversions/eigen_msg.h"
 #include "pcl/common/transforms.h"
 #include "pcl/filters/random_sample.h"
@@ -23,6 +24,8 @@
 #include "task_perception/pcl_utils.h"
 #include "transform_graph/graph.h"
 #include "urdf/model.h"
+
+#include "task_imitation/ik.h"
 
 namespace tg = transform_graph;
 using geometry_msgs::Pose;
@@ -172,6 +175,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   ROS_INFO("Sampled %d points", num_samples);
 
   ScoredGrasp best;
+  int most_future_poses = -1;
   for (int i = num_samples - 1; i >= 0; --i) {
     const int sample_index = sample_indices->at(i);
 
@@ -220,9 +224,21 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       }
     }
 
-    if (grasp.score > best.score) {
-      best = grasp;
-      ROS_INFO("Best score: %s", best.eval.ToString().c_str());
+    if (grasp.IsValid() && grasp.score > best.score) {
+      ROS_INFO("Best score: %s", grasp.eval.ToString().c_str());
+      model.set_pose(grasp.pose);
+      int num_future_poses = EvaluateFuturePoses(model, context);
+      if (num_future_poses >= most_future_poses) {
+        ROS_INFO("Adopting grasp that reaches %d of %zu future poses",
+                 num_future_poses, context.future_poses().size());
+        best = grasp;
+        most_future_poses = num_future_poses;
+      } else {
+        ROS_INFO(
+            "Rejecting grasp that only reaches %d of %zu future poses "
+            "(compared to %d)",
+            num_future_poses, context.future_poses().size(), most_future_poses);
+      }
     }
     VisualizeGripper("optimization_best", best.pose,
                      context.planning_frame_id());
@@ -788,6 +804,71 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
   }
 
   return current_pose;
+}
+
+int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
+                                      const GraspPlanningContext& context) {
+  tg::Graph graph;
+  graph.Add("gripper", tg::RefFrame("planning"), model.pose());
+  graph.Add("original object", tg::RefFrame("planning"), context.object_pose());
+  tg::Transform grasp_in_obj;
+  graph.ComputeDescription("gripper", tg::RefFrame("original object"),
+                           &grasp_in_obj);
+
+  const std::vector<Pose>& future_poses = context.future_poses();
+  int count = 0;
+  for (size_t i = 0; i < future_poses.size(); i++) {
+    const Pose& obj_in_planning = future_poses[i];
+    graph.Add("object", tg::RefFrame("planning"), obj_in_planning);
+    Eigen::Affine3d obj_in_planning_affine;
+    tf::poseMsgToEigen(obj_in_planning, obj_in_planning_affine);
+    for (int yaw_i = 0; yaw_i < 4; ++yaw_i) {
+      double yaw_angle = yaw_i * M_PI / 2;
+      Eigen::AngleAxisd yaw_rot(yaw_angle, Eigen::Vector3d::UnitZ());
+      graph.Add("rotated object", tg::RefFrame("object"),
+                tg::Transform(tg::Position(), Eigen::Quaterniond(yaw_rot)));
+      tg::Transform rotated_gripper;
+      graph.DescribePose(grasp_in_obj, tg::Source("rotated object"),
+                         tg::Target("planning"), &rotated_gripper);
+      Pose rotated_pose = rotated_gripper.pose();
+
+      // if (debug_) {
+      //  VisualizeGripper("optimization", rotated_pose,
+      //                   context.planning_frame_id());
+      //}
+
+      Pr2GripperModel candidate;
+      candidate.set_pose(rotated_pose);
+      if (IsGripperCollidingWithObstacles(candidate, context)) {
+        // if (debug_) {
+        //  ROS_INFO("Pose %zu yaw %f in collision", i, yaw_angle * 180 / M_PI);
+        //  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+        //}
+        if (context.IsObjectCircular()) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      if (HasIk(*(context.move_group()), rotated_pose)) {
+        ++count;
+        break;
+      } else {
+        // if (debug_) {
+        //  ROS_INFO("Pose %zu yaw %f: No IK! %f %f %f %f %f %f %f", i,
+        //           yaw_angle * 180 / M_PI, rotated_pose.position.x,
+        //           rotated_pose.position.y, rotated_pose.position.z,
+        //           rotated_pose.orientation.x, rotated_pose.orientation.y,
+        //           rotated_pose.orientation.z, rotated_pose.orientation.w);
+        //}
+        // Only try to rotate circular objects
+        if (!context.IsObjectCircular()) {
+          break;
+        }
+      }
+    }
+  }
+  return count;
 }
 
 void GraspPlanner::UpdateParams() {

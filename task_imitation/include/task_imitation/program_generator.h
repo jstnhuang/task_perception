@@ -26,8 +26,8 @@ class ProgramGenerator {
   typedef std::map<std::string, task_perception_msgs::ObjectState>
       ObjectStateIndex;
 
-  ProgramGenerator(const moveit::planning_interface::MoveGroup& left_group,
-                   const moveit::planning_interface::MoveGroup& right_group,
+  ProgramGenerator(moveit::planning_interface::MoveGroup& left_group,
+                   moveit::planning_interface::MoveGroup& right_group,
                    ObjectModelCache* model_cache,
                    const Pr2GripperViz& gripper_viz);
   task_perception_msgs::Program Generate(
@@ -79,8 +79,8 @@ class ProgramGenerator {
   // The real-world timestamp of first step we take.
   ros::Time start_time_;
 
-  const moveit::planning_interface::MoveGroup& left_group_;
-  const moveit::planning_interface::MoveGroup& right_group_;
+  moveit::planning_interface::MoveGroup& left_group_;
+  moveit::planning_interface::MoveGroup& right_group_;
   std::string planning_frame_;
 
   ObjectModelCache* model_cache_;

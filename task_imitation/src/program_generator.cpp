@@ -24,8 +24,8 @@ using geometry_msgs::Pose;
 
 namespace pbi {
 ProgramGenerator::ProgramGenerator(
-    const moveit::planning_interface::MoveGroup& left_group,
-    const moveit::planning_interface::MoveGroup& right_group,
+    moveit::planning_interface::MoveGroup& left_group,
+    moveit::planning_interface::MoveGroup& right_group,
     ObjectModelCache* model_cache, const Pr2GripperViz& gripper_viz)
     : program_(),
       start_time_(0),
@@ -181,13 +181,14 @@ msgs::Step ProgramGenerator::PlanGrasp(const std::vector<msgs::Step>& steps,
   graph.DescribePose(wrist_in_obj, tg::Source("object"), tg::Target("planning"),
                      &wrist_in_planning);
 
-  const moveit::planning_interface::MoveGroup& group =
+  moveit::planning_interface::MoveGroup& group =
       grasp_step.arm == msgs::Step::LEFT ? left_group_ : right_group_;
   const std::vector<Pose> future_poses = GetFutureObjectPoses(steps, index);
+  ROS_INFO("Planning with %zu future poses", future_poses.size());
   GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
                                grasp_step.object_state.mesh_name,
                                grasp_step.object_state.pose, future_poses,
-                               group, model_cache_);
+                               &group, model_cache_);
   context.AddObstacle(table);
 
   GraspPlanner grasp_planner(gripper_viz_);
@@ -294,7 +295,7 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
                                move_step.object_state.pose);
   target_model.set_object_model_cache(model_cache_);
   if (target_model.IsCircular()) {
-    const moveit::planning_interface::MoveGroup& move_group(
+    moveit::planning_interface::MoveGroup& move_group(
         move_step.arm == msgs::Step::LEFT ? left_group_ : right_group_);
     bool found_ik = false;
     for (int i = 0; i < 11 && !found_ik; i++) {
@@ -407,7 +408,7 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     is_grasped_obj_circular = grasped_model.IsCircular();
   }
 
-  const moveit::planning_interface::MoveGroup& move_group(
+  moveit::planning_interface::MoveGroup& move_group(
       segment.arm_name == msgs::Step::LEFT ? left_group_ : right_group_);
   msgs::Step updated_step = traj_step;
   for (size_t i = 0; i < traj_step.ee_trajectory.size(); ++i) {
@@ -516,7 +517,7 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
-      for (size_t i = 0; i < step.ee_trajectory.size(); i += 10) {
+      for (size_t i = 6; i < step.ee_trajectory.size(); i += 7) {
         const Pose& obj_in_target = step.ee_trajectory[i];
         graph.Add("grasped object", tg::RefFrame("target"), obj_in_target);
         tg::Transform obj_in_planning;
