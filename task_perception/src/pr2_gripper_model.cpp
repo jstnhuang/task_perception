@@ -35,7 +35,7 @@ Point RFingerPos() {
 
 Point GraspRegionPos() {
   Point pos;
-  pos.x = 0.1685;
+  pos.x = 0.1635;
   return pos;
 }
 
@@ -57,7 +57,7 @@ Vector3 FingerDims() {
 
 Vector3 GraspRegionDims() {
   Vector3 vec;
-  vec.x = 0.085;
+  vec.x = 0.075;
   vec.y = 0.085;
   vec.z = 0.025;
   return vec;
@@ -84,6 +84,11 @@ Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
   center << kGraspRegionPos.x, kGraspRegionPos.y, kGraspRegionPos.z;
   tf_graph_.Add("grasp center", tg::RefFrame("gripper"),
                 tg::Transform(center, tg::Orientation()));
+  Eigen::Vector3d forward_center;  // In gripper frame.
+  forward_center << kGraspRegionPos.x + kGraspRegionDims.x / 2 - 0.0175,
+      kGraspRegionPos.y, kGraspRegionPos.z;
+  tf_graph_.Add("forward grasp center", tg::RefFrame("gripper"),
+                tg::Transform(forward_center, tg::Orientation()));
 }
 
 void Pr2GripperModel::set_pose(const Pose& pose) {
@@ -172,6 +177,13 @@ void Pr2GripperModel::ToMarkerArray(
 Eigen::Vector3d Pr2GripperModel::grasp_center() const {
   tg::Transform grasp_center;
   tf_graph_.ComputeDescription(tg::LocalFrame("grasp center"),
+                               tg::RefFrame("gripper base"), &grasp_center);
+  return grasp_center.matrix().topRightCorner(3, 1);
+}
+
+Eigen::Vector3d Pr2GripperModel::forward_grasp_center() const {
+  tg::Transform grasp_center;
+  tf_graph_.ComputeDescription(tg::LocalFrame("forward grasp center"),
                                tg::RefFrame("gripper base"), &grasp_center);
   return grasp_center.matrix().topRightCorner(3, 1);
 }

@@ -24,6 +24,9 @@ class Pr2GripperModel {
 
   // Returns the "center" of the gripper's grasp region in the world frame.
   Eigen::Vector3d grasp_center() const;
+  // Returns the center of the grasp, but farther forward (about 1 cm away from
+  // the edge of the grasp region)
+  Eigen::Vector3d forward_grasp_center() const;
 
   // Returns the center of the palm in the world frame.
   // This can be a good proxy for a human wrist.
