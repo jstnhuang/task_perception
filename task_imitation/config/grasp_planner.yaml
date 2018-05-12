@@ -4,8 +4,8 @@ grasp_planner:
   # Scoring weights
   antipodal_grasp_weight: 4
   non_antipodal_grasp_weight: 1
-  antipodal_collision_weight: -1
-  non_antipodal_collision_weight: -2
+  antipodal_collision_weight: -5
+  non_antipodal_collision_weight: -10
   sq_wrist_distance_weight: -3000
   obstacle_collision_weight: -1000000
 
@@ -23,7 +23,7 @@ grasp_planner:
   roll_range_degrees: 120
   roll_resolution_degrees: 10
   pitch_range_degrees: 360
-  pitch_resolution_degrees: 10
+  pitch_resolution_degrees: 5
   antipodal_degrees: 15
 
   # How many iterations to try adjusting the gripper placement
