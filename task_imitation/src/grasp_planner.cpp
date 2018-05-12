@@ -114,11 +114,11 @@ GraspPlanner::GraspPlanner(const Pr2GripperViz& gripper_viz)
 Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
   UpdateParams();
   Pose wrist_pose = context.wrist_pose();
-  if (debug_) {
-    visualization_msgs::MarkerArray wrist_axes = rapid::AxesMarkerArray(
-        "wrist", context.planning_frame_id(), wrist_pose, 0.1);
-    gripper_pub_.publish(wrist_axes);
-  }
+  // if (debug_) {
+  //}
+  visualization_msgs::MarkerArray wrist_axes = rapid::AxesMarkerArray(
+      "wrist", context.planning_frame_id(), wrist_pose, 0.1);
+  gripper_pub_.publish(wrist_axes);
 
   Pr2GripperModel gripper_model;
   gripper_model.set_pose(wrist_pose);
@@ -152,9 +152,9 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   gripper_model.set_pose(initial_pose);
 
   PublishPointCloud(object_pub_, *context.object_cloud());
+  visualization_msgs::MarkerArray wrist_axes = rapid::AxesMarkerArray(
+      "wrist", context.planning_frame_id(), context.wrist_pose(), 0.1);
   if (debug_) {
-    visualization_msgs::MarkerArray wrist_axes = rapid::AxesMarkerArray(
-        "wrist", context.planning_frame_id(), context.wrist_pose(), 0.1);
     while (ros::ok() && gripper_pub_.getNumSubscribers() == 0) {
       ROS_INFO_THROTTLE(1,
                         "Waiting for Rviz to subscribe to gripper markers...");
@@ -169,9 +169,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   int num_samples = context.object_cloud()->size() * sample_ratio;
   boost::shared_ptr<std::vector<int> > sample_indices(new std::vector<int>());
   *sample_indices = SampleObject(context, num_samples);
-  if (debug_) {
-    PublishPointCloud(debug_cloud_pub_, context.object_cloud(), sample_indices);
-  }
+  PublishPointCloud(debug_cloud_pub_, context.object_cloud(), sample_indices);
   ROS_INFO("Sampled %d points", num_samples);
 
   ScoredGrasp best;
@@ -180,9 +178,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     const int sample_index = sample_indices->at(i);
 
     // Visualize the object normal
-    if (debug_) {
-      VisualizePointNormal(context, sample_index);
-    }
+    VisualizePointNormal(context, sample_index);
 
     Pr2GripperModel model;
     model.set_pose(gripper_model.pose());
@@ -191,25 +187,25 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     model.set_pose(centered);
 
     Pose aligned = AlignGraspWithPoint(model, context, sample_index);
+    VisualizeGripper("optimization", aligned, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", aligned, context.planning_frame_id());
-      // ROS_INFO("Aligned with normal");
-      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      ROS_INFO("Aligned with normal");
+      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     Pose placed = OptimizePlacement(aligned, context, kMaxPlacementIterations);
+    VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", placed, context.planning_frame_id());
-      // ROS_INFO("Placed");
-      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      ROS_INFO("Placed");
+      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     model.set_pose(placed);
     ScoredGrasp grasp = OptimizePitch(model, context);
+    VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
-      // ROS_INFO("Pitched");
-      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      ROS_INFO("Pitched");
+      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     model.set_pose(grasp.pose);
@@ -218,9 +214,10 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       if (escaped.IsValid()) {
         grasp = escaped;
       }
+      VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
       if (debug_) {
-        VisualizeGripper("optimization", grasp.pose,
-                         context.planning_frame_id());
+        ROS_INFO("Escape attempt");
+        ros::topic::waitForMessage<std_msgs::Bool>("trigger");
       }
     }
 
@@ -239,11 +236,14 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
             "(compared to %d)",
             num_future_poses, context.future_poses().size(), most_future_poses);
       }
+    } else if (debug_) {
+      ROS_INFO("Eval: %s", grasp.eval.ToString().c_str());
     }
     VisualizeGripper("optimization_best", best.pose,
                      context.planning_frame_id());
     if (debug_) {
-      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      ROS_INFO("Best so far");
+      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
   }
   VisualizeGripper("optimization_best", best.pose, context.planning_frame_id());
@@ -754,6 +754,9 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
   gripper_center << Pr2GripperModel::kGraspRegionPos.x,
       Pr2GripperModel::kGraspRegionPos.y, Pr2GripperModel::kGraspRegionPos.z;
 
+  double placement_step_scale =
+      rapid::GetDoubleParamOrThrow("grasp_planner/placement_step_scale");
+
   int num_collisions = 0;
   for (int iter = 0; iter < max_iters; ++iter) {
     num_collisions = 0;
@@ -771,7 +774,6 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
         Eigen::Vector3d pt_vec;
         pt_vec << pt.x, pt.y, pt.z;
         Eigen::Vector3d center_to_pt = pt_vec - gripper_center;
-        center_to_pt.x() = 0;
         total += 2 * center_to_pt;
       }
     }
@@ -795,12 +797,12 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
       break;
     }
 
-    affine_pose.translate(total);
+    affine_pose.translate(placement_step_scale * total);
     tf::poseEigenToMsg(affine_pose, current_pose);
 
+    VisualizeGripper("optimization", current_pose, context.planning_frame_id());
     if (debug_) {
-      VisualizeGripper("optimization", current_pose,
-                       context.planning_frame_id());
+      ros::Duration(0.05).sleep();
     }
   }
 

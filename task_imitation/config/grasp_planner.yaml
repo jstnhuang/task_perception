@@ -28,6 +28,7 @@ grasp_planner:
 
   # How many iterations to try adjusting the gripper placement
   max_placement_iterations: 10
+  placement_step_scale: 0.5
 
   # How many random offsets to try to escape collision
   max_escape_attempts: 100
