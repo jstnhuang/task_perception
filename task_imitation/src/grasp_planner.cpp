@@ -347,7 +347,7 @@ Pose GraspPlanner::CenterGraspOnPoint(const Pr2GripperModel& gripper_model,
   Eigen::Affine3d pose_affine;
   tf::poseMsgToEigen(gripper_model.pose(), pose_affine);
 
-  Eigen::Vector3d grasp_center = gripper_model.grasp_center();
+  Eigen::Vector3d grasp_center = gripper_model.forward_grasp_center();
 
   const pcl::PointXYZ& obj_pt = context.object_cloud()->at(index);
   Eigen::Vector3d obj_pt_vec(obj_pt.x, obj_pt.y, obj_pt.z);
@@ -771,6 +771,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
         Eigen::Vector3d pt_vec;
         pt_vec << pt.x, pt.y, pt.z;
         Eigen::Vector3d center_to_pt = pt_vec - gripper_center;
+        center_to_pt.x() = 0;
         total += 2 * center_to_pt;
       }
     }
