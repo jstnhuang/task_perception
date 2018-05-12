@@ -492,10 +492,14 @@ std::string PlanToPose(MoveGroup& group,
                        const robot_state::RobotState& start_state,
                        const geometry_msgs::Pose& gripper_pose, int num_tries,
                        MoveGroup::Plan* plan) {
+  double max_planning_time =
+      rapid::GetDoubleParamOrThrow("task_imitation/max_planning_time");
+  int num_attempts =
+      rapid::GetDoubleParamOrThrow("task_imitation/num_planning_attempts");
   group.setStartState(start_state);
   group.setPoseTarget(gripper_pose);
-  group.setPlanningTime(1.0);
-  group.setNumPlanningAttempts(100);
+  group.setPlanningTime(max_planning_time);
+  group.setNumPlanningAttempts(num_attempts);
 
   MoveItErrorCode error;
   for (int i = 0; i < num_tries; ++i) {
