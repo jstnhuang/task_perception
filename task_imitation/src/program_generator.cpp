@@ -86,7 +86,8 @@ msgs::Program ProgramGenerator::Generate(
     step_i++;
   }
 
-  Pose gripper_in_obj;
+  Pose left_gripper_in_obj;
+  Pose right_gripper_in_obj;
   for (size_t i = 0, step_i = 0; i < segments.size(); ++i) {
     const ProgramSegment& segment = segments[i];
     if (segment.type == msgs::Step::FOLLOW_TRAJECTORY &&
@@ -97,11 +98,21 @@ msgs::Program ProgramGenerator::Generate(
     const msgs::Step& step = program_.steps[step_i];
     ROS_ASSERT(segment.type == step.type);
     if (segment.type == msgs::Step::GRASP) {
-      gripper_in_obj = step.ee_trajectory[0];
+      if (segment.arm_name == msgs::Step::LEFT) {
+        left_gripper_in_obj = step.ee_trajectory[0];
+      } else if (segment.arm_name == msgs::Step::RIGHT) {
+        right_gripper_in_obj = step.ee_trajectory[0];
+      }
     } else if (segment.type == msgs::Step::MOVE_TO_POSE) {
+      const Pose& gripper_in_obj = segment.arm_name == msgs::Step::LEFT
+                                       ? left_gripper_in_obj
+                                       : right_gripper_in_obj;
       program_.steps[step_i] =
           ParameterizeMoveToWithGrasp(segment, step, gripper_in_obj);
     } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
+      const Pose& gripper_in_obj = segment.arm_name == msgs::Step::LEFT
+                                       ? left_gripper_in_obj
+                                       : right_gripper_in_obj;
       program_.steps[step_i] =
           ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj);
     }
@@ -517,7 +528,7 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
-      for (size_t i = 6; i < step.ee_trajectory.size(); i += 7) {
+      for (size_t i = 10; i < step.ee_trajectory.size(); i += 10) {
         const Pose& obj_in_target = step.ee_trajectory[i];
         graph.Add("grasped object", tg::RefFrame("target"), obj_in_target);
         tg::Transform obj_in_planning;
