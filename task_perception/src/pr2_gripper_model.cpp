@@ -85,7 +85,7 @@ Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
   tf_graph_.Add("grasp center", tg::RefFrame("gripper"),
                 tg::Transform(center, tg::Orientation()));
   Eigen::Vector3d forward_center;  // In gripper frame.
-  forward_center << kGraspRegionPos.x + kGraspRegionDims.x / 2 - 0.025,
+  forward_center << kGraspRegionPos.x + kGraspRegionDims.x / 2 - 0.035,
       kGraspRegionPos.y, kGraspRegionPos.z;
   tf_graph_.Add("forward grasp center", tg::RefFrame("gripper"),
                 tg::Transform(forward_center, tg::Orientation()));
