@@ -12,3 +12,4 @@ task_imitation:
   num_planning_tries: 10 # Number of times to attempt motion planning for poses
   max_planning_time: 1
   num_planning_attempts: 100
+  sample_every_nth_future_pose: 5

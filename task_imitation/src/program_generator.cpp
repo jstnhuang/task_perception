@@ -5,6 +5,7 @@
 #include "boost/foreach.hpp"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
+#include "rapid_ros/params.h"
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
 #include "task_perception/lazy_object_model.h"
@@ -509,6 +510,8 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
 
 std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
                                        const size_t index) {
+  int sample_every =
+      rapid::GetIntParamOrThrow("task_imitation/sample_every_nth_future_pose");
   std::vector<Pose> future_poses;
   BOOST_FOREACH (const msgs::Step& step, steps) {
     if (step.type == msgs::Step::UNGRASP) {
@@ -528,7 +531,7 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
-      for (size_t i = 10; i < step.ee_trajectory.size(); i += 10) {
+      for (size_t i = 1; i < step.ee_trajectory.size(); i += sample_every) {
         const Pose& obj_in_target = step.ee_trajectory[i];
         graph.Add("grasped object", tg::RefFrame("target"), obj_in_target);
         tg::Transform obj_in_planning;
