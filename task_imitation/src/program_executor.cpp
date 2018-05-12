@@ -442,7 +442,6 @@ std::vector<PlannedStep> PlanSteps(
     const std::map<std::string, msgs::ObjectState>& object_states,
     MoveGroup& group, std::string* error_out) {
   std::vector<PlannedStep> result;
-  robot_model::RobotModelConstPtr robot_model = group.getRobotModel();
   group.setStartStateToCurrentState();
 
   ros::Time plan_start = ros::Time::now();
@@ -496,7 +495,7 @@ std::string PlanToPose(MoveGroup& group,
   group.setStartState(start_state);
   group.setPoseTarget(gripper_pose);
   group.setPlanningTime(1.0);
-  group.setNumPlanningAttempts(10);
+  group.setNumPlanningAttempts(100);
 
   MoveItErrorCode error;
   for (int i = 0; i < num_tries; ++i) {
