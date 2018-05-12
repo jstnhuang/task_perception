@@ -277,7 +277,7 @@ void GraspPlanner::VisualizeGripper(const std::string& ns, const Pose& pose,
 
 Pose GraspPlanner::ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
                                        const GraspPlanningContext& context) {
-  Eigen::Vector3d grasp_center = gripper_model.grasp_center();
+  Eigen::Vector3d grasp_center = gripper_model.forward_grasp_center();
 
   // Initial pose to optimize around: translate gripper such that the closest
   // object point is in the center.
@@ -382,15 +382,15 @@ Pose GraspPlanner::AlignGraspWithPoint(const Pr2GripperModel& gripper_model,
   graph.ComputeDescription("grasp center", tg::RefFrame("gripper base"),
                            &center_in_planning);
   Eigen::Affine3d center_affine = center_in_planning.affine();
-  center_affine.pretranslate(-gripper_model.grasp_center());
+  center_affine.pretranslate(-gripper_model.forward_grasp_center());
   center_affine.prerotate(rotation);
-  center_affine.pretranslate(gripper_model.grasp_center());
+  center_affine.pretranslate(gripper_model.forward_grasp_center());
   graph.Add("rotated grasp center", tg::RefFrame("gripper base"),
             center_affine);
 
   // Get gripper pose to match the rotated grasp center
   tg::Transform gripper_in_grasp_center;
-  graph.ComputeDescription("gripper", tg::RefFrame("grasp center"),
+  graph.ComputeDescription("gripper", tg::RefFrame("forward grasp center"),
                            &gripper_in_grasp_center);
   tg::Transform rotated_tf;
   graph.DescribePose(gripper_in_grasp_center,
@@ -420,7 +420,7 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
   // Get transform graph and starter transforms
   tg::Graph tf_graph = gripper_model.tf_graph();
   tg::Transform gripper_in_grasp_center;
-  tf_graph.ComputeDescription("gripper", tg::RefFrame("grasp center"),
+  tf_graph.ComputeDescription("gripper", tg::RefFrame("forward grasp center"),
                               &gripper_in_grasp_center);
 
   ScoredGrasp best;
@@ -429,7 +429,7 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
     Eigen::AngleAxisd pitch_rot(pitch_angle, Eigen::Vector3d::UnitY());
     Eigen::Quaterniond rotation(pitch_rot);
 
-    tf_graph.Add("rotated grasp center", tg::RefFrame("grasp center"),
+    tf_graph.Add("rotated grasp center", tg::RefFrame("forward grasp center"),
                  tg::Transform(tg::Position(), rotation));
     // New gripper pose in camera frame, after rotation.
     tg::Transform rotated_tf;
