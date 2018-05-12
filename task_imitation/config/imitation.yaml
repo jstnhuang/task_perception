@@ -10,5 +10,5 @@ task_imitation:
   cart_path_jump_threshold: 4 # The jump_threshold for planning paths when following a trajectory (measured in joint space distance)
   slice_pause_duration: 0.1 # Amount of time, in seconds, to wait in between executing slices
   num_planning_tries: 10 # Number of times to attempt motion planning for poses
-  max_planning_time: 0.02
+  max_planning_time: 1
   num_planning_attempts: 100
