@@ -10,6 +10,6 @@ task_imitation:
   cart_path_jump_threshold: 4 # The jump_threshold for planning paths when following a trajectory (measured in joint space distance)
   slice_pause_duration: 0.1 # Amount of time, in seconds, to wait in between executing slices
   num_planning_tries: 10 # Number of times to attempt motion planning for poses
-  max_planning_time: 1
-  num_planning_attempts: 100
-  sample_every_nth_future_pose: 5
+  max_planning_time: 1 # Time, in seconds, to give to MoveIt for planning
+  num_planning_attempts: 100 # Number of planning attempts before returning shortest path
+  sample_every_nth_future_pose: 5 # 1 out of every N poses from the future is sampled and tested in grasp planning
