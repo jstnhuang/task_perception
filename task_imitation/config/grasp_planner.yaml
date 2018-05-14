@@ -1,5 +1,5 @@
 grasp_planner:
-  debug: true
+  debug: false
 
   # Scoring weights
   antipodal_grasp_weight: 4
