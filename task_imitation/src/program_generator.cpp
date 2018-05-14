@@ -302,15 +302,27 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
   // If the destination is unreachable and the object is circular, it might be
   // the case that the object has the wrong yaw value. Try rotating the object
   // about its local z-axis until we find a feasible location.
+  // The best location is the one either most to the left for the left arm or
+  // most to the right for the right arm.
+  ROS_ASSERT(move_step.ee_trajectory.size() > 0);
   const std::string unused_frame("");
-  LazyObjectModel target_model(move_step.object_state.mesh_name, unused_frame,
-                               move_step.object_state.pose);
-  target_model.set_object_model_cache(model_cache_);
-  if (target_model.IsCircular()) {
+  const Pose unused_pose;
+  const msgs::DemoState& state = segment.demo_states[0];
+  const msgs::HandState& hand =
+      segment.arm_name == msgs::Step::LEFT ? state.left_hand : state.right_hand;
+  const msgs::ObjectState grasped_obj = GetObjectState(state, hand.object_name);
+  LazyObjectModel grasped_model(grasped_obj.mesh_name, unused_frame,
+                                unused_pose);
+  grasped_model.set_object_model_cache(model_cache_);
+  bool is_grasped_obj_circular = grasped_model.IsCircular();
+  if (is_grasped_obj_circular) {
     moveit::planning_interface::MoveGroup& move_group(
         move_step.arm == msgs::Step::LEFT ? left_group_ : right_group_);
     bool found_ik = false;
-    for (int i = 0; i < 11 && !found_ik; i++) {
+    double best_y = move_step.arm == msgs::Step::LEFT
+                        ? -std::numeric_limits<double>::max()
+                        : std::numeric_limits<double>::max();
+    for (int i = 0; i < 11; i++) {
       for (int sign = 1; sign >= -1; sign -= 2) {
         Eigen::AngleAxisd yaw(sign * i * M_PI / 10, Eigen::Vector3d::UnitZ());
         Eigen::Quaterniond yaw_q(yaw);
@@ -320,16 +332,20 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
         ROS_ASSERT(graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                             &rotated_ee_in_planning));
         if (HasIk(move_group, rotated_ee_in_planning.pose())) {
-          const double yaw_degrees = yaw.angle() * 180 / M_PI;
-          if (yaw_degrees != 0) {
-            ROS_INFO("[MoveTo] IK found with yaw of %f", yaw_degrees);
+          tg::Position gripper_pos;
+          graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
+                                 tg::Target("planning"), &gripper_pos);
+          if ((move_step.arm == msgs::Step::LEFT && gripper_pos.y() > best_y) ||
+              (move_step.arm == msgs::Step::RIGHT &&
+               gripper_pos.y() < best_y)) {
+            best_y = gripper_pos.y();
+            tg::Transform rotated_ee_in_target;
+            ROS_ASSERT(graph.ComputeDescription("gripper",
+                                                tg::RefFrame("target object"),
+                                                &rotated_ee_in_target));
+            final_ee_in_target = rotated_ee_in_target.pose();
+            found_ik = true;
           }
-          tg::Transform rotated_ee_in_target;
-          ROS_ASSERT(graph.ComputeDescription(
-              "gripper", tg::RefFrame("target object"), &rotated_ee_in_target));
-          final_ee_in_target = rotated_ee_in_target.pose();
-          found_ik = true;
-          break;
         }
         if (i == 0 || i == 10) {
           break;
@@ -399,26 +415,24 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     const Pose& gripper_in_obj) {
   tg::Graph graph;
   graph.Add("gripper", tg::RefFrame("rotated grasped object"), gripper_in_obj);
-  graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
-            tg::Transform());
+  graph.Add("rotated grasped object", tg::RefFrame("prerotated grasped object"),
+            tg::Transform::Identity());
+  graph.Add("prerotated grasped object", tg::RefFrame("grasped object"),
+            tg::Transform::Identity());
   graph.Add("target object", tg::RefFrame("planning"),
             traj_step.object_state.pose);
 
-  bool is_grasped_obj_circular = false;
-  if (traj_step.ee_trajectory.size() > 0) {
-    const std::string unused_frame("");
-    const Pose unused_pose;
-    const msgs::DemoState& state = segment.demo_states[0];
-    const msgs::HandState& hand = segment.arm_name == msgs::Step::LEFT
-                                      ? state.left_hand
-                                      : state.right_hand;
-    const msgs::ObjectState grasped_obj =
-        GetObjectState(state, hand.object_name);
-    LazyObjectModel grasped_model(grasped_obj.mesh_name, unused_frame,
-                                  unused_pose);
-    grasped_model.set_object_model_cache(model_cache_);
-    is_grasped_obj_circular = grasped_model.IsCircular();
-  }
+  ROS_ASSERT(traj_step.ee_trajectory.size() > 0);
+  const std::string unused_frame("");
+  const Pose unused_pose;
+  const msgs::DemoState& state = segment.demo_states[0];
+  const msgs::HandState& hand =
+      segment.arm_name == msgs::Step::LEFT ? state.left_hand : state.right_hand;
+  const msgs::ObjectState grasped_obj = GetObjectState(state, hand.object_name);
+  LazyObjectModel grasped_model(grasped_obj.mesh_name, unused_frame,
+                                unused_pose);
+  grasped_model.set_object_model_cache(model_cache_);
+  bool is_grasped_obj_circular = grasped_model.IsCircular();
 
   moveit::planning_interface::MoveGroup& move_group(
       segment.arm_name == msgs::Step::LEFT ? left_group_ : right_group_);
@@ -435,27 +449,38 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
       // Search for IK in both directions in order: 0, pi/10, -pi/10, 2*pi/10,
       // -2*pi/10, ..., pi.
       bool found_ik = false;
-      for (int yaw_i = 0; yaw_i < 11 && !found_ik; yaw_i++) {
+      int best_yaw_i = 0;
+      double best_y = segment.arm_name == msgs::Step::LEFT
+                          ? -std::numeric_limits<double>::max()
+                          : std::numeric_limits<double>::max();
+      for (int yaw_i = 0; yaw_i < 11; yaw_i++) {
         for (int sign = 1; sign >= -1; sign -= 2) {
           Eigen::AngleAxisd yaw(sign * yaw_i * M_PI / 10,
                                 Eigen::Vector3d::UnitZ());
           Eigen::Quaterniond yaw_q(yaw);
-          graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
+          graph.Add("rotated grasped object",
+                    tg::RefFrame("prerotated grasped object"),
                     tg::Transform(tg::Position(), yaw_q));
           tg::Transform ee_in_planning;
           graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                    &ee_in_planning);
           if (HasIk(move_group, ee_in_planning.pose())) {
-            const double yaw_degrees = yaw.angle() * 180 / M_PI;
-            if (yaw_degrees != 0) {
-              ROS_INFO("IK found with yaw of %f", yaw_degrees);
+            tg::Position gripper_pos;
+            graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
+                                   tg::Target("planning"), &gripper_pos);
+
+            if ((segment.arm_name == msgs::Step::LEFT &&
+                 gripper_pos.y() > best_y) ||
+                (segment.arm_name == msgs::Step::RIGHT &&
+                 gripper_pos.y() < best_y)) {
+              best_yaw_i = sign * yaw_i;
+              best_y = gripper_pos.y();
+              tg::Transform gripper_in_rotated_target;
+              graph.ComputeDescription("gripper", tg::RefFrame("target object"),
+                                       &gripper_in_rotated_target);
+              final_gripper_in_target = gripper_in_rotated_target.pose();
+              found_ik = true;
             }
-            tg::Transform gripper_in_rotated_target;
-            graph.ComputeDescription("gripper", tg::RefFrame("target object"),
-                                     &gripper_in_rotated_target);
-            final_gripper_in_target = gripper_in_rotated_target.pose();
-            found_ik = true;
-            break;
           }
           if (yaw_i == 0 || yaw_i == 10) {
             break;
@@ -465,6 +490,17 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
 
       if (!found_ik) {
         ROS_ERROR("Failed to find IK for trajectory point %zu", i + 1);
+      } else {
+        // Adopt the best yaw from earlier as the pre-rotation.
+        Eigen::AngleAxisd yaw(best_yaw_i * M_PI / 10, Eigen::Vector3d::UnitZ());
+        Eigen::Quaterniond yaw_q(yaw);
+        tg::Transform rotation_in_grasped_obj;
+        graph.DescribePose(tg::Transform(tg::Position(), yaw_q),
+                           tg::Source("prerotated grasped object"),
+                           tg::Target("grasped object"),
+                           &rotation_in_grasped_obj);
+        graph.Add("prerotated grasped object", tg::RefFrame("grasped object"),
+                  rotation_in_grasped_obj);
       }
     }
     updated_step.ee_trajectory[i] = final_gripper_in_target;
