@@ -24,6 +24,7 @@ class GraspFeatures {
   int non_antipodal_collisions;
   double sq_wrist_distance;
   bool is_colliding_with_obstacle;
+  double future_pose_ratio;
 };
 
 class GraspFeatureWeights {
@@ -36,6 +37,7 @@ class GraspFeatureWeights {
   double non_antipodal_collision_weight;
   double sq_wrist_distance_weight;
   double obstacle_collision_weight;
+  double future_pose_weight;
 };
 
 class GraspEvaluation {

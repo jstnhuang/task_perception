@@ -38,7 +38,8 @@ GraspFeatures::GraspFeatures()
       antipodal_collisions(0),
       non_antipodal_collisions(0),
       sq_wrist_distance(0),
-      is_colliding_with_obstacle(false) {}
+      is_colliding_with_obstacle(false),
+      future_pose_ratio(0) {}
 
 GraspFeatureWeights::GraspFeatureWeights()
     : antipodal_grasp_weight(0),
@@ -46,7 +47,8 @@ GraspFeatureWeights::GraspFeatureWeights()
       antipodal_collision_weight(0),
       non_antipodal_collision_weight(0),
       sq_wrist_distance_weight(0),
-      obstacle_collision_weight(0) {}
+      obstacle_collision_weight(0),
+      future_pose_weight(0) {}
 
 GraspEvaluation::GraspEvaluation() : features(), weights() {}
 
@@ -61,15 +63,16 @@ std::string GraspEvaluation::ToString() const {
      << weights.non_antipodal_collision_weight << "*"
      << features.non_antipodal_collisions << " + "
      << weights.sq_wrist_distance_weight << "*" << features.sq_wrist_distance
-     << " = " << weights.antipodal_grasp_weight * features.antipodal_grasp_pts
-     << " + "
+     << weights.future_pose_weight << "*" << features.future_pose_ratio << " = "
+     << weights.antipodal_grasp_weight * features.antipodal_grasp_pts << " + "
      << weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts
      << " + "
      << weights.antipodal_collision_weight * features.antipodal_collisions
      << " + "
      << weights.non_antipodal_collision_weight *
             features.non_antipodal_collisions
-     << " + " << weights.sq_wrist_distance_weight * features.sq_wrist_distance;
+     << " + " << weights.sq_wrist_distance_weight * features.sq_wrist_distance
+     << " + " << weights.future_pose_weight * features.future_pose_ratio;
   if (features.is_colliding_with_obstacle) {
     ss << " (collision)";
   } else {
@@ -87,6 +90,7 @@ double GraspEvaluation::score() const {
   score += weights.non_antipodal_collision_weight *
            features.non_antipodal_collisions;
   score += weights.sq_wrist_distance_weight * features.sq_wrist_distance;
+  score += weights.future_pose_weight * features.future_pose_ratio;
   if (features.is_colliding_with_obstacle) {
     score += weights.obstacle_collision_weight;
   }
@@ -170,7 +174,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   ROS_INFO("Sampled %d points", num_samples);
 
   ScoredGrasp best;
-  int most_future_poses = -1;
+  // int most_future_poses = -1;
   for (int i = num_samples - 1; i >= 0; --i) {
     const int sample_index = sample_indices->at(i);
 
@@ -218,23 +222,35 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       }
     }
 
-    if (grasp.IsValid() && grasp.score > best.score) {
-      ROS_INFO("Best score: %s", grasp.eval.ToString().c_str());
+    if (grasp.IsValid()) {
       model.set_pose(grasp.pose);
       int num_future_poses = EvaluateFuturePoses(model, context);
-      if (num_future_poses >= most_future_poses) {
+      grasp.eval.features.future_pose_ratio =
+          static_cast<double>(num_future_poses) / context.future_poses().size();
+      grasp.score = grasp.eval.score();
+
+      if (grasp.score > best.score) {
+        ROS_INFO("Best score: %s", grasp.eval.ToString().c_str());
         ROS_INFO("Adopting grasp that reaches %d of %zu future poses",
                  num_future_poses, context.future_poses().size());
         best = grasp;
-        most_future_poses = num_future_poses;
+        // if (num_future_poses >= most_future_poses * 0.9) {
+        //  ROS_INFO("Adopting grasp that reaches %d of %zu future poses",
+        //           num_future_poses, context.future_poses().size());
+        //  best = grasp;
+        //  most_future_poses = num_future_poses;
+        //} else {
+        //  ROS_INFO(
+        //      "Rejecting grasp that only reaches %d of %zu future poses "
+        //      "(compared to %d)",
+        //      num_future_poses, context.future_poses().size(),
+        //      most_future_poses);
+        //}
       } else {
-        ROS_INFO(
-            "Rejecting grasp that only reaches %d of %zu future poses "
-            "(compared to %d)",
-            num_future_poses, context.future_poses().size(), most_future_poses);
+        if (debug_) {
+          ROS_INFO("Eval: %s", grasp.eval.ToString().c_str());
+        }
       }
-    } else if (debug_) {
-      ROS_INFO("Eval: %s", grasp.eval.ToString().c_str());
     }
     VisualizeGripper("optimization_best", best.pose,
                      context.planning_frame_id());
@@ -770,6 +786,8 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
         Eigen::Vector3d pt_vec;
         pt_vec << pt.x, pt.y, pt.z;
         Eigen::Vector3d center_to_pt = pt_vec - gripper_center;
+        center_to_pt.x() = 0;
+        center_to_pt.z() = 0;
         total += 2 * center_to_pt;
       }
     }
@@ -782,6 +800,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
         pt_vec << pt.x, pt.y, pt.z;
         Eigen::Vector3d center_to_pt = pt_vec - gripper_center;
         center_to_pt.x() = 0;
+        center_to_pt.z() = 0;
         total += center_to_pt;
         ++num_pts_in_grasp;
       }
@@ -853,13 +872,16 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
         ++count;
         break;
       } else {
-        // if (debug_) {
-        //  ROS_INFO("Pose %zu yaw %f: No IK! %f %f %f %f %f %f %f", i,
-        //           yaw_angle * 180 / M_PI, rotated_pose.position.x,
-        //           rotated_pose.position.y, rotated_pose.position.z,
-        //           rotated_pose.orientation.x, rotated_pose.orientation.y,
-        //           rotated_pose.orientation.z, rotated_pose.orientation.w);
-        //}
+        if (debug_) {
+          ROS_INFO("Pose %zu yaw %f: No IK! %f %f %f %f %f %f %f", i,
+                   yaw_angle * 180 / M_PI, rotated_pose.position.x,
+                   rotated_pose.position.y, rotated_pose.position.z,
+                   rotated_pose.orientation.x, rotated_pose.orientation.y,
+                   rotated_pose.orientation.z, rotated_pose.orientation.w);
+          // VisualizeGripper("optimization", rotated_pose,
+          //                 context.planning_frame_id());
+          // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+        }
         // Only try to rotate circular objects
         if (!context.IsObjectCircular()) {
           break;
@@ -884,6 +906,8 @@ void GraspPlanner::UpdateParams() {
       GetDoubleParamOrThrow("grasp_planner/sq_wrist_distance_weight");
   weights_.obstacle_collision_weight =
       GetDoubleParamOrThrow("grasp_planner/obstacle_collision_weight");
+  weights_.future_pose_weight =
+      GetDoubleParamOrThrow("grasp_planner/future_pose_weight");
 
   const double kAntipodalDegrees =
       GetDoubleParamOrThrow("grasp_planner/antipodal_degrees");
