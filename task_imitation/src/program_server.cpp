@@ -254,11 +254,14 @@ void ProgramServer::GetObjectPoses(
                              &origin_in_planning);
       rough_obj_pose.position = origin_in_planning.point();
 
+      ScoredAlignment obb_pose;
       LazyObjectModel rough_obj_model(obj_state.mesh_name, planning_frame_,
                                       rough_obj_pose);
       rough_obj_model.set_object_model_cache(&model_cache_);
-      ScoredAlignment obb_pose = AlignObject(
-          rough_obj_model, surface_objects->at(0).objects[obj_index]);
+      if (!rough_obj_model.IsCircular()) {
+        obb_pose = AlignObject(rough_obj_model,
+                               surface_objects->at(0).objects[obj_index]);
+      }
 
       // Get a copy of the model pose, oriented so that its x-axis is aligned
       // with the x-axis of the planning frame.
