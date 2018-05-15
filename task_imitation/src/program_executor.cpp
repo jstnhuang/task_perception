@@ -687,9 +687,9 @@ PlannedStep PlanFollowTrajectoryStep(
   moveit_msgs::MoveItErrorCodes error_code;
   moveit_msgs::RobotTrajectory planned_traj;
 
-  const double kEefThreshold =
+  const double eef_threshold =
       rapid::GetDoubleParamOrThrow("task_imitation/cart_path_eef_threshold");
-  const double kJumpThreshold =
+  const double jump_threshold =
       rapid::GetDoubleParamOrThrow("task_imitation/cart_path_jump_threshold");
   const bool kAvoidCollisions = true;
 
@@ -731,7 +731,7 @@ PlannedStep PlanFollowTrajectoryStep(
   group.setStartState(*start_state);
 
   double fraction =
-      group.computeCartesianPath(pose_trajectory, kEefThreshold, kJumpThreshold,
+      group.computeCartesianPath(pose_trajectory, eef_threshold, 0.0,
                                  planned_traj, kAvoidCollisions, &error_code);
   if (!rapid::IsSuccess(error_code)) {
     *error_out = rapid::ErrorString(error_code);
@@ -742,6 +742,30 @@ PlannedStep PlanFollowTrajectoryStep(
     *error_out = ss.str();
     return result;
   } else {
+    // Check the amount of change in configuration space
+    double sq_max_jump = 0;
+    for (size_t i = 0; i + 1 < planned_traj.joint_trajectory.points.size();
+         i++) {
+      const JointTrajectoryPoint current_pt =
+          planned_traj.joint_trajectory.points[i];
+      const JointTrajectoryPoint next_pt =
+          planned_traj.joint_trajectory.points[i + 1];
+      double sq_config_dist = 0;
+      for (size_t j = 0; j + 1 < current_pt.positions.size(); j++) {
+        double dist = current_pt.positions[j] - next_pt.positions[j];
+        sq_config_dist += dist * dist;
+      }
+      if (sq_config_dist > sq_max_jump) {
+        sq_max_jump = sq_config_dist;
+      }
+    }
+    double max_jump = sqrt(sq_max_jump);
+    if (max_jump > jump_threshold) {
+      ROS_WARN("Trajectory includes a C-space jump of %f! Be careful!",
+               max_jump);
+    } else {
+      ROS_INFO("Max C-space jump in trajectory: %f", max_jump);
+    }
     ROS_INFO("Planned %f%% of arm trajectory (%zu -> %zu pts)", fraction * 100,
              pose_trajectory.size(),
              planned_traj.joint_trajectory.points.size());
