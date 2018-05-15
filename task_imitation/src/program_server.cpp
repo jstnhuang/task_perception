@@ -257,35 +257,45 @@ void ProgramServer::GetObjectPoses(
       LazyObjectModel rough_obj_model(obj_state.mesh_name, planning_frame_,
                                       rough_obj_pose);
       rough_obj_model.set_object_model_cache(&model_cache_);
-
-      ROS_ASSERT(surface_objects->size() == 1);  // MatchObject enforces this
-
-      geometry_msgs::Pose aligned_pose = AlignObject(
+      ScoredAlignment obb_pose = AlignObject(
           rough_obj_model, surface_objects->at(0).objects[obj_index]);
 
-      // If the object is circular, orient the model so its x-axis is aligned
+      // Get a copy of the model pose, oriented so that its x-axis is aligned
       // with the x-axis of the planning frame.
-      if (rough_obj_model.IsCircular()) {
-        const surface_perception::Surface& surface =
-            surface_objects->at(0).surface;
-        Eigen::Quaterniond surface_quat;
-        tf::quaternionMsgToEigen(surface.pose_stamped.pose.orientation,
-                                 surface_quat);
-        Eigen::Matrix3d surface_rotation_matrix(surface_quat);
-        Eigen::Matrix3d updated_orientation = Eigen::Matrix3d::Identity();
-        Eigen::Vector3d surface_x_axis = surface_rotation_matrix.col(0);
-        Eigen::Vector3d updated_x(surface_x_axis.x(), 0, surface_x_axis.z());
-        updated_x.normalize();
-        updated_orientation.col(0) = updated_x;
-        updated_orientation.col(2) = surface_rotation_matrix.col(2);
-        updated_orientation.col(1) =
-            updated_orientation.col(2).cross(updated_x);
+      ROS_ASSERT(surface_objects->size() == 1);  // MatchObject enforces this
+      const surface_perception::Surface& surface =
+          surface_objects->at(0).surface;
+      Eigen::Quaterniond surface_quat;
+      tf::quaternionMsgToEigen(surface.pose_stamped.pose.orientation,
+                               surface_quat);
+      Eigen::Matrix3d surface_rotation_matrix(surface_quat);
+      Eigen::Matrix3d updated_orientation = Eigen::Matrix3d::Identity();
+      Eigen::Vector3d surface_x_axis = surface_rotation_matrix.col(0);
+      Eigen::Vector3d updated_x(surface_x_axis.x(), 0, surface_x_axis.z());
+      updated_x.normalize();
+      updated_orientation.col(0) = updated_x;
+      updated_orientation.col(2) = surface_rotation_matrix.col(2);
+      updated_orientation.col(1) = updated_orientation.col(2).cross(updated_x);
 
-        Eigen::Quaterniond updated_quat(updated_orientation);
-        tf::quaternionEigenToMsg(updated_quat, aligned_pose.orientation);
+      Eigen::Quaterniond updated_quat(updated_orientation);
+      tf::quaternionEigenToMsg(updated_quat, rough_obj_pose.orientation);
+
+      LazyObjectModel axis_aligned_obj_model(obj_state.mesh_name,
+                                             planning_frame_, rough_obj_pose);
+      axis_aligned_obj_model.set_object_model_cache(&model_cache_);
+
+      ScoredAlignment axis_aligned_pose = AlignObject(
+          axis_aligned_obj_model, surface_objects->at(0).objects[obj_index]);
+
+      if (rough_obj_model.IsCircular() ||
+          axis_aligned_pose.score < obb_pose.score) {
+        ROS_INFO("Using axis-aligned pose. Score: %f vs. %f",
+                 axis_aligned_pose.score, obb_pose.score);
+        init_goal.initial_pose = axis_aligned_pose.pose;
+      } else {
+        ROS_INFO("Using oriented pose. Score: %f", obb_pose.score);
+        init_goal.initial_pose = obb_pose.pose;
       }
-
-      init_goal.initial_pose = aligned_pose;
     } else {
       init_goal.initial_pose.orientation.w = 1;
       init_goal.initial_pose.position.x = 1;

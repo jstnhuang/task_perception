@@ -167,9 +167,8 @@ int MatchObject(
   return best_index;
 }
 
-geometry_msgs::Pose AlignObject(
-    const LazyObjectModel& object_model,
-    const surface_perception::Object& target_object) {
+ScoredAlignment AlignObject(const LazyObjectModel& object_model,
+                            const surface_perception::Object& target_object) {
   rapid::PointCloudP::Ptr obj_cloud = object_model.GetObjectCloud();
 
   // Extract target cloud and convert to PointXYZ
@@ -195,6 +194,7 @@ geometry_msgs::Pose AlignObject(
   rapid::PointCloudP aligned;
   icp.align(aligned);
 
+  ScoredAlignment result;
   if (icp.hasConverged()) {
     ROS_INFO("Aligned object with score %f", icp.getFitnessScore());
     Eigen::Matrix4f aligned_in_obs = icp.getFinalTransformation();
@@ -204,13 +204,16 @@ geometry_msgs::Pose AlignObject(
     tf::poseMsgToEigen(object_model.pose(), model_pose);
 
     Eigen::Affine3d updated_model_pose = aligned_affine.inverse() * model_pose;
-    geometry_msgs::Pose result;
-    tf::poseEigenToMsg(updated_model_pose, result);
+    tf::poseEigenToMsg(updated_model_pose, result.pose);
+    result.score = icp.getFitnessScore();
     return result;
   } else {
     ROS_WARN("Failed to align object. Fitness score: %f",
              icp.getFitnessScore());
-    return object_model.pose();
+    ScoredAlignment result;
+    result.pose = object_model.pose();
+    result.score = icp.getFitnessScore();
+    return result;
   }
 }
 }  // namespace pbi

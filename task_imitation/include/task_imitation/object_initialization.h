@@ -41,13 +41,17 @@ int MatchObject(
     const std::vector<surface_perception::SurfaceObjects>& surface_objects,
     geometry_msgs::Pose* pose, geometry_msgs::Vector3* scale);
 
+struct ScoredAlignment {
+  geometry_msgs::Pose pose;
+  double score;
+};
+
 // Do a fine-grained alignment using ICP.
 // object_model: The model of the object to align
 // initial_pose: The initial pose of the object to align
 // target_object: The object to align to
-geometry_msgs::Pose AlignObject(
-    const LazyObjectModel& object_model,
-    const surface_perception::Object& target_object);
+ScoredAlignment AlignObject(const LazyObjectModel& object_model,
+                            const surface_perception::Object& target_object);
 }  // namespace pbi
 
 #endif  // _PBI_OBJECT_INITIALIZATION_H_
