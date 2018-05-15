@@ -18,6 +18,7 @@
 #include "transform_graph/graph.h"
 
 #include "task_imitation/bimanual_manipulation.h"
+#include "task_imitation/ik.h"
 #include "task_imitation/program_constants.h"
 #include "task_imitation/program_step.h"
 
@@ -1027,11 +1028,23 @@ std::string PlanCartesianToPoses(
                                    kAvoidCollisions, &error_code);
     if (!rapid::IsSuccess(error_code)) {
       error = rapid::ErrorString(error_code);
+      ROS_WARN("Planning attempt %d of %d failed: %s", attempt, num_tries,
+               error.c_str());
       continue;
     } else if (gripper_poses.size() > 0 && fraction < 1) {
       std::stringstream ss;
       ss << "Planned " << fraction * 100 << "% of arm trajectory";
       error = ss.str();
+      ROS_WARN("Planning attempt %d of %d failed: %s", attempt, num_tries,
+               error.c_str());
+      int ik_count = 0;
+      for (size_t i = 0; i < gripper_poses.size(); ++i) {
+        if (HasIk(group, gripper_poses[i])) {
+          ik_count++;
+        }
+      }
+      ROS_INFO("%d of %zu poses have IK (%f%%)", ik_count, gripper_poses.size(),
+               ik_count * 100.0 / gripper_poses.size());
       continue;
     } else {
       // Check the amount of change in configuration space
