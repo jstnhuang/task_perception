@@ -12,4 +12,4 @@ task_imitation:
   num_planning_tries: 10 # Number of times to attempt motion planning for poses
   max_planning_time: 1 # Time, in seconds, to give to MoveIt for planning
   num_planning_attempts: 100 # Number of planning attempts before returning shortest path
-  sample_every_nth_future_pose: 5 # 1 out of every N poses from the future is sampled and tested in grasp planning
+  sample_every_nth_future_pose: 3 # 1 out of every N poses from the future is sampled and tested in grasp planning
