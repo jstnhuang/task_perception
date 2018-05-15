@@ -7,7 +7,6 @@
 #include "moveit/robot_state/conversions.h"
 #include "moveit/trajectory_processing/iterative_time_parameterization.h"
 #include "moveit_msgs/MoveItErrorCodes.h"
-#include "moveit_msgs/RobotTrajectory.h"
 #include "rapid_manipulation/moveit_error_code.h"
 #include "rapid_ros/params.h"
 #include "rapid_utils/vector3.hpp"
@@ -488,33 +487,6 @@ std::vector<PlannedStep> PlanSteps(
   return result;
 }
 
-std::string PlanToPose(MoveGroup& group,
-                       const robot_state::RobotState& start_state,
-                       const geometry_msgs::Pose& gripper_pose, int num_tries,
-                       MoveGroup::Plan* plan) {
-  double max_planning_time =
-      rapid::GetDoubleParamOrThrow("task_imitation/max_planning_time");
-  int num_attempts =
-      rapid::GetDoubleParamOrThrow("task_imitation/num_planning_attempts");
-  group.setStartState(start_state);
-  group.setPoseTarget(gripper_pose);
-  group.setPlanningTime(max_planning_time);
-  group.setNumPlanningAttempts(num_attempts);
-
-  MoveItErrorCode error;
-  for (int i = 0; i < num_tries; ++i) {
-    error = group.plan(*plan);
-    if (rapid::IsSuccess(error)) {
-      return "";
-    } else if (i < num_tries - 1) {
-      ROS_WARN("Planning attempt %d of %d failed", i + 1, num_tries);
-    } else {
-      ROS_ERROR("Planning attempt %d of %d failed", i + 1, num_tries);
-    }
-  }
-  return rapid::ErrorString(error);
-}
-
 std::vector<PlannedStep> PlanGraspStep(
     const task_perception_msgs::Step& step,
     const std::map<std::string, task_perception_msgs::ObjectState>&
@@ -557,8 +529,9 @@ std::vector<PlannedStep> PlanGraspStep(
 
   ROS_INFO("Planning grasp");
   MoveGroup::Plan grasp_plan;
-  *error_out = PlanToPose(group, *robot_state, grasp_in_planning.pose(),
-                          kNumTries, &grasp_plan);
+  *error_out =
+      PlanCartesianToPose(group, *robot_state, grasp_in_planning.pose(),
+                          kNumTries, &grasp_plan.trajectory_);
   if (*error_out != "") {
     const std::vector<PlannedStep> blank_result;
     return blank_result;
@@ -633,8 +606,8 @@ std::vector<PlannedStep> PlanUngraspStep(const task_perception_msgs::Step& step,
   const int kNumTries =
       rapid::GetIntParamOrThrow("task_imitation/num_planning_tries");
   MoveGroup::Plan post_grasp_plan;
-  *error_out = PlanToPose(group, *start_state, post_grasp_pose.pose(),
-                          kNumTries, &post_grasp_plan);
+  *error_out = PlanCartesianToPose(group, *start_state, post_grasp_pose.pose(),
+                                   kNumTries, &post_grasp_plan.trajectory_);
   if (*error_out != "") {
     const std::vector<PlannedStep> blank_result;
     return blank_result;
@@ -684,14 +657,6 @@ PlannedStep PlanFollowTrajectoryStep(
     MoveGroup& group, const ros::Time& plan_start, const ros::Time& next_start,
     robot_state::RobotStatePtr start_state, std::string* error_out) {
   PlannedStep result;
-  moveit_msgs::MoveItErrorCodes error_code;
-  moveit_msgs::RobotTrajectory planned_traj;
-
-  const double eef_threshold =
-      rapid::GetDoubleParamOrThrow("task_imitation/cart_path_eef_threshold");
-  const double jump_threshold =
-      rapid::GetDoubleParamOrThrow("task_imitation/cart_path_jump_threshold");
-  const bool kAvoidCollisions = true;
 
   if (step.ee_trajectory.size() == 0) {
     PlannedStep blank;
@@ -728,47 +693,15 @@ PlannedStep PlanFollowTrajectoryStep(
   std::vector<Pose> pose_trajectory;
   Pose current_obj = object_states.at(step.object_state.name).pose;
   pose_trajectory = ComputeGraspTrajectory(filtered_ee_traj, current_obj);
-  group.setStartState(*start_state);
 
-  double fraction =
-      group.computeCartesianPath(pose_trajectory, eef_threshold, 0.0,
-                                 planned_traj, kAvoidCollisions, &error_code);
-  if (!rapid::IsSuccess(error_code)) {
-    *error_out = rapid::ErrorString(error_code);
+  const int num_tries =
+      rapid::GetIntParamOrThrow("task_imitation/num_planning_tries");
+  moveit_msgs::RobotTrajectory planned_traj;
+  std::string error = PlanCartesianToPoses(group, *start_state, pose_trajectory,
+                                           num_tries, &planned_traj);
+  if (error != "") {
+    *error_out = error;
     return result;
-  } else if (step.ee_trajectory.size() > 0 && fraction < 1) {
-    std::stringstream ss;
-    ss << "Planned " << fraction * 100 << "% of arm trajectory";
-    *error_out = ss.str();
-    return result;
-  } else {
-    // Check the amount of change in configuration space
-    double sq_max_jump = 0;
-    for (size_t i = 0; i + 1 < planned_traj.joint_trajectory.points.size();
-         i++) {
-      const JointTrajectoryPoint current_pt =
-          planned_traj.joint_trajectory.points[i];
-      const JointTrajectoryPoint next_pt =
-          planned_traj.joint_trajectory.points[i + 1];
-      double sq_config_dist = 0;
-      for (size_t j = 0; j + 1 < current_pt.positions.size(); j++) {
-        double dist = current_pt.positions[j] - next_pt.positions[j];
-        sq_config_dist += dist * dist;
-      }
-      if (sq_config_dist > sq_max_jump) {
-        sq_max_jump = sq_config_dist;
-      }
-    }
-    double max_jump = sqrt(sq_max_jump);
-    if (max_jump > jump_threshold) {
-      ROS_WARN("Trajectory includes a C-space jump of %f! Be careful!",
-               max_jump);
-    } else {
-      ROS_INFO("Max C-space jump in trajectory: %f", max_jump);
-    }
-    ROS_INFO("Planned %f%% of arm trajectory (%zu -> %zu pts)", fraction * 100,
-             pose_trajectory.size(),
-             planned_traj.joint_trajectory.points.size());
   }
 
   // Update start state
@@ -1036,4 +969,100 @@ JointTrajectory RetimeTrajectory(const JointTrajectory& traj, MoveGroup& group,
   return result.joint_trajectory;
 }
 
+std::string PlanToPose(MoveGroup& group,
+                       const robot_state::RobotState& start_state,
+                       const geometry_msgs::Pose& gripper_pose, int num_tries,
+                       MoveGroup::Plan* plan) {
+  double max_planning_time =
+      rapid::GetDoubleParamOrThrow("task_imitation/max_planning_time");
+  int num_attempts =
+      rapid::GetDoubleParamOrThrow("task_imitation/num_planning_attempts");
+  group.setStartState(start_state);
+  group.setPoseTarget(gripper_pose);
+  group.setPlanningTime(max_planning_time);
+  group.setNumPlanningAttempts(num_attempts);
+
+  MoveItErrorCode error;
+  for (int i = 0; i < num_tries; ++i) {
+    error = group.plan(*plan);
+    if (rapid::IsSuccess(error)) {
+      return "";
+    } else if (i < num_tries - 1) {
+      ROS_WARN("Planning attempt %d of %d failed", i + 1, num_tries);
+    } else {
+      ROS_ERROR("Planning attempt %d of %d failed", i + 1, num_tries);
+    }
+  }
+  return rapid::ErrorString(error);
+}
+
+std::string PlanCartesianToPose(moveit::planning_interface::MoveGroup& group,
+                                const robot_state::RobotState& start_state,
+                                const geometry_msgs::Pose& gripper_pose,
+                                int num_tries,
+                                moveit_msgs::RobotTrajectory* plan) {
+  std::vector<Pose> gripper_poses(1);
+  gripper_poses[0] = gripper_pose;
+  return PlanCartesianToPoses(group, start_state, gripper_poses, num_tries,
+                              plan);
+}
+
+std::string PlanCartesianToPoses(
+    moveit::planning_interface::MoveGroup& group,
+    const robot_state::RobotState& start_state,
+    const std::vector<geometry_msgs::Pose>& gripper_poses, int num_tries,
+    moveit_msgs::RobotTrajectory* plan) {
+  const double eef_threshold =
+      rapid::GetDoubleParamOrThrow("task_imitation/cart_path_eef_threshold");
+  const double jump_threshold =
+      rapid::GetDoubleParamOrThrow("task_imitation/cart_path_jump_threshold");
+  const bool kAvoidCollisions = true;
+  group.setStartState(start_state);
+
+  std::string error("");
+  for (int attempt = 0; attempt < num_tries; attempt++) {
+    moveit_msgs::MoveItErrorCodes error_code;
+    double fraction =
+        group.computeCartesianPath(gripper_poses, eef_threshold, 0.0, *plan,
+                                   kAvoidCollisions, &error_code);
+    if (!rapid::IsSuccess(error_code)) {
+      error = rapid::ErrorString(error_code);
+      continue;
+    } else if (gripper_poses.size() > 0 && fraction < 1) {
+      std::stringstream ss;
+      ss << "Planned " << fraction * 100 << "% of arm trajectory";
+      error = ss.str();
+      continue;
+    } else {
+      // Check the amount of change in configuration space
+      double sq_max_jump = 0;
+      for (size_t i = 0; i + 1 < plan->joint_trajectory.points.size(); i++) {
+        const JointTrajectoryPoint current_pt =
+            plan->joint_trajectory.points[i];
+        const JointTrajectoryPoint next_pt =
+            plan->joint_trajectory.points[i + 1];
+        double sq_config_dist = 0;
+        for (size_t j = 0; j + 1 < current_pt.positions.size(); j++) {
+          double dist = current_pt.positions[j] - next_pt.positions[j];
+          sq_config_dist += dist * dist;
+        }
+        if (sq_config_dist > sq_max_jump) {
+          sq_max_jump = sq_config_dist;
+        }
+      }
+      double max_jump = sqrt(sq_max_jump);
+      if (max_jump > jump_threshold) {
+        ROS_WARN("Trajectory includes a C-space jump of %f! Be careful!",
+                 max_jump);
+      } else {
+        ROS_INFO("Max C-space jump in trajectory: %f", max_jump);
+      }
+      ROS_INFO("Planned %f%% of arm trajectory (%zu -> %zu pts)",
+               fraction * 100, gripper_poses.size(),
+               plan->joint_trajectory.points.size());
+      return "";
+    }
+  }
+  return error;
+}
 }  // namespace pbi

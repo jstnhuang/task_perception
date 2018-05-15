@@ -9,6 +9,7 @@
 #include "control_msgs/FollowJointTrajectoryAction.h"
 #include "geometry_msgs/Pose.h"
 #include "moveit/move_group_interface/move_group.h"
+#include "moveit_msgs/RobotTrajectory.h"
 #include "rapid_pr2/gripper.h"
 #include "task_perception_msgs/ObjectState.h"
 #include "task_perception_msgs/Program.h"
@@ -157,6 +158,20 @@ std::string PlanToPose(moveit::planning_interface::MoveGroup& group,
                        const robot_state::RobotState& start_state,
                        const geometry_msgs::Pose& gripper_pose, int num_tries,
                        moveit::planning_interface::MoveGroup::Plan* plan);
+
+// Plans a straight-line path to a pose using MoveIt.
+std::string PlanCartesianToPose(moveit::planning_interface::MoveGroup& group,
+                                const robot_state::RobotState& start_state,
+                                const geometry_msgs::Pose& gripper_pose,
+                                int num_tries,
+                                moveit_msgs::RobotTrajectory* plan);
+
+std::string PlanCartesianToPoses(
+    moveit::planning_interface::MoveGroup& group,
+    const robot_state::RobotState& start_state,
+    const std::vector<geometry_msgs::Pose>& gripper_poses, int num_tries,
+    moveit_msgs::RobotTrajectory* plan);
+
 }  // namespace pbi
 
 #endif  // _PBI_PROGRAM_EXECUTOR_H_
