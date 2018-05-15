@@ -4,10 +4,11 @@ grasp_planner:
   # Scoring weights
   antipodal_grasp_weight: 4
   non_antipodal_grasp_weight: 1
-  antipodal_collision_weight: -10
-  non_antipodal_collision_weight: -15
-  sq_wrist_distance_weight: -3000
+  antipodal_collision_weight: -1
+  non_antipodal_collision_weight: -2
+  sq_wrist_distance_weight: -4000
   obstacle_collision_weight: -1000000
+  future_pose_weight: 100
 
   # Termination criteria
   max_planning_iterations: 5
