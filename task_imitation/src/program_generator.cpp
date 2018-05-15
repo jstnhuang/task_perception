@@ -446,15 +446,16 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     Pose final_gripper_in_target = gripper_in_target.pose();
 
     if (is_grasped_obj_circular) {
-      // Search for IK in both directions in order: 0, pi/10, -pi/10, 2*pi/10,
-      // -2*pi/10, ..., pi.
       bool found_ik = false;
       int best_yaw_i = 0;
       double best_y = segment.arm_name == msgs::Step::LEFT
                           ? -std::numeric_limits<double>::max()
                           : std::numeric_limits<double>::max();
-      for (int yaw_i = 0; yaw_i < 11; yaw_i++) {
-        for (int sign = 1; sign >= -1; sign -= 2) {
+
+      for (int sign = 1; sign >= -1; sign -= 2) {
+        int yaw_start = sign == 1 ? 0 : 1;
+        int yaw_end = sign == 1 ? 11 : 10;
+        for (int yaw_i = yaw_start; yaw_i < yaw_end; yaw_i++) {
           Eigen::AngleAxisd yaw(sign * yaw_i * M_PI / 10,
                                 Eigen::Vector3d::UnitZ());
           Eigen::Quaterniond yaw_q(yaw);
@@ -464,7 +465,13 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
           tg::Transform ee_in_planning;
           graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                    &ee_in_planning);
+
+          tg::Position gripper_pos;
+          graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
+                                 tg::Target("planning"), &gripper_pos);
           if (HasIk(move_group, ee_in_planning.pose())) {
+            found_ik = true;
+
             tg::Position gripper_pos;
             graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
                                    tg::Target("planning"), &gripper_pos);
@@ -479,11 +486,11 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
               graph.ComputeDescription("gripper", tg::RefFrame("target object"),
                                        &gripper_in_rotated_target);
               final_gripper_in_target = gripper_in_rotated_target.pose();
-              found_ik = true;
+            } else {
+              // If we are no longer improving the gripper's direction, stop
+              // searching in this direction.
+              break;
             }
-          }
-          if (yaw_i == 0 || yaw_i == 10) {
-            break;
           }
         }
       }
