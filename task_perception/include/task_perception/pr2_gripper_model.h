@@ -58,15 +58,20 @@ class Pr2GripperModel {
   const static geometry_msgs::Point kPalmPos;
   const static geometry_msgs::Point kLFingerPos;
   const static geometry_msgs::Point kRFingerPos;
+  const static geometry_msgs::Point kLKnucklePos;
+  const static geometry_msgs::Point kRKnucklePos;
   const static geometry_msgs::Point kGraspRegionPos;
   const static geometry_msgs::Vector3 kPalmDims;
   const static geometry_msgs::Vector3 kFingerDims;
+  const static geometry_msgs::Vector3 kKnuckleDims;
   const static geometry_msgs::Vector3 kGraspRegionDims;
   const static int NONE = 0;
   const static int PALM = 1;
   const static int GRASP_REGION = 2;
   const static int L_FINGER = 3;
   const static int R_FINGER = 4;
+  const static int L_KNUCKLE = 5;
+  const static int R_KNUCKLE = 6;
 
  private:
   geometry_msgs::Pose pose_;

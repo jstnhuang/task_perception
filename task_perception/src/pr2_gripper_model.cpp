@@ -22,14 +22,28 @@ Point PalmPos() {
 Point LFingerPos() {
   Point pos;
   pos.x = 0.156;
-  pos.y = 0.065;
+  pos.y = 0.065 - 0.01125;
   return pos;
 }
 
 Point RFingerPos() {
   Point pos;
   pos.x = 0.156;
-  pos.y = -0.065;
+  pos.y = -0.065 + 0.01125;
+  return pos;
+}
+
+Point LKnucklePos() {
+  Point pos;
+  pos.x = 0.156 - 0.015;
+  pos.y = 0.065 + 0.01125;
+  return pos;
+}
+
+Point RKnucklePos() {
+  Point pos;
+  pos.x = 0.156 - 0.015;
+  pos.y = -0.065 - 0.01125;
   return pos;
 }
 
@@ -50,8 +64,16 @@ Vector3 PalmDims() {
 Vector3 FingerDims() {
   Vector3 vec;
   vec.x = 0.06;
-  vec.y = 0.045;
-  vec.z = 0.03;
+  vec.y = 0.0225;
+  vec.z = 0.023;
+  return vec;
+}
+
+Vector3 KnuckleDims() {
+  Vector3 vec;
+  vec.x = 0.03;
+  vec.y = 0.0225;
+  vec.z = 0.026;
   return vec;
 }
 
@@ -66,9 +88,12 @@ Vector3 GraspRegionDims() {
 const Point Pr2GripperModel::kPalmPos = PalmPos();
 const Point Pr2GripperModel::kLFingerPos = LFingerPos();
 const Point Pr2GripperModel::kRFingerPos = RFingerPos();
+const Point Pr2GripperModel::kLKnucklePos = LKnucklePos();
+const Point Pr2GripperModel::kRKnucklePos = RKnucklePos();
 const Point Pr2GripperModel::kGraspRegionPos = GraspRegionPos();
 const Vector3 Pr2GripperModel::kPalmDims = PalmDims();
 const Vector3 Pr2GripperModel::kFingerDims = FingerDims();
+const Vector3 Pr2GripperModel::kKnuckleDims = KnuckleDims();
 const Vector3 Pr2GripperModel::kGraspRegionDims = GraspRegionDims();
 
 Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
@@ -79,6 +104,10 @@ Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
                 tg::Transform(kLFingerPos, tg::Orientation()));
   tf_graph_.Add("r_finger", tg::RefFrame("gripper"),
                 tg::Transform(kRFingerPos, tg::Orientation()));
+  tf_graph_.Add("l_knuckle", tg::RefFrame("gripper"),
+                tg::Transform(kLKnucklePos, tg::Orientation()));
+  tf_graph_.Add("r_knuckle", tg::RefFrame("gripper"),
+                tg::Transform(kRKnucklePos, tg::Orientation()));
 
   Eigen::Vector3d center;  // In gripper frame.
   center << kGraspRegionPos.x, kGraspRegionPos.y, kGraspRegionPos.z;
@@ -151,10 +180,44 @@ void Pr2GripperModel::ToMarkerArray(
                                &r_finger_transform);
   r_finger_transform.ToPose(&r_finger.pose);
 
+  visualization_msgs::Marker l_knuckle;
+  l_knuckle.header.frame_id = frame_id;
+  l_knuckle.ns = "gripper_model";
+  l_knuckle.id = 3;
+  l_knuckle.type = visualization_msgs::Marker::CUBE;
+  l_knuckle.scale = kKnuckleDims;
+  l_knuckle.color.r = 1;
+  l_knuckle.color.g = 1;
+  l_knuckle.color.b = 1;
+  l_knuckle.color.a = 0.5;
+
+  tg::Transform l_knuckle_transform;
+  tf_graph_.ComputeDescription(tg::LocalFrame("l_knuckle"),
+                               tg::RefFrame("gripper base"),
+                               &l_knuckle_transform);
+  l_knuckle_transform.ToPose(&l_knuckle.pose);
+
+  visualization_msgs::Marker r_knuckle;
+  r_knuckle.header.frame_id = frame_id;
+  r_knuckle.ns = "gripper_model";
+  r_knuckle.id = 4;
+  r_knuckle.type = visualization_msgs::Marker::CUBE;
+  r_knuckle.scale = kKnuckleDims;
+  r_knuckle.color.r = 1;
+  r_knuckle.color.g = 1;
+  r_knuckle.color.b = 1;
+  r_knuckle.color.a = 0.5;
+
+  tg::Transform r_knuckle_transform;
+  tf_graph_.ComputeDescription(tg::LocalFrame("r_knuckle"),
+                               tg::RefFrame("gripper base"),
+                               &r_knuckle_transform);
+  r_knuckle_transform.ToPose(&r_knuckle.pose);
+
   visualization_msgs::Marker grasp_region;
   grasp_region.header.frame_id = frame_id;
   grasp_region.ns = "gripper_model";
-  grasp_region.id = 3;
+  grasp_region.id = 5;
   grasp_region.type = visualization_msgs::Marker::CUBE;
   grasp_region.scale = kGraspRegionDims;
   grasp_region.color.r = 0.5;
@@ -171,6 +234,8 @@ void Pr2GripperModel::ToMarkerArray(
   marker_arr->markers.push_back(palm);
   marker_arr->markers.push_back(l_finger);
   marker_arr->markers.push_back(r_finger);
+  marker_arr->markers.push_back(l_knuckle);
+  marker_arr->markers.push_back(r_knuckle);
   marker_arr->markers.push_back(grasp_region);
 }
 
@@ -232,6 +297,22 @@ int Pr2GripperModel::CheckCollisionWithObb(const Pose& pose,
     return R_FINGER;
   }
 
+  tg::Transform l_knuckle_tf;
+  tf_graph_.ComputeDescription("l_knuckle", tg::RefFrame("gripper base"),
+                               &l_knuckle_tf);
+  if (rapid::AreObbsInCollision(pose, dims, l_knuckle_tf.pose(),
+                                kKnuckleDims)) {
+    return L_KNUCKLE;
+  }
+
+  tg::Transform r_knuckle_tf;
+  tf_graph_.ComputeDescription("r_knuckle", tg::RefFrame("gripper base"),
+                               &r_knuckle_tf);
+  if (rapid::AreObbsInCollision(pose, dims, r_knuckle_tf.pose(),
+                                kKnuckleDims)) {
+    return R_KNUCKLE;
+  }
+
   return NONE;
 }
 
@@ -284,6 +365,28 @@ bool Pr2GripperModel::IsGripperFramePtInCollision(double x, double y,
   double min_r_finger_z = kRFingerPos.z - kFingerDims.z / 2;
   if (x < max_r_finger_x && x > min_r_finger_x && y < max_r_finger_y &&
       y > min_r_finger_y && z < max_r_finger_z && z > min_r_finger_z) {
+    return true;
+  }
+
+  double max_l_knuckle_x = kLKnucklePos.x + kKnuckleDims.x / 2;
+  double min_l_knuckle_x = kLKnucklePos.x - kKnuckleDims.x / 2;
+  double max_l_knuckle_y = kLKnucklePos.y + kKnuckleDims.y / 2;
+  double min_l_knuckle_y = kLKnucklePos.y - kKnuckleDims.y / 2;
+  double max_l_knuckle_z = kLKnucklePos.z + kKnuckleDims.z / 2;
+  double min_l_knuckle_z = kLKnucklePos.z - kKnuckleDims.z / 2;
+  if (x < max_l_knuckle_x && x > min_l_knuckle_x && y < max_l_knuckle_y &&
+      y > min_l_knuckle_y && z < max_l_knuckle_z && z > min_l_knuckle_z) {
+    return true;
+  }
+
+  double max_r_knuckle_x = kRKnucklePos.x + kKnuckleDims.x / 2;
+  double min_r_knuckle_x = kRKnucklePos.x - kKnuckleDims.x / 2;
+  double max_r_knuckle_y = kRKnucklePos.y + kKnuckleDims.y / 2;
+  double min_r_knuckle_y = kRKnucklePos.y - kKnuckleDims.y / 2;
+  double max_r_knuckle_z = kRKnucklePos.z + kKnuckleDims.z / 2;
+  double min_r_knuckle_z = kRKnucklePos.z - kKnuckleDims.z / 2;
+  if (x < max_r_knuckle_x && x > min_r_knuckle_x && y < max_r_knuckle_y &&
+      y > min_r_knuckle_y && z < max_r_knuckle_z && z > min_r_knuckle_z) {
     return true;
   }
 
