@@ -561,7 +561,14 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
       break;
     }
     if (step.type == msgs::Step::GRASP) {
+      tg::Graph graph;
+      graph.Add("pose", tg::RefFrame("planning"), step.object_state.pose);
+      tg::Transform pregrasp;
+      graph.DescribePose(
+          tg::Transform(tg::Position(-0.1, 0, 0), tg::Orientation()),
+          tg::Source("pose"), tg::Target("planning"), &pregrasp);
       future_poses.push_back(step.object_state.pose);
+      future_poses.push_back(pregrasp.pose());
     } else if (step.type == msgs::Step::MOVE_TO_POSE) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
