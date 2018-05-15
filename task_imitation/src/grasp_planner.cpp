@@ -154,14 +154,11 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   PublishPointCloud(object_pub_, *context.object_cloud());
   visualization_msgs::MarkerArray wrist_axes = rapid::AxesMarkerArray(
       "wrist", context.planning_frame_id(), context.wrist_pose(), 0.1);
-  if (debug_) {
-    while (ros::ok() && gripper_pub_.getNumSubscribers() == 0) {
-      ROS_INFO_THROTTLE(1,
-                        "Waiting for Rviz to subscribe to gripper markers...");
-      ros::Duration(0.1).sleep();
-    }
-    gripper_pub_.publish(wrist_axes);
+  while (ros::ok() && gripper_pub_.getNumSubscribers() == 0) {
+    ROS_WARN_THROTTLE(1, "Waiting for Rviz to subscribe to gripper markers...");
+    ros::Duration(0.1).sleep();
   }
+  gripper_pub_.publish(wrist_axes);
 
   // Sample some points
   const double sample_ratio =
@@ -242,7 +239,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     VisualizeGripper("optimization_best", best.pose,
                      context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("Best so far");
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
   }
@@ -444,7 +440,7 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
     if (debug_) {
       VisualizeGripper("optimization", rotated_pose,
                        context.planning_frame_id());
-      // ros::Duration(0.01).sleep();
+      ros::Duration(0.01).sleep();
     }
 
     if (IsPalmCollidingWithObstacles(candidate, context)) {
