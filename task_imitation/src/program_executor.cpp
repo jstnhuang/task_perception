@@ -743,17 +743,24 @@ PlannedStep PlanMoveToPoseStep(
 
   const int kNumTries =
       rapid::GetIntParamOrThrow("task_imitation/num_planning_tries");
-  MoveGroup::Plan plan;
-  *error_out = PlanToPose(group, *start_state, goal_in_planning.pose(),
-                          kNumTries, &plan);
+  moveit_msgs::RobotTrajectory traj;
+  *error_out = PlanCartesianToPose(group, *start_state, goal_in_planning.pose(),
+                                   kNumTries, &traj);
   if (*error_out != "") {
-    const PlannedStep blank_result;
-    return blank_result;
+    moveit::planning_interface::MoveGroup::Plan plan;
+    *error_out = PlanToPose(group, *start_state, goal_in_planning.pose(),
+                            kNumTries, &plan);
+    if (*error_out != "") {
+      const PlannedStep blank_result;
+      return blank_result;
+    } else {
+      traj = plan.trajectory_;
+    }
   }
 
   moveit::core::jointTrajPointToRobotState(
-      plan.trajectory_.joint_trajectory,
-      plan.trajectory_.joint_trajectory.points.size() - 1, *start_state);
+      traj.joint_trajectory, traj.joint_trajectory.points.size() - 1,
+      *start_state);
 
   // Scale the trajectory so that it takes the same amount of time as was
   // specified by the human demonstration. Generally, the human demonstration
@@ -761,8 +768,7 @@ PlannedStep PlanMoveToPoseStep(
   // Later, we will slice the trajectory to ensure synchronization with the
   // other hand. Each slice is then re-timed to work properly on the robot.
   ros::Duration intended_duration = step.times_from_start[0];
-  ros::Duration planned_time =
-      ComputeTrajectoryTime(plan.trajectory_.joint_trajectory);
+  ros::Duration planned_time = ComputeTrajectoryTime(traj.joint_trajectory);
   if (planned_time.isZero()) {
     ROS_ERROR("No trajectory generated for move-to-pose step!");
     PlannedStep result;
@@ -771,12 +777,12 @@ PlannedStep PlanMoveToPoseStep(
 
   double scale_factor =
       std::min(1.0, intended_duration.toSec() / planned_time.toSec());
-  for (size_t i = 0; i < plan.trajectory_.joint_trajectory.points.size(); ++i) {
-    plan.trajectory_.joint_trajectory.points[i].time_from_start *= scale_factor;
+  for (size_t i = 0; i < traj.joint_trajectory.points.size(); ++i) {
+    traj.joint_trajectory.points[i].time_from_start *= scale_factor;
   }
 
   PlannedStep result;
-  result.traj = plan.trajectory_.joint_trajectory;
+  result.traj = traj.joint_trajectory;
   result.traj.header.stamp = plan_start + step.start_time;
   return result;
 }
