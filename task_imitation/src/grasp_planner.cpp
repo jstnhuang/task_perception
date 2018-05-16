@@ -63,8 +63,9 @@ std::string GraspEvaluation::ToString() const {
      << weights.non_antipodal_collision_weight << "*"
      << features.non_antipodal_collisions << " + "
      << weights.sq_wrist_distance_weight << "*" << features.sq_wrist_distance
-     << weights.future_pose_weight << "*" << features.future_pose_ratio << " = "
-     << weights.antipodal_grasp_weight * features.antipodal_grasp_pts << " + "
+     << " + " << weights.future_pose_weight << "*" << features.future_pose_ratio
+     << " = " << weights.antipodal_grasp_weight * features.antipodal_grasp_pts
+     << " + "
      << weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts
      << " + "
      << weights.antipodal_collision_weight * features.antipodal_collisions
