@@ -1,14 +1,6 @@
 #include "task_perception/multi_object_tracker.h"
 
-#include <map>
-#include <string>
-#include <vector>
-
 #include "dbot_ros_msgs/MultiTrack.h"
-#include "geometry_msgs/Pose.h"
-#include "ros/ros.h"
-#include "sensor_msgs/CameraInfo.h"
-#include "sensor_msgs/Image.h"
 
 using dbot_ros_msgs::MultiTrack;
 
@@ -44,12 +36,14 @@ void MultiObjectTracker::Destroy(const std::string& name) {
 }
 
 void MultiObjectTracker::SetPose(const std::string& name,
-                                 const geometry_msgs::Pose& pose) {
+                                 const geometry_msgs::Pose& pose,
+                                 const geometry_msgs::Twist& twist) {
   ros::ServiceClient client = MakeClient(name);
   MultiTrack::Request req;
   req.type = MultiTrack::Request::SET_POSE;
   req.object_name = name;
   req.pose = pose;
+  req.twist = twist;
   MultiTrack::Response res;
   client.call(req, res);
 }

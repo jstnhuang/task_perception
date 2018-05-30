@@ -175,7 +175,7 @@ void DemoRuntime::RemoveUnspawnObjectEvent(const std::string& object_name,
       if (!object_trackers_.IsTracking(object_name)) {
         object_trackers_.Create(object_name, object_mesh, camera_info_);
       }
-      object_trackers_.SetPose(object_name, os.pose);
+      object_trackers_.SetPose(object_name, os.pose, os.twist);
       return;
     }
   }
@@ -248,8 +248,6 @@ void DemoRuntime::StepObjectPose(
   // Figure out where all the objects are
   // All SPAWN events should be accompanied by a SET_OBJECT_POSE event for the
   // same object.
-  // SET_OBJECT_POSE should not be used if the object is in motion, since we
-  // only reset the pose, not the velocity.
   // For each object, the pose is determined using the following algorithm:
   // 1. If a user annotated its location, use that
   // 2. Otherwise, step through the tracker once
@@ -269,7 +267,8 @@ void DemoRuntime::StepObjectPose(
       const msgs::Event& pose_evt = object_pose_events[j];
       if (pose_evt.object_name == object_name) {
         object_state.pose = pose_evt.object_pose;
-        object_trackers_.SetPose(object_name, pose_evt.object_pose);
+        object_trackers_.SetPose(object_name, pose_evt.object_pose,
+                                 pose_evt.object_twist);
         done = true;
         break;
       }

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "geometry_msgs/Pose.h"
+#include "geometry_msgs/Twist.h"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -25,7 +26,7 @@ class MultiObjectTracker {
   void Create(const std::string& name, const std::string& mesh_name,
               const sensor_msgs::CameraInfo& camera_info);
   void Destroy(const std::string& name);
-  void SetPose(const std::string& name, const geometry_msgs::Pose& pose);
+  void SetPose(const std::string& name, const geometry_msgs::Pose& pose, const geometry_msgs::Twist& twist);
   void Step(const std::string& name, const sensor_msgs::Image& depth_image);
   void GetPose(const std::string& name, geometry_msgs::Pose* pose);
 
