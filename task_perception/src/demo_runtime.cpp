@@ -283,7 +283,8 @@ void DemoRuntime::StepObjectPose(
       const msgs::ObjectState& prev_obj = prev_state.object_states[j];
       if (prev_obj.name == object_name) {
         object_trackers_.Step(object_name, current_depth_image_);
-        object_trackers_.GetPose(object_name, &object_state.pose);
+        object_trackers_.GetPose(object_name, &object_state.pose,
+                                 &object_state.twist);
         done = true;
         break;
       }

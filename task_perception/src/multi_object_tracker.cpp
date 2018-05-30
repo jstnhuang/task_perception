@@ -60,7 +60,8 @@ void MultiObjectTracker::Step(const std::string& name,
 }
 
 void MultiObjectTracker::GetPose(const std::string& name,
-                                 geometry_msgs::Pose* pose) {
+                                 geometry_msgs::Pose* pose,
+                                 geometry_msgs::Twist* twist) {
   ros::ServiceClient client = MakeClient(name);
   MultiTrack::Request req;
   req.type = MultiTrack::Request::GET_POSE;
@@ -68,6 +69,7 @@ void MultiObjectTracker::GetPose(const std::string& name,
   MultiTrack::Response res;
   client.call(req, res);
   *pose = res.pose;
+  *twist = res.twist;
 }
 
 std::string MultiObjectTracker::GetMeshName(const std::string& object_name) {

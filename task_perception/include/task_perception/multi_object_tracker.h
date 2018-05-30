@@ -28,7 +28,7 @@ class MultiObjectTracker {
   void Destroy(const std::string& name);
   void SetPose(const std::string& name, const geometry_msgs::Pose& pose, const geometry_msgs::Twist& twist);
   void Step(const std::string& name, const sensor_msgs::Image& depth_image);
-  void GetPose(const std::string& name, geometry_msgs::Pose* pose);
+  void GetPose(const std::string& name, geometry_msgs::Pose* pose, geometry_msgs::Twist* twist);
 
   std::string GetMeshName(const std::string& object_name);
   bool IsTracking(const std::string& name);
