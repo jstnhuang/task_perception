@@ -42,7 +42,7 @@ def main():
     client = MongoClient()
     db = client.pbi
     #add_object_twists_to_demonstrations(db)
-    add_object_twists_to_object_states(db)
+    #add_object_twists_to_object_states(db)
 
 
 if __name__ == '__main__':
