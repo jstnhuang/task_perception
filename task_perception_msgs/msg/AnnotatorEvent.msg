@@ -23,3 +23,7 @@ string bag_path # If type is OPEN_BAG, this specifies the path of the bag file
 string mesh_name # Name of .obj mesh file to track.
 string object_name # Semantic name given to a particular object
 string event_type # The type of the event to be deleted
+
+# If setting the object state, specifies the pose and twist of the object
+geometry_msgs/Pose object_pose
+geometry_msgs/Twist object_twist
