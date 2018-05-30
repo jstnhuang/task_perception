@@ -2,6 +2,9 @@
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_skillet" args="skillet" required="true" />
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_wood_cylinder" args="wood_cylinder" required="true" />
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_mug" args="mug" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_ball" args="tennis_ball" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_bowl" args="bowl" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_plate" args="plate" required="true" />
   <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
   <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 </launch>
