@@ -57,7 +57,7 @@
       }
 
       updatePose() {
-        this.dispatchEvent(new CustomEvent('updatestate', {detail: {name: state.name}}));
+        this.dispatchEvent(new CustomEvent('updatestate', {detail: {name: this.state.name}}));
       }
     };
     window.customElements.define(PbiObjectState.is, PbiObjectState);

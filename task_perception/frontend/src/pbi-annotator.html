@@ -271,6 +271,15 @@
       _canUnspawnObject(objName) {
         return objName && objName !== "";
       }
+
+      _handleUpdateObjectState(evt) {
+        var name = evt.detail.name;
+        var msg = {
+          type: 'set object pose',
+          object_name: name
+        };
+        this.$.eventPub.publish(msg);
+      }
     };
     window.customElements.define(PbiAnnotator.is, PbiAnnotator);
   </script>
