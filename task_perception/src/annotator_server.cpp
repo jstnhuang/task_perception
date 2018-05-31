@@ -287,6 +287,7 @@ void AnnotatorServer::HandleSetObjectPose(const std::string& object_name) {
   event.object_name = object_name;
   bool success =
       SetObjectPose(object_name, object_state.mesh_name, &event.object_pose);
+  event.object_twist = object_state.twist;
   if (!success) {
     return;
   }
