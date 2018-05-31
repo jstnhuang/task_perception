@@ -5,6 +5,7 @@
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_ball" args="tennis_ball" required="true" />
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_bowl" args="bowl" required="true" />
   <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_plate" args="plate" required="true" />
+  <node pkg="dbot_ros" type="multi_object_tracker_node" name="multi_object_tracker_plastic_cup" args="plastic_cup" required="true" />
   <node pkg="dbot_ros" type="initialize_object_action_node" name="initialize_object_action_server" required="true" />
   <node pkg="nerf_b" type="nerf_tracker_node" name="pbi_skeleton_tracker" required="true" />
 </launch>
