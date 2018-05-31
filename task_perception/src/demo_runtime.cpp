@@ -267,6 +267,7 @@ void DemoRuntime::StepObjectPose(
       const msgs::Event& pose_evt = object_pose_events[j];
       if (pose_evt.object_name == object_name) {
         object_state.pose = pose_evt.object_pose;
+        object_state.twist = pose_evt.object_twist;
         object_trackers_.SetPose(object_name, pose_evt.object_pose,
                                  pose_evt.object_twist);
         done = true;
