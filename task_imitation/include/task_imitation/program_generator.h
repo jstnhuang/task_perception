@@ -52,7 +52,8 @@ class ProgramGenerator {
   // that the grasp planner can plan a grasp for future steps.
   task_perception_msgs::Step PlanGrasp(
       const std::vector<task_perception_msgs::Step>& steps, const size_t index,
-      const geometry_msgs::Pose& wrist_in_obj, const Obb& table);
+      const geometry_msgs::Pose& wrist_in_obj,
+      const std::vector<Obb>& obstacles);
 
   // Populate the grasp step with everything except the actual grasp pose.
   void AddGraspStep(const ProgramSegment& segments,

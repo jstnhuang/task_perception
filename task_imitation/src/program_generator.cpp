@@ -81,8 +81,26 @@ msgs::Program ProgramGenerator::Generate(
       const msgs::HandState& hand(segment.arm_name == msgs::Step::LEFT
                                       ? state.left_hand
                                       : state.right_hand);
+      std::vector<Obb> obstacles;
+      obstacles.push_back(table);
+      // for (ObjectStateIndex::const_iterator it =
+      //         initial_runtime_objects.begin();
+      //     it != initial_runtime_objects.end(); ++it) {
+      //  if (it->first == hand.object_name) {
+      //    continue;
+      //  }
+      //  LazyObjectModel obj_model(it->second.mesh_name, planning_frame_,
+      //                            it->second.pose);
+      //  obj_model.set_object_model_cache(model_cache_);
+      //  Obb obb;
+      //  obb.pose = it->second.pose;
+      //  obb.dims = obj_model.scale();
+      //  obstacles.push_back(obb);
+      //  ROS_INFO_STREAM("Adding obstacle: " << it->first << " at " << obb.pose
+      //                                      << ", " << obb.dims);
+      //}
       program_.steps[step_i] =
-          PlanGrasp(program_.steps, step_i, hand.wrist_pose, table);
+          PlanGrasp(program_.steps, step_i, hand.wrist_pose, obstacles);
     }
     step_i++;
   }
@@ -185,7 +203,7 @@ void ProgramGenerator::ProcessSegmentWithoutGrasps(
 msgs::Step ProgramGenerator::PlanGrasp(const std::vector<msgs::Step>& steps,
                                        const size_t index,
                                        const Pose& wrist_in_obj,
-                                       const Obb& table) {
+                                       const std::vector<Obb>& obstacles) {
   const msgs::Step& grasp_step = steps[index];
   tg::Graph graph;
   graph.Add("object", tg::RefFrame("planning"), grasp_step.object_state.pose);
@@ -201,7 +219,9 @@ msgs::Step ProgramGenerator::PlanGrasp(const std::vector<msgs::Step>& steps,
                                grasp_step.object_state.mesh_name,
                                grasp_step.object_state.pose, future_poses,
                                &group, model_cache_);
-  context.AddObstacle(table);
+  BOOST_FOREACH (const Obb& obstacle, obstacles) {
+    context.AddObstacle(obstacle);
+  }
 
   GraspPlanner grasp_planner(gripper_viz_);
   Pose grasp_in_planning = grasp_planner.Plan(context);
