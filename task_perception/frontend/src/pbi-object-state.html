@@ -1,0 +1,65 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-collapse/iron-collapse.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="pbi-object-state">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+      paper-input {
+        display: inline-block;
+        width: 100px;
+      }
+      paper-input + paper-input {
+        margin-left: 5px;
+      }
+    </style>
+    <strong>[[state.name]] ([[state.mesh_name]])</strong>
+    <paper-button hidden$="[[collapseOpened]]" on-click="toggleCollapse">Show state</paper-button>
+    <paper-button hidden$="[[!collapseOpened]]" on-click="toggleCollapse">Hide state</paper-button>
+    <paper-button on-click="updatePose">Update pose</paper-button>
+    <iron-collapse id="collapse" opened="{{collapseOpened}}">
+      Position:
+      <paper-input label="X" value="[[state.pose.position.x]]"></paper-input>
+      <paper-input label="Y" value="[[state.pose.position.y]]"></paper-input>
+      <paper-input label="Z" value="[[state.pose.position.z]]"></paper-input><br />
+      Orientation:
+      <paper-input label="W" value="[[state.pose.orientation.w]]"></paper-input>
+      <paper-input label="X" value="[[state.pose.orientation.x]]"></paper-input>
+      <paper-input label="Y" value="[[state.pose.orientation.y]]"></paper-input>
+      <paper-input label="Z" value="[[state.pose.orientation.z]]"></paper-input><br />
+      Linear velocity:
+      <paper-input label="X" value="[[state.twist.linear.x]]"></paper-input>
+      <paper-input label="Y" value="[[state.twist.linear.y]]"></paper-input>
+      <paper-input label="Z" value="[[state.twist.linear.z]]"></paper-input><br />
+      Angular velocity:
+      <paper-input label="X" value="[[state.twist.angular.x]]"></paper-input>
+      <paper-input label="Y" value="[[state.twist.angular.y]]"></paper-input>
+      <paper-input label="Z" value="[[state.twist.angular.z]]"></paper-input>
+    </iron-collapse>
+  </template>
+  <script>
+    class PbiObjectState extends Polymer.Element {
+      static get is() { return 'pbi-object-state'; }
+      static get properties() {
+        return {
+          state: Object,
+        };
+      }
+
+      toggleCollapse() {
+        this.$.collapse.toggle();
+      }
+
+      updatePose() {
+        this.dispatchEvent(new CustomEvent('updatestate', {detail: {name: state.name}}));
+      }
+    };
+    window.customElements.define(PbiObjectState.is, PbiObjectState);
+  </script>
+</dom-module>

@@ -7,6 +7,7 @@
 <!--link rel="import" href="../bower_components/ros-rviz/ros-rviz.html"-->
 <link rel="import" href="pbi-event.html">
 <link rel="import" href="pbi-hand-state.html">
+<link rel="import" href="pbi-object-state.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="pbi-annotator">
@@ -95,7 +96,7 @@
       <span hidden$="[[_hasEvents(state.demo_state.object_states)]]">None</span>
       <ul hidden$="[[!_hasEvents(state.demo_state.object_states)]]">
         <template is="dom-repeat" items="[[state.demo_state.object_states]]" as="object">
-          <li>[[object.name]] ([[object.mesh_name]])</li>
+          <pbi-object-state state="[[object]]" on-updatestate="_handleUpdateObjectState"></pbi-object-state>
         </template>
       </ul>
         <div class="horizontal layout center">
