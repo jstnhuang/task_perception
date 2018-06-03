@@ -7,7 +7,6 @@
 #include "geometry_msgs/Point.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
-#include "ros/ros.h"
 #include "transform_graph/graph.h"
 #include "visualization_msgs/MarkerArray.h"
 
@@ -24,9 +23,18 @@ class Pr2GripperModel {
 
   // Returns the "center" of the gripper's grasp region in the world frame.
   Eigen::Vector3d grasp_center() const;
-  // Returns the center of the grasp, but farther forward (about 1 cm away from
-  // the edge of the grasp region)
-  Eigen::Vector3d forward_grasp_center() const;
+
+  // Returns the center of the grasp region after the gripper closes in the
+  // world frame.
+  //
+  // This depends on how much the gripper closes. If the object is nearly the
+  // width of the grasp region, then the gripper will close very little and the
+  // forward grasp center will be about the same as the grasp center. If the
+  // object is very narrow, the gripper will close more. In this case, we shift
+  // the forward grasp center to be between the fingertips.
+  //
+  // obj_width: The width the object takes up inside the grasp region.
+  Eigen::Vector3d forward_grasp_center(double obj_width) const;
 
   // Returns the center of the palm in the world frame.
   // This can be a good proxy for a human wrist.

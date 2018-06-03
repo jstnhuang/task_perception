@@ -23,7 +23,7 @@ class GraspFeatures {
   int antipodal_collisions;
   int non_antipodal_collisions;
   double sq_wrist_distance;
-  bool is_colliding_with_obstacle;
+  int num_obstacle_collisions;
   double future_pose_ratio;
 };
 
@@ -102,6 +102,9 @@ class GraspPlanner {
                                           const GraspPlanningContext& context,
                                           const int index);
 
+  geometry_msgs::Pose PitchToWrist(const Pr2GripperModel& gripper_model,
+                                   const GraspPlanningContext& context);
+
   // Try a number of different pitch angles and choose the best one.
   // The best pitch meets the following constraints:
   // 1) There are object points in the the grasp region
@@ -109,6 +112,7 @@ class GraspPlanner {
   //
   // It also optimizes over ScoreGrasp.
   ScoredGrasp OptimizePitch(const Pr2GripperModel& gripper_model,
+                            const double obj_width,
                             const GraspPlanningContext& context);
 
   ScoredGrasp EscapeCollision(const Pr2GripperModel& gripper_model,
@@ -127,12 +131,20 @@ class GraspPlanner {
                                         const GraspPlanningContext& context,
                                         int max_iters);
 
+  // Like OptimizePlacement, but maximizes the margin between the object points
+  // in the grasp region and the gripper.
+  geometry_msgs::Pose MaximizeMargin(const geometry_msgs::Pose& gripper_pose,
+                                     const GraspPlanningContext& context);
+
   // Returns the number of future poses that can be reached with the given
   // grasp.
   int EvaluateFuturePoses(const Pr2GripperModel& model,
                           const GraspPlanningContext& context);
 
   void UpdateParams();
+
+  double ComputeObjWidthInGraspRegion(const geometry_msgs::Pose& gripper_pose,
+                                      const GraspPlanningContext& context);
 
   // Internal visualization publishers
   ros::NodeHandle nh_;
@@ -149,10 +161,11 @@ class GraspPlanner {
   double kAntipodalCos;
 
   ros::Publisher debug_cloud_pub_;
+  ros::Publisher obstacle_pub_;
 };
 
-bool IsGripperCollidingWithObstacles(const Pr2GripperModel& gripper,
-                                     const GraspPlanningContext& context);
+int NumObstacleCollisions(const Pr2GripperModel& gripper,
+                          const GraspPlanningContext& context);
 bool IsPalmCollidingWithObstacles(const Pr2GripperModel& gripper,
                                   const GraspPlanningContext& context);
 int NumCollisions(

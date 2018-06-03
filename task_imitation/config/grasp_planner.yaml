@@ -3,9 +3,9 @@ grasp_planner:
 
   # Scoring weights
   antipodal_grasp_weight: 4
-  non_antipodal_grasp_weight: 1
-  antipodal_collision_weight: -1
-  non_antipodal_collision_weight: -2
+  non_antipodal_grasp_weight: 0.5
+  antipodal_collision_weight: -15
+  non_antipodal_collision_weight: -20
   sq_wrist_distance_weight: -4000
   obstacle_collision_weight: -1000000
   future_pose_weight: 100
@@ -16,7 +16,7 @@ grasp_planner:
   max_rotation_for_termination: 0.1
 
   # Ratio of object points to sample grasps from
-  sample_ratio: 0.1
+  sample_ratio: 0.15
 
   # Parameters for optimizing the orientation of the gripper
   yaw_range_degrees: 90
@@ -25,11 +25,11 @@ grasp_planner:
   roll_resolution_degrees: 10
   pitch_range_degrees: 360
   pitch_resolution_degrees: 5
-  antipodal_degrees: 15
+  antipodal_degrees: 7
 
   # How many iterations to try adjusting the gripper placement
   max_placement_iterations: 10
   placement_step_scale: 0.5
 
   # How many random offsets to try to escape collision
-  max_escape_attempts: 100
+  max_escape_attempts: 10

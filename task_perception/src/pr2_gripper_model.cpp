@@ -7,8 +7,8 @@
 #include "visualization_msgs/MarkerArray.h"
 
 namespace tg = transform_graph;
-using geometry_msgs::Pose;
 using geometry_msgs::Point;
+using geometry_msgs::Pose;
 using geometry_msgs::Vector3;
 
 namespace pbi {
@@ -49,7 +49,7 @@ Point RKnucklePos() {
 
 Point GraspRegionPos() {
   Point pos;
-  pos.x = 0.1635;
+  pos.x = 0.1625;
   return pos;
 }
 
@@ -65,7 +65,7 @@ Vector3 FingerDims() {
   Vector3 vec;
   vec.x = 0.06;
   vec.y = 0.0225;
-  vec.z = 0.023;
+  vec.z = 0.025;
   return vec;
 }
 
@@ -79,12 +79,12 @@ Vector3 KnuckleDims() {
 
 Vector3 GraspRegionDims() {
   Vector3 vec;
-  vec.x = 0.075;
+  vec.x = 0.073;
   vec.y = 0.085;
   vec.z = 0.025;
   return vec;
 }
-}
+}  // namespace
 const Point Pr2GripperModel::kPalmPos = PalmPos();
 const Point Pr2GripperModel::kLFingerPos = LFingerPos();
 const Point Pr2GripperModel::kRFingerPos = RFingerPos();
@@ -113,11 +113,6 @@ Pr2GripperModel::Pr2GripperModel() : pose_(), tf_graph_() {
   center << kGraspRegionPos.x, kGraspRegionPos.y, kGraspRegionPos.z;
   tf_graph_.Add("grasp center", tg::RefFrame("gripper"),
                 tg::Transform(center, tg::Orientation()));
-  Eigen::Vector3d forward_center;  // In gripper frame.
-  forward_center << kGraspRegionPos.x + kGraspRegionDims.x / 2 - 0.035,
-      kGraspRegionPos.y, kGraspRegionPos.z;
-  tf_graph_.Add("forward grasp center", tg::RefFrame("gripper"),
-                tg::Transform(forward_center, tg::Orientation()));
 }
 
 void Pr2GripperModel::set_pose(const Pose& pose) {
@@ -246,11 +241,23 @@ Eigen::Vector3d Pr2GripperModel::grasp_center() const {
   return grasp_center.matrix().topRightCorner(3, 1);
 }
 
-Eigen::Vector3d Pr2GripperModel::forward_grasp_center() const {
-  tg::Transform grasp_center;
-  tf_graph_.ComputeDescription(tg::LocalFrame("forward grasp center"),
-                               tg::RefFrame("gripper base"), &grasp_center);
-  return grasp_center.matrix().topRightCorner(3, 1);
+Eigen::Vector3d Pr2GripperModel::forward_grasp_center(double obj_width) const {
+  if (obj_width < 0) {
+    obj_width = 0;
+  }
+  if (obj_width > kGraspRegionDims.y) {
+    obj_width = kGraspRegionDims.y;
+  }
+  double most_forward_x = kGraspRegionDims.x / 2 - 0.005;
+  double least_forward_x = kGraspRegionDims.x / 2 - 0.025;
+  double slope = (least_forward_x - most_forward_x) / kGraspRegionDims.y;
+  double forward_offset = slope * obj_width + most_forward_x;
+
+  tg::Position forward_pos;
+  tf_graph_.DescribePosition(tg::Position(forward_offset, 0, 0),
+                             tg::Source("grasp center"),
+                             tg::Target("gripper base"), &forward_pos);
+  return forward_pos.vector();
 }
 
 Eigen::Vector3d Pr2GripperModel::palm_center() const {
