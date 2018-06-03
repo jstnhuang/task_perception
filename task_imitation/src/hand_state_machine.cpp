@@ -247,7 +247,7 @@ void HandStateMachine::StationaryCollisionState(
     ROS_INFO(
         "%d: %s transitioning from STATIONARY_COLLISION to DOUBLE_COLLISION",
         index_, arm_name_.c_str());
-    ROS_INFO("Target object is %s", working_traj_.target_object.c_str());
+    ROS_INFO("Target object is %s", target.c_str());
     state_ = DOUBLE_COLLISION;
   } else if (is_same_object) {
     working_traj_.demo_states.push_back(demo_state);
