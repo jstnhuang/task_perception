@@ -83,22 +83,29 @@ msgs::Program ProgramGenerator::Generate(
                                       : state.right_hand);
       std::vector<Obb> obstacles;
       obstacles.push_back(table);
-      // for (ObjectStateIndex::const_iterator it =
-      //         initial_runtime_objects.begin();
-      //     it != initial_runtime_objects.end(); ++it) {
-      //  if (it->first == hand.object_name) {
-      //    continue;
-      //  }
-      //  LazyObjectModel obj_model(it->second.mesh_name, planning_frame_,
-      //                            it->second.pose);
-      //  obj_model.set_object_model_cache(model_cache_);
-      //  Obb obb;
-      //  obb.pose = it->second.pose;
-      //  obb.dims = obj_model.scale();
-      //  obstacles.push_back(obb);
-      //  ROS_INFO_STREAM("Adding obstacle: " << it->first << " at " << obb.pose
-      //                                      << ", " << obb.dims);
-      //}
+      for (ObjectStateIndex::const_iterator it =
+               initial_runtime_objects.begin();
+           it != initial_runtime_objects.end(); ++it) {
+        if (it->first == hand.object_name) {
+          continue;
+        }
+        LazyObjectModel obj_model(it->second.mesh_name, planning_frame_,
+                                  it->second.pose);
+        obj_model.set_object_model_cache(model_cache_);
+        tg::Graph object_graph;
+        object_graph.Add("object pose", tg::RefFrame("planning"),
+                         it->second.pose);
+        tg::Transform obb_pose;
+        object_graph.DescribePose(
+            tg::Transform(tg::Position(0, 0, obj_model.scale().z / 2),
+                          tg::Orientation()),
+            tg::Source("object pose"), tg::Target("planning"), &obb_pose);
+
+        Obb obb;
+        obb.pose = obb_pose.pose();
+        obb.dims = obj_model.scale();
+        obstacles.push_back(obb);
+      }
       program_.steps[step_i] =
           PlanGrasp(program_.steps, step_i, hand.wrist_pose, obstacles);
     }
