@@ -79,9 +79,19 @@ bool CollisionChecker::Check(const msgs::ObjectState& obj1,
 geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
                                     double distance) {
   geometry_msgs::Vector3 inflated = scale;
-  inflated.x += distance;
-  inflated.y += distance;
-  inflated.z += distance;
+  if (scale.x >= scale.y && scale.x >= scale.z) {
+    inflated.x += distance;
+    inflated.y = inflated.x * scale.y / scale.x;
+    inflated.z = inflated.x * scale.z / scale.x;
+  } else if (scale.y >= scale.x && scale.y >= scale.z) {
+    inflated.y += distance;
+    inflated.x = inflated.y * scale.x / scale.y;
+    inflated.z = inflated.y * scale.z / scale.y;
+  } else {
+    inflated.z += distance;
+    inflated.x = inflated.z * scale.x / scale.z;
+    inflated.y = inflated.z * scale.y / scale.z;
+  }
   return inflated;
 }
 }  // namespace pbi

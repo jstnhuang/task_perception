@@ -28,7 +28,11 @@ class CollisionChecker {
   mutable ObjectModelCache* model_cache_;
 };
 
-// Add a constant to a vector3.
+// Inflate the dimensions of an object.
+//
+// This increases the length of the longest dimension by distance. The other
+// dimensions are increased such that the ratio of the side lengths to not
+// change.
 geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
                                     double distance);
 }  // namespace pbi
