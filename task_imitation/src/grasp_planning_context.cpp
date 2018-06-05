@@ -9,7 +9,7 @@ namespace pbi {
 GraspPlanningContext::GraspPlanningContext(
     const Pose& wrist_pose, const string& planning_frame_id,
     const string& object_mesh, const Pose& object_pose,
-    const std::vector<Pose>& future_poses,
+    const std::vector<TypedPose>& future_poses,
     moveit::planning_interface::MoveGroup* move_group,
     ObjectModelCache* model_cache)
     : wrist_pose_(wrist_pose),
@@ -44,8 +44,7 @@ KdTreeP::Ptr GraspPlanningContext::object_tree() const {
 
 std::vector<Obb> GraspPlanningContext::obstacles() const { return obstacles_; }
 
-const std::vector<geometry_msgs::Pose>& GraspPlanningContext::future_poses()
-    const {
+const std::vector<TypedPose>& GraspPlanningContext::future_poses() const {
   return future_poses_;
 }
 

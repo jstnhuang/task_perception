@@ -14,6 +14,7 @@
 #include "task_perception/object_model_cache.h"
 
 #include "task_imitation/obb.h"
+#include "task_imitation/typed_pose.h"
 
 namespace pbi {
 // Stores key perceptual information necessary for doing local grasp planning
@@ -24,7 +25,7 @@ class GraspPlanningContext {
                        const std::string& planning_frame_id,
                        const std::string& object_mesh,
                        const geometry_msgs::Pose& object_pose,
-                       const std::vector<geometry_msgs::Pose>& future_poses,
+                       const std::vector<TypedPose>& future_poses,
                        moveit::planning_interface::MoveGroup* move_group,
                        ObjectModelCache* model_cache);
   geometry_msgs::Pose wrist_pose() const;
@@ -34,7 +35,7 @@ class GraspPlanningContext {
   pcl::PointCloud<pcl::PointNormal>::Ptr object_cloud_with_normals() const;
   pcl::search::KdTree<pcl::PointXYZ>::Ptr object_tree() const;
   std::vector<Obb> obstacles() const;
-  const std::vector<geometry_msgs::Pose>& future_poses() const;
+  const std::vector<TypedPose>& future_poses() const;
   moveit::planning_interface::MoveGroup* move_group() const;
   bool IsObjectCircular() const;
 
@@ -45,7 +46,7 @@ class GraspPlanningContext {
   std::string planning_frame_id_;
   std::string object_mesh_;
   geometry_msgs::Pose object_pose_;
-  std::vector<geometry_msgs::Pose> future_poses_;
+  std::vector<TypedPose> future_poses_;
   moveit::planning_interface::MoveGroup* move_group_;
 
   mutable ObjectModelCache* model_cache_;

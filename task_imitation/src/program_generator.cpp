@@ -220,7 +220,8 @@ msgs::Step ProgramGenerator::PlanGrasp(const std::vector<msgs::Step>& steps,
 
   moveit::planning_interface::MoveGroup& group =
       grasp_step.arm == msgs::Step::LEFT ? left_group_ : right_group_;
-  const std::vector<Pose> future_poses = GetFutureObjectPoses(steps, index);
+  const std::vector<TypedPose> future_poses =
+      GetFutureObjectPoses(steps, index);
   ROS_INFO("Planning with %zu future poses", future_poses.size());
   GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
                                grasp_step.object_state.mesh_name,
@@ -578,11 +579,11 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
 //  }
 //}
 
-std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
-                                       const size_t index) {
+std::vector<TypedPose> GetFutureObjectPoses(
+    const std::vector<msgs::Step>& steps, const size_t index) {
   int sample_every =
       rapid::GetIntParamOrThrow("task_imitation/sample_every_nth_future_pose");
-  std::vector<Pose> future_poses;
+  std::vector<TypedPose> future_poses;
   BOOST_FOREACH (const msgs::Step& step, steps) {
     if (step.type == msgs::Step::UNGRASP) {
       break;
@@ -594,8 +595,13 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
       graph.DescribePose(
           tg::Transform(tg::Position(-0.1, 0, 0), tg::Orientation()),
           tg::Source("pose"), tg::Target("planning"), &pregrasp);
-      future_poses.push_back(step.object_state.pose);
-      future_poses.push_back(pregrasp.pose());
+      TypedPose typed_pose;
+      typed_pose.type = TypedPose::PREGRASP;
+      typed_pose.pose = pregrasp.pose();
+      future_poses.push_back(typed_pose);
+      typed_pose.type = TypedPose::GRASP;
+      typed_pose.pose = step.object_state.pose;
+      future_poses.push_back(typed_pose);
     } else if (step.type == msgs::Step::MOVE_TO_POSE) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
@@ -604,7 +610,10 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
       tg::Transform obj_in_planning;
       graph.ComputeDescription("grasped object", tg::RefFrame("planning"),
                                &obj_in_planning);
-      future_poses.push_back(obj_in_planning.pose());
+      TypedPose typed_pose;
+      typed_pose.type = TypedPose::MOVE_TO;
+      typed_pose.pose = obj_in_planning.pose();
+      future_poses.push_back(typed_pose);
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
@@ -614,7 +623,10 @@ std::vector<Pose> GetFutureObjectPoses(const std::vector<msgs::Step>& steps,
         tg::Transform obj_in_planning;
         graph.ComputeDescription("grasped object", tg::RefFrame("planning"),
                                  &obj_in_planning);
-        future_poses.push_back(obj_in_planning.pose());
+        TypedPose typed_pose;
+        typed_pose.type = TypedPose::TRAJECTORY;
+        typed_pose.pose = obj_in_planning.pose();
+        future_poses.push_back(typed_pose);
       }
     }
   }

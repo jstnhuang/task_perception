@@ -17,6 +17,7 @@
 #include "task_imitation/collision_checker.h"
 #include "task_imitation/obb.h"
 #include "task_imitation/program_segment.h"
+#include "task_imitation/typed_pose.h"
 
 namespace pbi {
 // Generates an executable robot program given a sequence of states extracted
@@ -105,7 +106,7 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
 // included.
 // This is used for grasp planning: the grasp should have IK solutions for
 // future poses. All returned poses are in the planning frame.
-std::vector<geometry_msgs::Pose> GetFutureObjectPoses(
+std::vector<TypedPose> GetFutureObjectPoses(
     const std::vector<task_perception_msgs::Step>& steps, const size_t index);
 }  // namespace pbi
 

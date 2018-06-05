@@ -211,7 +211,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     VisualizeGripper("optimization", pitched_to_wrist,
                      context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("Aligned with normal and pitched to wrist");
+      ROS_INFO("%d of %d: Aligned with normal and pitched to wrist",
+               num_samples - i, num_samples);
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
@@ -230,7 +231,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     tf::poseEigenToMsg(affine_pose, placed);
     VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("Placed");
+      ROS_INFO("%d of %d: Placed", num_samples - i, num_samples);
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
@@ -245,7 +246,7 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     grasp.pose = MaximizeMargin(grasp.pose, context);
     VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("Placed again");
+      ROS_INFO("%d of %d: Pitched and centered", num_samples - i, num_samples);
       ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
@@ -267,14 +268,17 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
       grasp.score = grasp.eval.score();
 
       if (grasp.score > best.score) {
-        ROS_INFO("Best score: %s", grasp.eval.ToString().c_str());
-        ROS_INFO("Adopting grasp that reaches %d of %zu future poses",
-                 num_future_poses, context.future_poses().size());
+        ROS_INFO("%d of %d: Best score: %s", num_samples - i, num_samples,
+                 grasp.eval.ToString().c_str());
+        ROS_INFO("%d of %d: Adopting grasp that reaches %d of %zu future poses",
+                 num_samples - i, num_samples, num_future_poses,
+                 context.future_poses().size());
 
         best = grasp;
       } else {
         if (debug_) {
-          ROS_INFO("Eval: %s", grasp.eval.ToString().c_str());
+          ROS_INFO("%d of %d: Eval: %s", num_samples - i, num_samples,
+                   grasp.eval.ToString().c_str());
         }
       }
     }
@@ -965,10 +969,11 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
   graph.ComputeDescription("gripper", tg::RefFrame("original object"),
                            &grasp_in_obj);
 
-  const std::vector<Pose>& future_poses = context.future_poses();
+  const std::vector<TypedPose>& future_poses = context.future_poses();
   int count = 0;
   for (size_t i = 0; i < future_poses.size(); i++) {
-    const Pose& obj_in_planning = future_poses[i];
+    const TypedPose& typed_pose = future_poses[i];
+    const Pose& obj_in_planning = typed_pose.pose;
     graph.Add("object", tg::RefFrame("planning"), obj_in_planning);
     Eigen::Affine3d obj_in_planning_affine;
     tf::poseMsgToEigen(obj_in_planning, obj_in_planning_affine);
@@ -1003,8 +1008,10 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
           //                 context.planning_frame_id());
           // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
         }
-        // Only try to rotate circular objects
-        if (!context.IsObjectCircular()) {
+        // Only try to rotate circular objects on trajectory or move-to steps
+        bool can_rotate_step = typed_pose.type == TypedPose::MOVE_TO ||
+                               typed_pose.type == TypedPose::TRAJECTORY;
+        if (!context.IsObjectCircular() || !can_rotate_step) {
           break;
         }
       }
