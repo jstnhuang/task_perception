@@ -136,10 +136,10 @@ Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
   Pose to_wrist_pose = OrientTowardsWrist(gripper_model, context);
   gripper_model.set_pose(to_wrist_pose);
   VisualizeGripper("optimization", to_wrist_pose, context.planning_frame_id());
-  if (debug_) {
-    ROS_INFO("Initial grasp");
-    ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-  }
+  // if (debug_) {
+  //  ROS_INFO("Initial grasp");
+  //  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+  //}
 
   return Plan(to_wrist_pose, context);
 }
@@ -227,10 +227,6 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     Eigen::Affine3d affine_pose;
     tf::poseMsgToEigen(placed, affine_pose);
     affine_pose.pretranslate(forward_shift);
-    if (debug_) {
-      ROS_INFO("Object width: %f, shifting by %f", obj_width,
-               forward_shift.norm());
-    }
     tf::poseEigenToMsg(affine_pose, placed);
     VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
@@ -241,10 +237,10 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     model.set_pose(placed);
     ScoredGrasp grasp = OptimizePitch(model, obj_width, context);
     VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
-    if (debug_) {
-      ROS_INFO("Pitched");
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
-    }
+    // if (debug_) {
+    //  ROS_INFO("Pitched");
+    //  ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+    //}
 
     grasp.pose = MaximizeMargin(grasp.pose, context);
     VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
@@ -998,11 +994,11 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
         break;
       } else {
         if (debug_) {
-          ROS_INFO("Pose %zu yaw %f: No IK! %f %f %f %f %f %f %f", i,
-                   yaw_angle * 180 / M_PI, rotated_pose.position.x,
-                   rotated_pose.position.y, rotated_pose.position.z,
-                   rotated_pose.orientation.x, rotated_pose.orientation.y,
-                   rotated_pose.orientation.z, rotated_pose.orientation.w);
+          // ROS_INFO("Pose %zu yaw %f: No IK! %f %f %f %f %f %f %f", i,
+          //         yaw_angle * 180 / M_PI, rotated_pose.position.x,
+          //         rotated_pose.position.y, rotated_pose.position.z,
+          //         rotated_pose.orientation.x, rotated_pose.orientation.y,
+          //         rotated_pose.orientation.z, rotated_pose.orientation.w);
           // VisualizeGripper("optimization", rotated_pose,
           //                 context.planning_frame_id());
           // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
