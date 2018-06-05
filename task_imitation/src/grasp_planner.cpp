@@ -2,6 +2,8 @@
 
 #include <limits.h>
 #include <math.h>
+#include <cstdlib>
+#include <iostream>
 #include <map>
 #include <set>
 #include <sstream>
@@ -115,7 +117,9 @@ GraspPlanner::GraspPlanner(const Pr2GripperViz& gripper_viz)
       gripper_viz_(gripper_viz),
       debug_(false),
       debug_cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>(
-          "grasp_planner/cloud", 1, true)) {}
+          "grasp_planner/cloud", 1, true)),
+      evals_(),
+      labels_() {}
 
 Pose GraspPlanner::Plan(const GraspPlanningContext& context) {
   UpdateParams();
@@ -214,9 +218,9 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     VisualizeGripper("optimization", pitched_to_wrist,
                      context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("%d of %d: Aligned with normal and pitched to wrist",
-               num_samples - i, num_samples);
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ROS_INFO("%d of %d: Aligned with normal and pitched to wrist",
+      //         num_samples - i, num_samples);
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     Pose placed =
@@ -234,8 +238,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     tf::poseEigenToMsg(affine_pose, placed);
     VisualizeGripper("optimization", placed, context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("%d of %d: Placed", num_samples - i, num_samples);
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ROS_INFO("%d of %d: Placed", num_samples - i, num_samples);
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     model.set_pose(placed);
@@ -249,8 +253,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     grasp.pose = MaximizeMargin(grasp.pose, context);
     VisualizeGripper("optimization", grasp.pose, context.planning_frame_id());
     if (debug_) {
-      ROS_INFO("%d of %d: Pitched and centered", num_samples - i, num_samples);
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ROS_INFO("%d of %d: Pitched and centered", num_samples - i,
+      // num_samples); ros::topic::waitForMessage<std_msgs::Bool>("trigger");
     }
 
     model.set_pose(grasp.pose);
@@ -284,15 +288,25 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
                    grasp.eval.ToString().c_str());
         }
       }
+      if (debug_) {
+        evals_.push_back(grasp.eval);
+      }
     }
     VisualizeGripper("optimization_best", best.pose,
                      context.planning_frame_id());
     if (debug_) {
-      ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      // ros::topic::waitForMessage<std_msgs::Bool>("trigger");
+      std::string label;
+      std::cout << "Label 0 or 1: ";
+      std::getline(std::cin, label);
+      labels_.push_back(atoi(label.c_str()));
     }
   }
   VisualizeGripper("optimization_best", best.pose, context.planning_frame_id());
   if (best.IsValid()) {
+    for (size_t i = 0; i < evals_.size(); ++i) {
+      std::cout << evals_[i].ToString() << "," << labels_[i] << std::endl;
+    }
     ROS_INFO("Planned grasp with score: %f", best.eval.score());
     return best.pose;
   } else {
@@ -541,9 +555,9 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
       // ros::Duration(0.01).sleep();
     }
 
-    if (IsPalmCollidingWithObstacles(candidate, context)) {
-      continue;
-    }
+    // if (IsPalmCollidingWithObstacles(candidate, context)) {
+    //  continue;
+    //}
     // Optimize soft constraints
     GraspEvaluation grasp_eval = ScoreGrasp(candidate, wrist_pos, context);
     double score = grasp_eval.score();
@@ -890,7 +904,7 @@ Pose GraspPlanner::OptimizePlacement(const Pose& gripper_pose,
 
     VisualizeGripper("optimization", current_pose, context.planning_frame_id());
     if (debug_) {
-      ros::Duration(0.05).sleep();
+      // ros::Duration(0.05).sleep();
     }
     decay *= 0.9;
   }
@@ -931,7 +945,7 @@ Pose GraspPlanner::MaximizeMargin(const geometry_msgs::Pose& gripper_pose,
 
   VisualizeGripper("optimization", current_pose, context.planning_frame_id());
   if (debug_) {
-    ros::Duration(0.05).sleep();
+    // ros::Duration(0.05).sleep();
   }
   return current_pose;
 }
