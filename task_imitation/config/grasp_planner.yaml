@@ -7,8 +7,16 @@ grasp_planner:
   antipodal_collision_weight: -15
   non_antipodal_collision_weight: -20
   sq_wrist_distance_weight: -4000
-  obstacle_collision_weight: -1000000
+  obstacle_collision_weight: -100000
   future_pose_weight: 100
+
+  #antipodal_grasp_weight: 0.0224
+  #non_antipodal_grasp_weight: -0.00905
+  #antipodal_collision_weight: -0.00393
+  #non_antipodal_collision_weight: -0.886
+  #sq_wrist_distance_weight: -0.814
+  #obstacle_collision_weight: -100000
+  #future_pose_weight: 1.417
 
   # Termination criteria
   max_planning_iterations: 5
@@ -16,7 +24,7 @@ grasp_planner:
   max_rotation_for_termination: 0.1
 
   # Ratio of object points to sample grasps from
-  sample_ratio: 0.15
+  sample_ratio: 0.05
 
   # Parameters for optimizing the orientation of the gripper
   yaw_range_degrees: 90
