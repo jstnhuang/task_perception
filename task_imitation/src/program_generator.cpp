@@ -6,9 +6,11 @@
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
 #include "rapid_ros/params.h"
+#include "rapid_utils/vector3.hpp"
 #include "ros/ros.h"
 #include "std_msgs/Bool.h"
 #include "task_perception/lazy_object_model.h"
+#include "task_perception/pr2_gripper_model.h"
 #include "task_perception_msgs/HandState.h"
 #include "transform_graph/graph.h"
 
@@ -81,6 +83,8 @@ msgs::Program ProgramGenerator::Generate(
       const msgs::HandState& hand(segment.arm_name == msgs::Step::LEFT
                                       ? state.left_hand
                                       : state.right_hand);
+      const msgs::ObjectState& hand_obj =
+          initial_runtime_objects.at(hand.object_name);
       std::vector<Obb> obstacles;
       obstacles.push_back(table);
       for (ObjectStateIndex::const_iterator it =
@@ -89,6 +93,14 @@ msgs::Program ProgramGenerator::Generate(
         if (it->first == hand.object_name) {
           continue;
         }
+        if ((rapid::AsVector3d(hand_obj.pose.position) -
+             rapid::AsVector3d(it->second.pose.position))
+                .norm() > 0.1) {
+          ROS_INFO("%s is too far away to be an obstacle of %s",
+                   it->first.c_str(), hand.object_name.c_str());
+          continue;
+        }
+
         LazyObjectModel obj_model(it->second.mesh_name, planning_frame_,
                                   it->second.pose);
         obj_model.set_object_model_cache(model_cache_);
@@ -140,7 +152,7 @@ msgs::Program ProgramGenerator::Generate(
                                        ? left_gripper_in_obj
                                        : right_gripper_in_obj;
       program_.steps[step_i] =
-          ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj);
+          ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj, table);
     }
     step_i++;
   }
@@ -350,7 +362,7 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
     double best_y = move_step.arm == msgs::Step::LEFT
                         ? -std::numeric_limits<double>::max()
                         : std::numeric_limits<double>::max();
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 6; i++) {
       for (int sign = 1; sign >= -1; sign -= 2) {
         Eigen::AngleAxisd yaw(sign * i * M_PI / 10, Eigen::Vector3d::UnitZ());
         Eigen::Quaterniond yaw_q(yaw);
@@ -440,7 +452,7 @@ void ProgramGenerator::AddTrajectoryStep(
 
 msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     const ProgramSegment& segment, const msgs::Step& traj_step,
-    const Pose& gripper_in_obj) {
+    const Pose& gripper_in_obj, const Obb& table) {
   tg::Graph graph;
   graph.Add("gripper", tg::RefFrame("rotated grasped object"), gripper_in_obj);
   graph.Add("rotated grasped object", tg::RefFrame("prerotated grasped object"),
@@ -462,6 +474,7 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
   grasped_model.set_object_model_cache(model_cache_);
   bool is_grasped_obj_circular = grasped_model.IsCircular();
 
+  Pr2GripperModel gripper_model;
   moveit::planning_interface::MoveGroup& move_group(
       segment.arm_name == msgs::Step::LEFT ? left_group_ : right_group_);
   msgs::Step updated_step = traj_step;
@@ -482,7 +495,7 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
 
       for (int sign = 1; sign >= -1; sign -= 2) {
         int yaw_start = sign == 1 ? 0 : 1;
-        int yaw_end = sign == 1 ? 11 : 10;
+        int yaw_end = sign == 1 ? 5 : 5;
         for (int yaw_i = yaw_start; yaw_i < yaw_end; yaw_i++) {
           Eigen::AngleAxisd yaw(sign * yaw_i * M_PI / 10,
                                 Eigen::Vector3d::UnitZ());
@@ -497,7 +510,9 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
           tg::Position gripper_pos;
           graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
                                  tg::Target("planning"), &gripper_pos);
-          if (HasIk(move_group, ee_in_planning.pose())) {
+          gripper_model.set_pose(ee_in_planning.pose());
+          if (HasIk(move_group, ee_in_planning.pose()) &&
+              !gripper_model.IsCollidingWithObb(table.pose, table.dims)) {
             found_ik = true;
 
             tg::Position gripper_pos;
@@ -519,6 +534,9 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
               // searching in this direction.
               break;
             }
+          } else if (found_ik) {
+            // If IK was previously found, but not on this yaw angle, then skip
+            break;
           }
         }
       }
