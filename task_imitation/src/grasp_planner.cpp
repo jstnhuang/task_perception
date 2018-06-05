@@ -54,6 +54,7 @@ GraspEvaluation::GraspEvaluation() : features(), weights() {}
 
 std::string GraspEvaluation::ToString() const {
   std::stringstream ss;
+  int can_reach_future_poses = features.future_pose_ratio == 1 ? 1 : 0;
   ss << "score: " << score() << " = " << weights.antipodal_grasp_weight << "*"
      << features.antipodal_grasp_pts << " + "
      << weights.non_antipodal_grasp_weight << "*"
@@ -63,7 +64,7 @@ std::string GraspEvaluation::ToString() const {
      << weights.non_antipodal_collision_weight << "*"
      << features.non_antipodal_collisions << " + "
      << weights.sq_wrist_distance_weight << "*" << features.sq_wrist_distance
-     << " + " << weights.future_pose_weight << "*" << features.future_pose_ratio
+     << " + " << weights.future_pose_weight << "*" << can_reach_future_poses
      << " = " << weights.antipodal_grasp_weight * features.antipodal_grasp_pts
      << " + "
      << weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts
@@ -73,7 +74,8 @@ std::string GraspEvaluation::ToString() const {
      << weights.non_antipodal_collision_weight *
             features.non_antipodal_collisions
      << " + " << weights.sq_wrist_distance_weight * features.sq_wrist_distance
-     << " + " << weights.future_pose_weight * features.future_pose_ratio;
+     << " + " << weights.future_pose_weight * can_reach_future_poses << "("
+     << features.future_pose_ratio << ")";
   if (features.num_obstacle_collisions > 0) {
     ss << " (" << features.num_obstacle_collisions << " collisions)";
   } else {
@@ -84,6 +86,7 @@ std::string GraspEvaluation::ToString() const {
 
 double GraspEvaluation::score() const {
   double score = 0;
+  int can_reach_future_poses = features.future_pose_ratio == 1 ? 1 : 0;
   score += weights.antipodal_grasp_weight * features.antipodal_grasp_pts;
   score +=
       weights.non_antipodal_grasp_weight * features.non_antipodal_grasp_pts;
@@ -91,7 +94,7 @@ double GraspEvaluation::score() const {
   score += weights.non_antipodal_collision_weight *
            features.non_antipodal_collisions;
   score += weights.sq_wrist_distance_weight * features.sq_wrist_distance;
-  score += weights.future_pose_weight * features.future_pose_ratio;
+  score += weights.future_pose_weight * can_reach_future_poses;
   score += weights.obstacle_collision_weight * features.num_obstacle_collisions;
   return score;
 }
