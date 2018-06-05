@@ -22,14 +22,14 @@ Point PalmPos() {
 Point LFingerPos() {
   Point pos;
   pos.x = 0.156;
-  pos.y = 0.065 - 0.01125;
+  pos.y = 0.065 - 0.01225;
   return pos;
 }
 
 Point RFingerPos() {
   Point pos;
   pos.x = 0.156;
-  pos.y = -0.065 + 0.01125;
+  pos.y = -0.065 + 0.01225;
   return pos;
 }
 
@@ -64,8 +64,8 @@ Vector3 PalmDims() {
 Vector3 FingerDims() {
   Vector3 vec;
   vec.x = 0.06;
-  vec.y = 0.0225;
-  vec.z = 0.025;
+  vec.y = 0.0205;  // 0.0225;
+  vec.z = 0.023;
   return vec;
 }
 
