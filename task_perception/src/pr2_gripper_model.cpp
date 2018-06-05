@@ -249,7 +249,7 @@ Eigen::Vector3d Pr2GripperModel::forward_grasp_center(double obj_width) const {
     obj_width = kGraspRegionDims.y;
   }
   double most_forward_x = kGraspRegionDims.x / 2 - 0.005;
-  double least_forward_x = kGraspRegionDims.x / 2 - 0.025;
+  double least_forward_x = kGraspRegionDims.x / 2 - 0.023;
   double slope = (least_forward_x - most_forward_x) / kGraspRegionDims.y;
   double forward_offset = slope * obj_width + most_forward_x;
 
