@@ -161,7 +161,6 @@ class GraspPlanner {
   double kAntipodalCos;
 
   ros::Publisher debug_cloud_pub_;
-  ros::Publisher obstacle_pub_;
 };
 
 int NumObstacleCollisions(const Pr2GripperModel& gripper,
