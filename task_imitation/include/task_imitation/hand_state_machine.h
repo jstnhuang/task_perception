@@ -58,6 +58,11 @@ class HandStateMachine {
 std::string InferDoubleCollisionTarget(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
     int start_index, const CollisionChecker& collision_checker);
+
+std::string InferCollidee(
+    const task_perception_msgs::DemoState& demo_state,
+    const std::vector<std::string>& collidees,
+    const task_perception_msgs::ObjectState& current_target);
 }  // namespace pbi
 
 #endif  // _PBI_HAND_STATE_MACHINE_H_
