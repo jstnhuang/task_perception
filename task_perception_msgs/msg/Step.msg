@@ -22,7 +22,7 @@ string type
 # - times_from_start: unused
 
 # If action_type == UNGRASP:
-# - object_state: unused
+# - object_state: name specifies the object that was ungrasped.
 # - ee_trajectory: unused
 # - times_from_start: unused
 
