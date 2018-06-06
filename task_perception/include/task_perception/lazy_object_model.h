@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "boost/optional.hpp"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
 #include "pcl/point_cloud.h"
@@ -24,7 +25,7 @@ class LazyObjectModel {
   // "pringles_1k.pcd". This is because dbot uses .obj files, but when we
   // convert the .obj to a point cloud, we save the point cloud as .pcd.
   LazyObjectModel(const std::string& mesh_name, const std::string& frame_id,
-                  const geometry_msgs::Pose& pose);
+                  const geometry_msgs::Pose& mesh_pose);
   void set_object_model_cache(ObjectModelCache* cache);
 
   // Returns the object model (in the frame defined by the object model).
@@ -35,7 +36,12 @@ class LazyObjectModel {
   pcl::PointCloud<pcl::PointNormal>::Ptr GetObjectCloudWithNormals() const;
   pcl::search::KdTree<pcl::PointXYZ>::Ptr GetObjectTree() const;
 
-  geometry_msgs::Pose pose() const;
+  // Pose of the object according to the mesh model.
+  geometry_msgs::Pose mesh_pose() const;
+
+  // Returns the pose shifted in the local +Z direction by scale.z/2.
+  geometry_msgs::Pose center_pose() const;
+
   geometry_msgs::Vector3 scale() const;
 
   bool IsCircular() const;
@@ -43,7 +49,8 @@ class LazyObjectModel {
  private:
   std::string mesh_name_;
   std::string frame_id_;
-  geometry_msgs::Pose pose_;
+  geometry_msgs::Pose mesh_pose_;
+  mutable boost::optional<geometry_msgs::Pose> center_pose_;
 
   mutable ObjectModelCache* cache_;  // No ownership
   const std::string kPackagePath_;

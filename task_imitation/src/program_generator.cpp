@@ -104,17 +104,8 @@ msgs::Program ProgramGenerator::Generate(
         LazyObjectModel obj_model(it->second.mesh_name, planning_frame_,
                                   it->second.pose);
         obj_model.set_object_model_cache(model_cache_);
-        tg::Graph object_graph;
-        object_graph.Add("object pose", tg::RefFrame("planning"),
-                         it->second.pose);
-        tg::Transform obb_pose;
-        object_graph.DescribePose(
-            tg::Transform(tg::Position(0, 0, obj_model.scale().z / 2),
-                          tg::Orientation()),
-            tg::Source("object pose"), tg::Target("planning"), &obb_pose);
-
         Obb obb;
-        obb.pose = obb_pose.pose();
+        obb.pose = obj_model.center_pose();
         obb.dims = obj_model.scale();
         obstacles.push_back(obb);
       }
@@ -611,7 +602,7 @@ std::vector<TypedPose> GetFutureObjectPoses(
       graph.Add("pose", tg::RefFrame("planning"), step.object_state.pose);
       tg::Transform pregrasp;
       graph.DescribePose(
-          tg::Transform(tg::Position(-0.1, 0, 0), tg::Orientation()),
+          tg::Transform(tg::Position(-0.08, 0, 0), tg::Orientation()),
           tg::Source("pose"), tg::Target("planning"), &pregrasp);
       TypedPose typed_pose;
       typed_pose.type = TypedPose::PREGRASP;

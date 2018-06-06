@@ -13,18 +13,22 @@
 #include "pcl/search/kdtree.h"
 #include "ros/package.h"
 #include "ros/ros.h"
+#include "transform_graph/graph.h"
 
 #include "task_perception/object_model_cache.h"
 #include "task_perception/pcl_typedefs.h"
 #include "task_perception/shape_detection.h"
 
+namespace tg = transform_graph;
+
 namespace pbi {
 LazyObjectModel::LazyObjectModel(const std::string& mesh_name,
                                  const std::string& frame_id,
-                                 const geometry_msgs::Pose& pose)
+                                 const geometry_msgs::Pose& mesh_pose)
     : mesh_name_(mesh_name),
       frame_id_(frame_id),
-      pose_(pose),
+      mesh_pose_(mesh_pose),
+      center_pose_(),
       cache_(NULL),
       kPackagePath_(ros::package::getPath("object_meshes") + "/object_models/"),
       object_model_(),
@@ -66,7 +70,7 @@ PointCloudP::Ptr LazyObjectModel::GetObjectCloud() const {
   if (!object_cloud_) {
     PointCloudP::Ptr object_model = GetObjectModel();
     Eigen::Affine3d object_transform;
-    tf::poseMsgToEigen(pose_, object_transform);
+    tf::poseMsgToEigen(mesh_pose_, object_transform);
     object_cloud_.reset(new PointCloudP);
     pcl::transformPointCloud(*object_model, *object_cloud_, object_transform);
     object_cloud_->header.frame_id = frame_id_;
@@ -101,7 +105,21 @@ KdTreeP::Ptr LazyObjectModel::GetObjectTree() const {
   return object_tree_;
 }
 
-geometry_msgs::Pose LazyObjectModel::pose() const { return pose_; }
+geometry_msgs::Pose LazyObjectModel::mesh_pose() const { return mesh_pose_; }
+
+geometry_msgs::Pose LazyObjectModel::center_pose() const {
+  if (!center_pose_) {
+    tg::Graph graph;
+    graph.Add("pose", tg::RefFrame("world"), mesh_pose_);
+    geometry_msgs::Vector3 obj_scale = scale();
+    tg::Transform obj_center_pose;
+    graph.DescribePose(
+        tg::Transform(tg::Position(0, 0, obj_scale.z / 2), tg::Orientation()),
+        tg::Source("pose"), tg::Target("world"), &obj_center_pose);
+    center_pose_ = obj_center_pose.pose();
+  }
+  return *center_pose_;
+}
 
 geometry_msgs::Vector3 LazyObjectModel::scale() const {
   if (scale_.x < 0) {

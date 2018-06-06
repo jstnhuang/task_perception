@@ -30,7 +30,7 @@ std::vector<std::string> CollisionChecker::Check(
   LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
                                  object.pose);
   held_obj_model.set_object_model_cache(model_cache_);
-  const Pose& held_obj_pose = held_obj_model.pose();
+  const Pose& held_obj_pose = held_obj_model.center_pose();
   Eigen::Vector3d held_obj_vec = rapid::AsVector3d(held_obj_pose.position);
   geometry_msgs::Vector3 held_obj_scale =
       InflateScale(held_obj_model.scale(), kInflationSize);
@@ -41,11 +41,11 @@ std::vector<std::string> CollisionChecker::Check(
     }
     LazyObjectModel other_model(other.mesh_name, planning_frame_, other.pose);
     other_model.set_object_model_cache(model_cache_);
+    Pose other_pose = other_model.center_pose();
     if (rapid::AreObbsInCollision(
-            held_obj_pose, held_obj_scale, other_model.pose(),
+            held_obj_pose, held_obj_scale, other_pose,
             InflateScale(other_model.scale(), kInflationSize))) {
-      Eigen::Vector3d other_vec =
-          rapid::AsVector3d(other_model.pose().position);
+      Eigen::Vector3d other_vec = rapid::AsVector3d(other_pose.position);
       double sq_distance = (held_obj_vec - other_vec).squaredNorm();
       scored_collidees.push_back(
           std::make_pair<double, std::string>(sq_distance, other.name));
@@ -72,8 +72,8 @@ bool CollisionChecker::Check(const msgs::ObjectState& obj1,
       InflateScale(obj1_model.scale(), kInflationSize);
   geometry_msgs::Vector3 obj2_scale =
       InflateScale(obj2_model.scale(), kInflationSize);
-  return rapid::AreObbsInCollision(obj1_model.pose(), obj1_scale,
-                                   obj2_model.pose(), obj2_scale);
+  return rapid::AreObbsInCollision(obj1_model.center_pose(), obj1_scale,
+                                   obj2_model.center_pose(), obj2_scale);
 }
 
 geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,

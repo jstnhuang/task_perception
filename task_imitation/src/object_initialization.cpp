@@ -201,7 +201,7 @@ ScoredAlignment AlignObject(const LazyObjectModel& object_model,
     Eigen::Matrix4d aligned_in_obs_d = aligned_in_obs.cast<double>();
     Eigen::Affine3d aligned_affine(aligned_in_obs_d);
     Eigen::Affine3d model_pose;
-    tf::poseMsgToEigen(object_model.pose(), model_pose);
+    tf::poseMsgToEigen(object_model.mesh_pose(), model_pose);
 
     Eigen::Affine3d updated_model_pose = aligned_affine.inverse() * model_pose;
     tf::poseEigenToMsg(updated_model_pose, result.pose);
@@ -211,7 +211,7 @@ ScoredAlignment AlignObject(const LazyObjectModel& object_model,
     ROS_WARN("Failed to align object. Fitness score: %f",
              icp.getFitnessScore());
     ScoredAlignment result;
-    result.pose = object_model.pose();
+    result.pose = object_model.mesh_pose();
     result.score = icp.getFitnessScore();
     return result;
   }
