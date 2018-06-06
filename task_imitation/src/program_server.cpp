@@ -18,6 +18,7 @@
 #include "visualization_msgs/Marker.h"
 
 #include "task_imitation/object_initialization.h"
+#include "task_imitation/program_constants.h"
 #include "task_imitation/program_generator.h"
 
 namespace msgs = task_perception_msgs;
@@ -334,7 +335,8 @@ void ProgramServer::VisualizeStep(const msgs::Step& step) {
     graph.Add("obj", tg::RefFrame("planning"), obj.pose);
     graph.Add("grasp", tg::RefFrame("obj"), step.ee_trajectory[0]);
     graph.Add("pregrasp", tg::RefFrame("grasp"),
-              tg::Transform(tg::Position(-0.1, 0, 0), tg::Orientation()));
+              tg::Transform(tg::Position(-kPregraspDistance, 0, 0),
+                            tg::Orientation()));
 
     tg::Transform pregrasp_in_planning;
     graph.ComputeDescription("pregrasp", tg::RefFrame("planning"),

@@ -501,7 +501,7 @@ std::vector<PlannedStep> PlanGraspStep(
   graph.Add("grasp", tg::RefFrame("current object"), step.ee_trajectory[0]);
   Pose pregrasp;
   pregrasp.orientation.w = 1;
-  pregrasp.position.x = -0.1;
+  pregrasp.position.x = -kPregraspDistance;
   tg::Transform pregrasp_in_planning;
   graph.DescribePose(pregrasp, tg::Source("grasp"), tg::Target("planning"),
                      &pregrasp_in_planning);
@@ -599,7 +599,8 @@ std::vector<PlannedStep> PlanUngraspStep(const task_perception_msgs::Step& step,
   graph.Add("current ee pose", tg::RefFrame("planning frame"),
             start_state->getGlobalLinkTransform(group.getEndEffectorLink()));
   graph.Add("post grasp", tg::RefFrame("current ee pose"),
-            tg::Transform(tg::Position(-0.1, 0, 0), tg::Orientation()));
+            tg::Transform(tg::Position(-kPostgraspDistance, 0, 0),
+                          tg::Orientation()));
   tg::Transform post_grasp_pose;
   graph.ComputeDescription("post grasp", tg::RefFrame("planning frame"),
                            &post_grasp_pose);
