@@ -175,14 +175,9 @@ std::vector<ProgramSegment> ProgramGenerator::Segment(
       first_time = segment.demo_states[0].stamp.toSec();
     }
     double time = segment.demo_states[0].stamp.toSec() - first_time;
-    if (segment.type != msgs::Step::UNGRASP) {
-      ROS_INFO("%f Segment %ld: %s %s relative to %s", time, i,
-               segment.arm_name.c_str(), segment.type.c_str(),
-               segment.target_object.c_str());
-    } else {
-      ROS_INFO("%f Segment %ld: %s %s", time, i, segment.arm_name.c_str(),
-               segment.type.c_str());
-    }
+    ROS_INFO("%f Segment %ld: %s %s relative to %s", time, i,
+             segment.arm_name.c_str(), segment.type.c_str(),
+             segment.target_object.c_str());
   }
   return segments;
 }
@@ -274,6 +269,7 @@ void ProgramGenerator::AddUngraspStep(const ProgramSegment& segment) {
   ungrasp_step.start_time = state.stamp - start_time_;
   ungrasp_step.arm = segment.arm_name;
   ungrasp_step.type = msgs::Step::UNGRASP;
+  ungrasp_step.object_state.name = segment.target_object;
   program_.steps.push_back(ungrasp_step);
 }
 
@@ -353,7 +349,7 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
     double best_y = move_step.arm == msgs::Step::LEFT
                         ? -std::numeric_limits<double>::max()
                         : std::numeric_limits<double>::max();
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 11; i++) {
       for (int sign = 1; sign >= -1; sign -= 2) {
         Eigen::AngleAxisd yaw(sign * i * M_PI / 10, Eigen::Vector3d::UnitZ());
         Eigen::Quaterniond yaw_q(yaw);
@@ -452,6 +448,9 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
             tg::Transform::Identity());
   graph.Add("target object", tg::RefFrame("planning"),
             traj_step.object_state.pose);
+  graph.Add("postgrasp", tg::RefFrame("gripper"),
+            tg::Transform(tg::Position(-kPostgraspDistance, 0, 0),
+                          tg::Orientation()));
 
   ROS_ASSERT(traj_step.ee_trajectory.size() > 0);
   const std::string unused_frame("");
@@ -483,10 +482,11 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
       double best_y = segment.arm_name == msgs::Step::LEFT
                           ? -std::numeric_limits<double>::max()
                           : std::numeric_limits<double>::max();
+      bool is_last_traj_point = i + 1 == traj_step.ee_trajectory.size();
 
       for (int sign = 1; sign >= -1; sign -= 2) {
         int yaw_start = sign == 1 ? 0 : 1;
-        int yaw_end = sign == 1 ? 5 : 5;
+        int yaw_end = sign == 1 ? 11 : 10;
         for (int yaw_i = yaw_start; yaw_i < yaw_end; yaw_i++) {
           Eigen::AngleAxisd yaw(sign * yaw_i * M_PI / 10,
                                 Eigen::Vector3d::UnitZ());
@@ -498,12 +498,19 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
           graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                    &ee_in_planning);
 
-          tg::Position gripper_pos;
-          graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
-                                 tg::Target("planning"), &gripper_pos);
           gripper_model.set_pose(ee_in_planning.pose());
+          // If this is the last trajectory point, then also consider if a pose
+          // grasp pose is reachable.
+          bool is_ready_for_ungrasp = true;
+          if (is_last_traj_point) {
+            tg::Transform postgrasp;
+            graph.ComputeDescription("postgrasp", tg::RefFrame("planning"),
+                                     &postgrasp);
+            is_ready_for_ungrasp = HasIk(move_group, postgrasp.pose());
+          }
           if (HasIk(move_group, ee_in_planning.pose()) &&
-              !gripper_model.IsCollidingWithObb(table.pose, table.dims)) {
+              !gripper_model.IsCollidingWithObb(table.pose, table.dims) &&
+              is_ready_for_ungrasp) {
             found_ik = true;
 
             tg::Position gripper_pos;
@@ -593,17 +600,15 @@ std::vector<TypedPose> GetFutureObjectPoses(
   int sample_every =
       rapid::GetIntParamOrThrow("task_imitation/sample_every_nth_future_pose");
   std::vector<TypedPose> future_poses;
+  std::map<std::string, Pose> poses;
   BOOST_FOREACH (const msgs::Step& step, steps) {
-    if (step.type == msgs::Step::UNGRASP) {
-      break;
-    }
     if (step.type == msgs::Step::GRASP) {
       tg::Graph graph;
       graph.Add("pose", tg::RefFrame("planning"), step.object_state.pose);
       tg::Transform pregrasp;
-      graph.DescribePose(
-          tg::Transform(tg::Position(-0.08, 0, 0), tg::Orientation()),
-          tg::Source("pose"), tg::Target("planning"), &pregrasp);
+      graph.DescribePose(tg::Transform(tg::Position(-kPregraspDistance, 0, 0),
+                                       tg::Orientation()),
+                         tg::Source("pose"), tg::Target("planning"), &pregrasp);
       TypedPose typed_pose;
       typed_pose.type = TypedPose::PREGRASP;
       typed_pose.pose = pregrasp.pose();
@@ -611,6 +616,30 @@ std::vector<TypedPose> GetFutureObjectPoses(
       typed_pose.type = TypedPose::GRASP;
       typed_pose.pose = step.object_state.pose;
       future_poses.push_back(typed_pose);
+
+      poses[step.object_state.name] = step.object_state.pose;
+    } else if (step.type == msgs::Step::UNGRASP) {
+      if (poses.find(step.object_state.name) != poses.end()) {
+        TypedPose typed_pose;
+        typed_pose.type = TypedPose::UNGRASP;
+        typed_pose.pose = poses.at(step.object_state.name);
+        future_poses.push_back(typed_pose);
+
+        tg::Graph graph;
+        graph.Add("ungrasp", tg::RefFrame("planning"), typed_pose.pose);
+        graph.Add("postgrasp", tg::RefFrame("ungrasp"),
+                  tg::Transform(tg::Position(-kPostgraspDistance, 0, 0),
+                                tg::Orientation()));
+        tg::Transform postgrasp_in_planning;
+        graph.ComputeDescription("postgrasp", tg::RefFrame("planning"),
+                                 &postgrasp_in_planning);
+        typed_pose.type = TypedPose::POSTGRASP;
+        typed_pose.pose = postgrasp_in_planning.pose();
+        future_poses.push_back(typed_pose);
+      } else {
+        ROS_WARN("Unable to get last pose of %s",
+                 step.object_state.name.c_str());
+      }
     } else if (step.type == msgs::Step::MOVE_TO_POSE) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
@@ -623,6 +652,8 @@ std::vector<TypedPose> GetFutureObjectPoses(
       typed_pose.type = TypedPose::MOVE_TO;
       typed_pose.pose = obj_in_planning.pose();
       future_poses.push_back(typed_pose);
+
+      poses[step.object_state.name] = step.object_state.pose;
     } else if (step.type == msgs::Step::FOLLOW_TRAJECTORY) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
@@ -636,6 +667,16 @@ std::vector<TypedPose> GetFutureObjectPoses(
         typed_pose.type = TypedPose::TRAJECTORY;
         typed_pose.pose = obj_in_planning.pose();
         future_poses.push_back(typed_pose);
+      }
+
+      // Record the last position of the object.
+      if (step.ee_trajectory.size() > 0) {
+        graph.Add("grasped object", tg::RefFrame("target"),
+                  step.ee_trajectory.back());
+        tg::Transform obj_in_planning;
+        graph.ComputeDescription("grasped object", tg::RefFrame("planning"),
+                                 &obj_in_planning);
+        poses[step.object_state.name] = obj_in_planning.pose();
       }
     }
   }

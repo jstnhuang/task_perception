@@ -113,6 +113,7 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
 
     ProgramSegment ungrasp_segment = NewUngraspSegment();
     ungrasp_segment.demo_states.push_back(demo_state);
+    ungrasp_segment.target_object = prev_hand.object_name;
     segments_->push_back(ungrasp_segment);
 
     state_ = NONE;
@@ -201,6 +202,7 @@ void HandStateMachine::StationaryCollisionState(
 
     ProgramSegment ungrasp_segment = NewUngraspSegment();
     ungrasp_segment.demo_states.push_back(demo_state);
+    ungrasp_segment.target_object = prev_hand.object_name;
     segments_->push_back(ungrasp_segment);
     state_ = NONE;
     return;
@@ -306,8 +308,10 @@ void HandStateMachine::DoubleCollisionState(const msgs::DemoState& demo_state) {
         working_traj_ = NewTrajSegment();
       }
     }
+    msgs::HandState prev_hand = GetPrevHand();
     ProgramSegment ungrasp_segment = NewUngraspSegment();
     ungrasp_segment.demo_states.push_back(demo_state);
+    ungrasp_segment.target_object = prev_hand.object_name;
     segments_->push_back(ungrasp_segment);
     // Regardless of whether this hand is the master or the target, set state to
     // NONE since we ungrasped.
