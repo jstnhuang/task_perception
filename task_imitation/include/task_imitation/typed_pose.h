@@ -8,7 +8,7 @@
 namespace pbi {
 struct TypedPose {
  public:
-  enum Type { PREGRASP, GRASP, MOVE_TO, TRAJECTORY };
+  enum Type { PREGRASP, GRASP, UNGRASP, POSTGRASP, MOVE_TO, TRAJECTORY };
   geometry_msgs::Pose pose;
   Type type;
 };
