@@ -26,11 +26,11 @@ namespace msgs = task_perception_msgs;
 namespace tg = transform_graph;
 using boost::optional;
 using geometry_msgs::Pose;
-using moveit::planning_interface::MoveItErrorCode;
 using moveit::planning_interface::MoveGroup;
+using moveit::planning_interface::MoveItErrorCode;
+using task_perception_msgs::ProgramSlice;
 using trajectory_msgs::JointTrajectory;
 using trajectory_msgs::JointTrajectoryPoint;
-using task_perception_msgs::ProgramSlice;
 
 namespace pbi {
 ProgramExecutor::ProgramExecutor(MoveGroup& left_group, MoveGroup& right_group)
