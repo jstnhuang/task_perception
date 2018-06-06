@@ -31,7 +31,7 @@ class CollisionChecker {
 // Inflate the dimensions of an object.
 //
 // This increases the length of the longest dimension by distance. The other
-// dimensions are increased such that the ratio of the side lengths to not
+// dimensions are increased such that the ratio of the side lengths do not
 // change.
 geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
                                     double distance);
