@@ -1,5 +1,5 @@
 task_imitation:
-  object_inflation_size: 0.05 # How much to inflate each object's dimensions when doing collision checking, in meters
+  object_inflation_size: 0.11 # How much to inflate each object's dimensions when doing collision checking, in meters
 
   # Object initialization
   size_ambiguity_threshold: 0.15 # 1 = ambiguous, 0 = not ambiguous. Defined as size difference of best object / size difference of other object.
