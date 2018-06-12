@@ -192,9 +192,9 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   // Sample some points
   const double sample_ratio =
       rapid::GetDoubleParamOrThrow("grasp_planner/sample_ratio");
-  int num_samples = context.object_cloud()->size() * sample_ratio;
   boost::shared_ptr<std::vector<int> > sample_indices(new std::vector<int>());
-  *sample_indices = SampleObject(context, num_samples);
+  *sample_indices = SampleObject(context, sample_ratio);
+  int num_samples = sample_indices->size();
   PublishPointCloud(debug_cloud_pub_, context.object_cloud(), sample_indices);
   ROS_INFO("Sampled %d points", num_samples);
 
@@ -361,12 +361,13 @@ Pose GraspPlanner::ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
 }
 
 std::vector<int> GraspPlanner::SampleObject(const GraspPlanningContext& context,
-                                            int num_samples) {
+                                            const double sample_ratio) {
+  int num_samples = sample_ratio * context.object_cloud()->size();
+  std::vector<int> indices;
   pcl::RandomSample<pcl::PointXYZ> random;
   random.setInputCloud(context.object_cloud());
   random.setSample(num_samples);
   random.setSeed(0);
-  std::vector<int> indices;
   random.filter(indices);
   return indices;
 }

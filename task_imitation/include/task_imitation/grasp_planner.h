@@ -85,7 +85,7 @@ class GraspPlanner {
   // GRASPING 2.0
   // Returns N closest points on object to the grasp center.
   std::vector<int> SampleObject(const GraspPlanningContext& context,
-                                const int num_samples);
+                                const double sample_ratio);
 
   // Publishes a visualization of the normal vector of an object point.
   void VisualizePointNormal(const GraspPlanningContext& context,
