@@ -39,6 +39,7 @@ find_package(PCL REQUIRED)
 find_package(Eigen REQUIRED)
 #find_package(CUDA REQUIRED)
 #add_definitions(-DCUDA_BUILD)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
