@@ -13,7 +13,7 @@
 #include "boost/foreach.hpp"
 #include "eigen_conversions/eigen_msg.h"
 #include "pcl/common/transforms.h"
-#include "pcl/filters/random_sample.h"
+#include "pcl/filters/voxel_grid.h"
 #include "pcl/kdtree/kdtree.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -190,10 +190,10 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
   // gripper_pub_.publish(marker_arr);
 
   // Sample some points
-  const double sample_ratio =
-      rapid::GetDoubleParamOrThrow("grasp_planner/sample_ratio");
+  const double leaf_size =
+      rapid::GetDoubleParamOrThrow("grasp_planner/leaf_size");
   boost::shared_ptr<std::vector<int> > sample_indices(new std::vector<int>());
-  *sample_indices = SampleObject(context, sample_ratio);
+  *sample_indices = SampleObject(context, leaf_size);
   int num_samples = sample_indices->size();
   PublishPointCloud(debug_cloud_pub_, context.object_cloud(), sample_indices);
   ROS_INFO("Sampled %d points", num_samples);
@@ -361,14 +361,27 @@ Pose GraspPlanner::ComputeInitialGrasp(const Pr2GripperModel& gripper_model,
 }
 
 std::vector<int> GraspPlanner::SampleObject(const GraspPlanningContext& context,
-                                            const double sample_ratio) {
-  int num_samples = sample_ratio * context.object_cloud()->size();
+                                            const double leaf_size) {
+  pcl::VoxelGrid<pcl::PointXYZ> vox;
+  vox.setInputCloud(context.object_cloud());
+  Eigen::Vector4f leaf;
+  leaf << leaf_size, leaf_size, leaf_size, 0;
+  vox.setLeafSize(leaf);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled(
+      new pcl::PointCloud<pcl::PointXYZ>);
+  vox.filter(*downsampled);
+
   std::vector<int> indices;
-  pcl::RandomSample<pcl::PointXYZ> random;
-  random.setInputCloud(context.object_cloud());
-  random.setSample(num_samples);
-  random.setSeed(0);
-  random.filter(indices);
+  for (size_t i = 0; i < downsampled->size(); i++) {
+    const pcl::PointXYZ& pt = downsampled->at(i);
+    std::vector<int> k_indices(1);
+    std::vector<float> k_sq_dists(1);
+    int num_neighbors =
+        context.object_tree()->nearestKSearch(pt, 1, k_indices, k_sq_dists);
+    if (num_neighbors > 0) {
+      indices.push_back(k_indices[0]);
+    }
+  }
   return indices;
 }
 
