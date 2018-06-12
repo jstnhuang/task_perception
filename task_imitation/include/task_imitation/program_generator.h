@@ -88,6 +88,8 @@ class ProgramGenerator {
   ObjectModelCache* model_cache_;
   CollisionChecker collision_checker_;
   const Pr2GripperViz& gripper_viz_;
+  ros::NodeHandle nh_;
+  ros::Publisher gripper_pub_;
 };
 
 // Gets the initial states of all the objects at the time of the demonstration.

@@ -39,7 +39,10 @@ ProgramGenerator::ProgramGenerator(
       planning_frame_(left_group_.getPlanningFrame()),
       model_cache_(model_cache),
       collision_checker_(planning_frame_, model_cache_),
-      gripper_viz_(gripper_viz) {}
+      gripper_viz_(gripper_viz),
+      nh_(),
+      gripper_pub_(nh_.advertise<visualization_msgs::MarkerArray>(
+          "program_generator_marker_array", 100)) {}
 
 msgs::Program ProgramGenerator::Generate(
     const std::vector<task_perception_msgs::DemoState>& demo_states,
@@ -324,8 +327,8 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
 
   // Compute gripper pose relative to target.
   tg::Transform ee_in_target;
-  ROS_ASSERT(graph.ComputeDescription("gripper", tg::RefFrame("target object"),
-                                      &ee_in_target));
+  graph.ComputeDescription("gripper", tg::RefFrame("target object"),
+                           &ee_in_target);
   Pose final_ee_in_target = ee_in_target.pose();
 
   // If the destination is unreachable and the object is circular, it might be
@@ -358,20 +361,17 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
         graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
                   tg::Transform(tg::Position(), yaw_q));
         tg::Transform rotated_ee_in_planning;
-        ROS_ASSERT(graph.ComputeDescription("gripper", tg::RefFrame("planning"),
-                                            &rotated_ee_in_planning));
+        graph.ComputeDescription("gripper", tg::RefFrame("planning"),
+                                 &rotated_ee_in_planning);
         if (HasIk(move_group, rotated_ee_in_planning.pose())) {
-          tg::Position gripper_pos;
-          graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
-                                 tg::Target("planning"), &gripper_pos);
+          tg::Position gripper_pos = rotated_ee_in_planning.position();
           if ((move_step.arm == msgs::Step::LEFT && gripper_pos.y() > best_y) ||
               (move_step.arm == msgs::Step::RIGHT &&
                gripper_pos.y() < best_y)) {
             best_y = gripper_pos.y();
             tg::Transform rotated_ee_in_target;
-            ROS_ASSERT(graph.ComputeDescription("gripper",
-                                                tg::RefFrame("target object"),
-                                                &rotated_ee_in_target));
+            graph.ComputeDescription("gripper", tg::RefFrame("target object"),
+                                     &rotated_ee_in_target);
             final_ee_in_target = rotated_ee_in_target.pose();
             found_ik = true;
           }
