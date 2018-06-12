@@ -24,7 +24,7 @@ grasp_planner:
   max_rotation_for_termination: 0.1
 
   # Ratio of object points to sample grasps from
-  sample_ratio: 0.05
+  sample_ratio: 0.25
 
   # Parameters for optimizing the orientation of the gripper
   yaw_range_degrees: 90

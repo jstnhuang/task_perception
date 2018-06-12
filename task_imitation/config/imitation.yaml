@@ -3,7 +3,7 @@ task_imitation:
 
   # Object initialization
   size_ambiguity_threshold: 0.15 # 1 = ambiguous, 0 = not ambiguous. Defined as size difference of best object / size difference of other object.
-  match_dim_tolerance: 0.04 # At least two out of three dimensions must match the model by this distance.
+  match_dim_tolerance: 0.05 # At least two out of three dimensions must match the model by this distance.
 
   follow_traj_distance_between_poses: 0.02 # The minimum distance between poses to imitate when following a trajectory. This helps filter noise from object tracking.
   cart_path_eef_threshold: 0.02 # The maximum step size between end effector positions when following a trajectory
@@ -12,4 +12,4 @@ task_imitation:
   num_planning_tries: 10 # Number of times to attempt motion planning for poses
   max_planning_time: 1 # Time, in seconds, to give to MoveIt for planning
   num_planning_attempts: 100 # Number of planning attempts before returning shortest path
-  sample_every_nth_future_pose: 4 # 1 out of every N poses from the future is sampled and tested in grasp planning
+  sample_every_nth_future_pose: 5 # 1 out of every N poses from the future is sampled and tested in grasp planning
