@@ -67,14 +67,18 @@ class ProgramGenerator {
   task_perception_msgs::Step ParameterizeMoveToWithGrasp(
       const ProgramSegment& segment,
       const task_perception_msgs::Step& move_step,
-      const geometry_msgs::Pose& gripper_in_obj);
+      const geometry_msgs::Pose& gripper_in_obj,
+      const Eigen::Quaterniond& obj_rotation_in,
+      Eigen::Quaterniond* obj_rotation_out);
   void AddTrajectoryStep(const ProgramSegment& segment,
                          const ObjectStateIndex& initial_demo_objects,
                          const ObjectStateIndex& initial_runtime_objects);
   task_perception_msgs::Step ParameterizeTrajectoryWithGrasp(
       const ProgramSegment& segment,
       const task_perception_msgs::Step& traj_step,
-      const geometry_msgs::Pose& gripper_in_obj, const Obb& table);
+      const geometry_msgs::Pose& gripper_in_obj, const Obb& table,
+      const Eigen::Quaterniond& obj_rotation_in,
+      Eigen::Quaterniond* obj_rotation_out);
 
   task_perception_msgs::Program program_;
 

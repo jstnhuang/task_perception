@@ -122,6 +122,8 @@ msgs::Program ProgramGenerator::Generate(
 
   Pose left_gripper_in_obj;
   Pose right_gripper_in_obj;
+  Eigen::Quaterniond left_obj_rotation = Eigen::Quaterniond::Identity();
+  Eigen::Quaterniond right_obj_rotation = Eigen::Quaterniond::Identity();
   for (size_t i = 0, step_i = 0; i < segments.size(); ++i) {
     const ProgramSegment& segment = segments[i];
     if (segment.type == msgs::Step::FOLLOW_TRAJECTORY &&
@@ -131,6 +133,14 @@ msgs::Program ProgramGenerator::Generate(
 
     const msgs::Step& step = program_.steps[step_i];
     ROS_ASSERT(segment.type == step.type);
+
+    Eigen::Quaterniond obj_rotation_in = Eigen::Quaterniond::Identity();
+    if (segment.arm_name == msgs::Step::LEFT) {
+      obj_rotation_in = left_obj_rotation;
+    } else {
+      obj_rotation_in = right_obj_rotation;
+    }
+
     if (segment.type == msgs::Step::GRASP) {
       if (segment.arm_name == msgs::Step::LEFT) {
         left_gripper_in_obj = step.ee_trajectory[0];
@@ -141,14 +151,33 @@ msgs::Program ProgramGenerator::Generate(
       const Pose& gripper_in_obj = segment.arm_name == msgs::Step::LEFT
                                        ? left_gripper_in_obj
                                        : right_gripper_in_obj;
-      program_.steps[step_i] =
-          ParameterizeMoveToWithGrasp(segment, step, gripper_in_obj);
+      Eigen::Quaterniond obj_rotation_out;
+      program_.steps[step_i] = ParameterizeMoveToWithGrasp(
+          segment, step, gripper_in_obj, obj_rotation_in, &obj_rotation_out);
+      if (segment.arm_name == msgs::Step::LEFT) {
+        left_obj_rotation = obj_rotation_out;
+      } else {
+        right_obj_rotation = obj_rotation_out;
+      }
     } else if (segment.type == msgs::Step::FOLLOW_TRAJECTORY) {
       const Pose& gripper_in_obj = segment.arm_name == msgs::Step::LEFT
                                        ? left_gripper_in_obj
                                        : right_gripper_in_obj;
+      Eigen::Quaterniond obj_rotation_out;
       program_.steps[step_i] =
-          ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj, table);
+          ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj, table,
+                                          obj_rotation_in, &obj_rotation_out);
+      if (segment.arm_name == msgs::Step::LEFT) {
+        left_obj_rotation = obj_rotation_out;
+      } else {
+        right_obj_rotation = obj_rotation_out;
+      }
+    } else if (segment.type == msgs::Step::UNGRASP) {
+      if (segment.arm_name == msgs::Step::LEFT) {
+        left_obj_rotation = Eigen::Quaterniond::Identity();
+      } else {
+        right_obj_rotation = Eigen::Quaterniond::Identity();
+      }
     }
     step_i++;
   }
@@ -314,7 +343,9 @@ void ProgramGenerator::AddMoveToStep(
 
 msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
     const ProgramSegment& segment, const msgs::Step& move_step,
-    const Pose& gripper_in_obj) {
+    const Pose& gripper_in_obj, const Eigen::Quaterniond& obj_rotation_in,
+    Eigen::Quaterniond* obj_rotation_out) {
+  *obj_rotation_out = Eigen::Quaterniond::Identity();
   // Set up transform graph
   tg::Graph graph;
   graph.Add("target object", tg::RefFrame("planning"),
@@ -322,7 +353,7 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
   graph.Add("grasped object", tg::RefFrame("target object"),
             move_step.ee_trajectory[0]);
   graph.Add("rotated grasped object", tg::RefFrame("grasped object"),
-            tg::Transform::Identity());
+            tg::Transform(tg::Position(), obj_rotation_in));
   graph.Add("gripper", tg::RefFrame("rotated grasped object"), gripper_in_obj);
 
   // Compute gripper pose relative to target.
@@ -351,9 +382,12 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
     moveit::planning_interface::MoveGroup& move_group(
         move_step.arm == msgs::Step::LEFT ? left_group_ : right_group_);
     bool found_ik = false;
-    double best_y = move_step.arm == msgs::Step::LEFT
-                        ? -std::numeric_limits<double>::max()
-                        : std::numeric_limits<double>::max();
+    double best_dist = std::numeric_limits<double>::max();
+    Eigen::Vector2d ideal_xy = Eigen::Vector2d::Ones();
+    if (segment.arm_name == msgs::Step::LEFT) {
+      ideal_xy.x() *= -1;
+    }
+    ideal_xy.normalize();
     for (int i = 0; i < 11; i++) {
       for (int sign = 1; sign >= -1; sign -= 2) {
         Eigen::AngleAxisd yaw(sign * i * M_PI / 10, Eigen::Vector3d::UnitZ());
@@ -364,15 +398,18 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
         graph.ComputeDescription("gripper", tg::RefFrame("planning"),
                                  &rotated_ee_in_planning);
         if (HasIk(move_group, rotated_ee_in_planning.pose())) {
-          tg::Position gripper_pos = rotated_ee_in_planning.position();
-          if ((move_step.arm == msgs::Step::LEFT && gripper_pos.y() > best_y) ||
-              (move_step.arm == msgs::Step::RIGHT &&
-               gripper_pos.y() < best_y)) {
-            best_y = gripper_pos.y();
+          Eigen::Matrix3d orientation =
+              rotated_ee_in_planning.orientation().matrix();
+          Eigen::Vector2d xy = orientation.topLeftCorner(2, 1);
+          xy.normalize();
+          double sq_dist = (ideal_xy - xy).squaredNorm();
+          if (sq_dist < best_dist) {
+            best_dist = sq_dist;
             tg::Transform rotated_ee_in_target;
             graph.ComputeDescription("gripper", tg::RefFrame("target object"),
                                      &rotated_ee_in_target);
             final_ee_in_target = rotated_ee_in_target.pose();
+            *obj_rotation_out = yaw_q;
             found_ik = true;
           }
         }
@@ -441,11 +478,14 @@ void ProgramGenerator::AddTrajectoryStep(
 
 msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     const ProgramSegment& segment, const msgs::Step& traj_step,
-    const Pose& gripper_in_obj, const Obb& table) {
+    const Pose& gripper_in_obj, const Obb& table,
+    const Eigen::Quaterniond& obj_rotation_in,
+    Eigen::Quaterniond* obj_rotation_out) {
+  *obj_rotation_out = Eigen::Quaterniond::Identity();
   tg::Graph graph;
   graph.Add("gripper", tg::RefFrame("rotated grasped object"), gripper_in_obj);
   graph.Add("rotated grasped object", tg::RefFrame("prerotated grasped object"),
-            tg::Transform::Identity());
+            tg::Transform(tg::Position(), obj_rotation_in));
   graph.Add("prerotated grasped object", tg::RefFrame("grasped object"),
             tg::Transform::Identity());
   graph.Add("target object", tg::RefFrame("planning"),
@@ -481,9 +521,12 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     if (is_grasped_obj_circular) {
       bool found_ik = false;
       int best_yaw_i = 0;
-      double best_y = segment.arm_name == msgs::Step::LEFT
-                          ? -std::numeric_limits<double>::max()
-                          : std::numeric_limits<double>::max();
+      double best_dist = std::numeric_limits<double>::max();
+      Eigen::Vector2d ideal_xy = Eigen::Vector2d::Ones();
+      if (segment.arm_name == msgs::Step::LEFT) {
+        ideal_xy.x() *= -1;
+      }
+      ideal_xy.normalize();
       bool is_last_traj_point = i + 1 == traj_step.ee_trajectory.size();
 
       for (int sign = 1; sign >= -1; sign -= 2) {
@@ -518,20 +561,24 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
               is_ready_for_ungrasp) {
             found_ik = true;
 
-            tg::Position gripper_pos;
-            graph.DescribePosition(tg::Position(0, 0, 0), tg::Source("gripper"),
-                                   tg::Target("planning"), &gripper_pos);
-
-            if ((segment.arm_name == msgs::Step::LEFT &&
-                 gripper_pos.y() > best_y) ||
-                (segment.arm_name == msgs::Step::RIGHT &&
-                 gripper_pos.y() < best_y)) {
+            Eigen::Matrix3d orientation = ee_in_planning.orientation().matrix();
+            Eigen::Vector2d xy = orientation.topLeftCorner(2, 1);
+            xy.normalize();
+            double sq_dist = (ideal_xy - xy).squaredNorm();
+            if (sq_dist < best_dist) {
               best_yaw_i = sign * yaw_i;
-              best_y = gripper_pos.y();
+              best_dist = sq_dist;
               tg::Transform gripper_in_rotated_target;
               graph.ComputeDescription("gripper", tg::RefFrame("target object"),
                                        &gripper_in_rotated_target);
               final_gripper_in_target = gripper_in_rotated_target.pose();
+              if (is_last_traj_point) {
+                tg::Transform obj_rotation;
+                graph.ComputeDescription("rotated grasped object",
+                                         tg::RefFrame("grasped object"),
+                                         &obj_rotation);
+                *obj_rotation_out = obj_rotation.orientation().quaternion();
+              }
             } else {
               // If we are no longer improving the gripper's direction, stop
               // searching in this direction.
