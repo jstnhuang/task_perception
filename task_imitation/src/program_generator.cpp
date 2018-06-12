@@ -2,6 +2,8 @@
 // imitate the demonstration.
 #include "task_imitation/program_generator.h"
 
+#include <algorithm>
+
 #include "boost/foreach.hpp"
 #include "eigen_conversions/eigen_msg.h"
 #include "geometry_msgs/Pose.h"
@@ -485,8 +487,11 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
       bool is_last_traj_point = i + 1 == traj_step.ee_trajectory.size();
 
       for (int sign = 1; sign >= -1; sign -= 2) {
+        // Gradually ramp up the max yaw (so we don't discontinuously move to a
+        // faraway yaw position really fast).
+        int max_yaw = std::min(6, static_cast<int>(i));
         int yaw_start = sign == 1 ? 0 : 1;
-        int yaw_end = sign == 1 ? 11 : 10;
+        int yaw_end = sign == 1 ? max_yaw : max_yaw;
         for (int yaw_i = yaw_start; yaw_i < yaw_end; yaw_i++) {
           Eigen::AngleAxisd yaw(sign * yaw_i * M_PI / 10,
                                 Eigen::Vector3d::UnitZ());
