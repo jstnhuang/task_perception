@@ -1038,7 +1038,7 @@ std::string PlanCartesianToPoses(
       ROS_WARN("Planning attempt %d of %d failed: %s", attempt, num_tries,
                error.c_str());
       continue;
-    } else if (gripper_poses.size() > 0 && fraction < 1) {
+    } else if (gripper_poses.size() > 0 && fraction < 0.95) {
       std::stringstream ss;
       ss << "Planned " << fraction * 100 << "% of arm trajectory";
       error = ss.str();
