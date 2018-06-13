@@ -1007,6 +1007,7 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
     graph.Add("object", tg::RefFrame("planning"), obj_in_planning);
     Eigen::Affine3d obj_in_planning_affine;
     tf::poseMsgToEigen(obj_in_planning, obj_in_planning_affine);
+    bool found_ik = false;
     for (int yaw_i = 0; yaw_i < 4; ++yaw_i) {
       double yaw_angle = yaw_i * M_PI / 2;
       Eigen::AngleAxisd yaw_rot(yaw_angle, Eigen::Vector3d::UnitZ());
@@ -1026,6 +1027,7 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
       candidate.set_pose(rotated_pose);
       if (HasIk(*(context.move_group()), rotated_pose)) {
         ++count;
+        found_ik = true;
         break;
       } else {
         if (debug_) {
@@ -1045,6 +1047,9 @@ int GraspPlanner::EvaluateFuturePoses(const Pr2GripperModel& model,
           break;
         }
       }
+    }
+    if (!found_ik) {
+      break;
     }
   }
   return count;
