@@ -267,6 +267,14 @@ Eigen::Vector3d Pr2GripperModel::palm_center() const {
   return palm_center.position().vector();
 }
 
+Eigen::Vector3d Pr2GripperModel::forward_palm_center() const {
+  tg::Position palm_center;
+  tf_graph_.DescribePosition(tg::Position(kPalmDims.x / 2, 0, 0),
+                             tg::Source("palm"), tg::Target("gripper base"),
+                             &palm_center);
+  return palm_center.vector();
+}
+
 const tg::Graph& Pr2GripperModel::tf_graph() const { return tf_graph_; }
 
 bool Pr2GripperModel::IsCollidingWithObb(const Pose& pose,

@@ -37,8 +37,9 @@ class Pr2GripperModel {
   Eigen::Vector3d forward_grasp_center(double obj_width) const;
 
   // Returns the center of the palm in the world frame.
-  // This can be a good proxy for a human wrist.
   Eigen::Vector3d palm_center() const;
+  // This can be a good proxy for a human wrist.
+  Eigen::Vector3d forward_palm_center() const;
 
   // Defines the following frames:
   // gripper base: The world frame (e.g., camera frame or planning frame)
