@@ -18,6 +18,7 @@
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "rapid_ros/params.h"
+#include "rapid_utils/vector3.hpp"
 #include "rapid_viz/axes_markers.h"
 #include "robot_markers/builder.h"
 #include "sensor_msgs/PointCloud2.h"
@@ -558,31 +559,38 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
                           tg::Source("rotated grasp center"),
                           tg::Target("gripper base"), &rotated_tf);
     Pose rotated_pose = rotated_tf.pose();
-    Eigen::Affine3d rotated_mat(rotated_tf.matrix());
 
     Pr2GripperModel candidate;
     candidate.set_pose(rotated_pose);
-    if (debug_) {
-      // VisualizeGripper("optimization", rotated_pose,
-      //                 context.planning_frame_id());
-      // ros::Duration(0.01).sleep();
+    // if (debug_) {
+    //  VisualizeGripper("optimization", rotated_pose,
+    //                   context.planning_frame_id());
+    //  ros::Duration(0.01).sleep();
+    //}
+    Eigen::Vector3d candidate_pos = rapid::AsVector3d(rotated_pose.position);
+    if ((candidate_pos - wrist_pos).norm() > 0.4) {
+      continue;
     }
 
-    // if (IsPalmCollidingWithObstacles(candidate, context)) {
-    //  continue;
-    //}
+    if (IsPalmCollidingWithObstacles(candidate, context)) {
+      continue;
+    }
     // Optimize soft constraints
     GraspEvaluation grasp_eval = ScoreGrasp(candidate, wrist_pos, context);
     double score = grasp_eval.score();
 
+    // if (debug_) {
+    //  ROS_INFO("p: %f: %s", pitch_angle * 180 / M_PI,
+    //           grasp_eval.ToString().c_str());
+    //}
     if (score > best.score) {
       best.score = score;
       best.eval = grasp_eval;
       best.pose = rotated_pose;
-      if (debug_) {
-        // ROS_INFO("p: %f: %s", pitch_angle * 180 / M_PI,
-        //         grasp_eval.ToString().c_str());
-      }
+      // if (debug_) {
+      //   ROS_INFO("p: %f: %s", pitch_angle * 180 / M_PI,
+      //           grasp_eval.ToString().c_str());
+      //}
     }
   }
   return best;
@@ -847,7 +855,7 @@ GraspEvaluation GraspPlanner::ScoreGrasp(const Pr2GripperModel& model,
   }
 
   eval.features.sq_wrist_distance =
-      (model.forward_palm_center() - wrist_pos).squaredNorm();
+      (model.palm_center() - wrist_pos).squaredNorm();
 
   eval.features.num_obstacle_collisions = NumObstacleCollisions(model, context);
   return eval;
