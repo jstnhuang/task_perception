@@ -254,6 +254,7 @@ msgs::Step ProgramGenerator::PlanGrasp(const std::vector<msgs::Step>& steps,
       grasp_step.arm == msgs::Step::LEFT ? left_group_ : right_group_;
   const std::vector<TypedPose> future_poses =
       GetFutureObjectPoses(steps, index);
+
   ROS_INFO("Planning with %zu future poses", future_poses.size());
   GraspPlanningContext context(wrist_in_planning.pose(), planning_frame_,
                                grasp_step.object_state.mesh_name,
@@ -383,9 +384,10 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
         move_step.arm == msgs::Step::LEFT ? left_group_ : right_group_);
     bool found_ik = false;
     double best_dist = std::numeric_limits<double>::max();
-    Eigen::Vector2d ideal_xy = Eigen::Vector2d::Ones();
+    Eigen::Vector2d ideal_xy;
+    ideal_xy << 0, 1;
     if (segment.arm_name == msgs::Step::LEFT) {
-      ideal_xy.x() *= -1;
+      ideal_xy.y() *= -1;
     }
     ideal_xy.normalize();
     for (int i = 0; i < 11; i++) {
@@ -522,9 +524,10 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
       bool found_ik = false;
       int best_yaw_i = 0;
       double best_dist = std::numeric_limits<double>::max();
-      Eigen::Vector2d ideal_xy = Eigen::Vector2d::Ones();
+      Eigen::Vector2d ideal_xy;
+      ideal_xy << 0, 1;
       if (segment.arm_name == msgs::Step::LEFT) {
-        ideal_xy.x() *= -1;
+        ideal_xy.y() *= -1;
       }
       ideal_xy.normalize();
       bool is_last_traj_point = i + 1 == traj_step.ee_trajectory.size();
@@ -532,7 +535,7 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
       for (int sign = 1; sign >= -1; sign -= 2) {
         // Gradually ramp up the max yaw (so we don't discontinuously move to a
         // faraway yaw position really fast).
-        int max_yaw = std::min(6, static_cast<int>(i));
+        int max_yaw = std::min(6, static_cast<int>(i) + 1);
         int yaw_start = sign == 1 ? 0 : 1;
         int yaw_end = sign == 1 ? max_yaw : max_yaw;
         for (int yaw_i = yaw_start; yaw_i < yaw_end; yaw_i++) {
@@ -593,6 +596,7 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
 
       if (!found_ik) {
         ROS_ERROR("Failed to find IK for trajectory point %zu", i + 1);
+
       } else {
         // Adopt the best yaw from earlier as the pre-rotation.
         Eigen::AngleAxisd yaw(best_yaw_i * M_PI / 10, Eigen::Vector3d::UnitZ());
@@ -651,9 +655,15 @@ std::vector<TypedPose> GetFutureObjectPoses(
     const std::vector<msgs::Step>& steps, const size_t index) {
   int sample_every =
       rapid::GetIntParamOrThrow("task_imitation/sample_every_nth_future_pose");
+  const msgs::Step& start_step = steps[index];
+
   std::vector<TypedPose> future_poses;
   std::map<std::string, Pose> poses;
-  BOOST_FOREACH (const msgs::Step& step, steps) {
+  for (size_t i = index; i < steps.size(); i++) {
+    const msgs::Step& step = steps[i];
+    if (step.arm != start_step.arm) {
+      continue;
+    }
     if (step.type == msgs::Step::GRASP) {
       tg::Graph graph;
       graph.Add("pose", tg::RefFrame("planning"), step.object_state.pose);
@@ -689,9 +699,10 @@ std::vector<TypedPose> GetFutureObjectPoses(
         typed_pose.pose = postgrasp_in_planning.pose();
         future_poses.push_back(typed_pose);
       } else {
-        ROS_WARN("Unable to get last pose of %s",
-                 step.object_state.name.c_str());
+        ROS_ERROR("Unable to get last pose of %s",
+                  step.object_state.name.c_str());
       }
+      break;
     } else if (step.type == msgs::Step::MOVE_TO_POSE) {
       tg::Graph graph;
       graph.Add("target", tg::RefFrame("planning"), step.object_state.pose);
