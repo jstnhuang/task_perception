@@ -2,6 +2,7 @@
 
 #include "Eigen/Dense"
 #include "boost/foreach.hpp"
+#include "rapid_ros/params.h"
 #include "rapid_utils/vector3.hpp"
 #include "ros/ros.h"
 #include "task_perception_msgs/Step.h"
@@ -58,7 +59,7 @@ void HandStateMachine::NoneState(const msgs::DemoState& demo_state) {
         GetObjectState(demo_state, hand.object_name);
     std::vector<std::string> collidees(
         collision_checker_.Check(object, demo_state.object_states));
-    std::string collidee = InferCollidee(demo_state, collidees, object);
+    std::string collidee = InferCollidee(demo_state, collidees, object, "");
     if (collidees.size() == 0) {
       working_move_ = NewMoveToSegment();
       working_move_.demo_states.push_back(demo_state);
@@ -129,7 +130,7 @@ void HandStateMachine::FreeGraspState(const msgs::DemoState& demo_state) {
     std::vector<std::string> collidees(
         collision_checker_.Check(object, demo_state.object_states));
     if (collidees.size() > 0) {
-      std::string collidee = InferCollidee(demo_state, collidees, object);
+      std::string collidee = InferCollidee(demo_state, collidees, object, "");
       if (other_hand.current_action == msgs::HandState::GRASPING &&
           collidee == other_hand.object_name) {
         // If double collision, then the hand holding the target does nothing.
@@ -244,7 +245,7 @@ void HandStateMachine::StationaryCollisionState(
   const msgs::ObjectState current_target_state =
       GetObjectState(demo_state, working_traj_.target_object);
   std::string collidee =
-      InferCollidee(demo_state, collidees, current_target_state);
+      InferCollidee(demo_state, collidees, object, current_target_state.name);
   bool is_double_collision =
       other_hand.current_action == msgs::HandState::GRASPING &&
       other_hand.object_name == collidee;
@@ -512,26 +513,51 @@ std::string InferDoubleCollisionTarget(
   }
 }
 
-std::string InferCollidee(const msgs::DemoState& demo_state,
-                          const std::vector<std::string>& collidees,
-                          const msgs::ObjectState& current_target) {
+std::string HandStateMachine::InferCollidee(
+    const msgs::DemoState& demo_state,
+    const std::vector<std::string>& collidees,
+    const msgs::ObjectState& held_object, const std::string& current_target) {
   // - If 1 object, must be colliding with that object
   // - If more than 1 object:
   //   - If our previous object is somewhere in the list, then stay with it
   //   - If our previous object is not in the list, then pick closest target
+  double max_inflation =
+      rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
   if (collidees.size() == 1) {
     return collidees[0];
   } else {
-    if (std::find(collidees.begin(), collidees.end(), current_target.name) !=
+    if (std::find(collidees.begin(), collidees.end(), current_target) !=
         collidees.end()) {
-      return current_target.name;
+      return current_target;
     } else {
+      std::vector<msgs::ObjectState> object_states;
+      BOOST_FOREACH (const std::string& col, collidees) {
+        ROS_INFO("%s roughly colliding with %s", held_object.name.c_str(),
+                 col.c_str());
+        object_states.push_back(GetObjectState(demo_state, col));
+      }
+      for (double resolution = 0.01; resolution >= 0.001; resolution *= 0.9) {
+        for (double inflation = 0; inflation < max_inflation;
+             inflation += resolution) {
+          std::vector<std::string> close_collidees =
+              collision_checker_.Check(held_object, object_states, inflation);
+          if (close_collidees.size() == 1) {
+            ROS_INFO("%s colliding most closely with %s",
+                     held_object.name.c_str(), close_collidees[0].c_str());
+            return close_collidees[0];
+          }
+        }
+      }
+      ROS_WARN("Unable to find closest collision at resolution of 0.001");
       double closest_sq_distance = std::numeric_limits<double>::max();
       std::string closest_collidee("");
       BOOST_FOREACH (const std::string& col, collidees) {
+        if (col == held_object.name) {
+          continue;
+        }
         const msgs::ObjectState& other_obj = GetObjectState(demo_state, col);
         Eigen::Vector3d object_pos =
-            rapid::AsVector3d(current_target.pose.position);
+            rapid::AsVector3d(held_object.pose.position);
         Eigen::Vector3d other_pos = rapid::AsVector3d(other_obj.pose.position);
         double sq_distance = (object_pos - other_pos).squaredNorm();
         if (sq_distance < closest_sq_distance) {
