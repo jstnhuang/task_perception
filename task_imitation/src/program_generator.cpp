@@ -631,26 +631,6 @@ ProgramGenerator::ObjectStateIndex GetInitialDemoObjects(
   return index;
 }
 
-// Pose GetTargetPose(const LazyObjectModel& model) {
-//  if (model.IsCircular()) {
-//    Pose pose = model.pose();
-//    Eigen::Quaterniond original_q;
-//    tf::quaternionMsgToEigen(pose.orientation, original_q);
-//    const Eigen::Matrix3d original_rot(original_q);
-//    Eigen::Matrix3d updated_rot = original_rot;
-//    updated_rot(1, 0) = 0;
-//    if (updated_rot(0, 0) < 0) {
-//      updated_rot.col(0) *= -1;
-//    }
-//    updated_rot.col(1) = updated_rot.col(2).cross(updated_rot.col(0));
-//    tf::quaternionEigenToMsg(Eigen::Quaterniond(updated_rot),
-//    pose.orientation);
-//    return pose;
-//  } else {
-//    return model.pose();
-//  }
-//}
-
 std::vector<TypedPose> GetFutureObjectPoses(
     const std::vector<msgs::Step>& steps, const size_t index) {
   int sample_every =
