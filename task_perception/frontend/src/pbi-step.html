@@ -17,7 +17,7 @@
       topic="pbi_imitation/events"
       ros="[[ros]]"></ros-topic>
     <h3>[[_displayIndex(index)]]) [[_capitalize(step.type)]]</h3>
-    <strong>Start time:</strong> [[step.start_time.secs]].[[step.start_time.nsecs]]<br />
+    <strong>Start time:</strong> [[_startTimeStr(step.start_time)]]<br />
     <strong>Arm:</strong> [[step.arm]]<br />
     <strong>Object: </strong> [[step.object_state.name]]<br />
     <strong>Trajectory: </strong> [[step.ee_trajectory.length]] points<br />
@@ -55,6 +55,11 @@
         } else {
           return true;
         }
+      }
+
+      _startTimeStr(startTime) {
+        var nsecs = startTime.nsecs / 1000000000;
+        return '' + (startTime.secs + nsecs);
       }
     };
     window.customElements.define(PbiStep.is, PbiStep);
