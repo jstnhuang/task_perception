@@ -52,6 +52,12 @@ class Pr2GripperModel {
 
   bool IsCollidingWithObb(const geometry_msgs::Pose& pose,
                           const geometry_msgs::Vector3& dims) const;
+
+  // Checks for collisions with the physical components of the open gripper, but
+  // not the grasp region.
+  bool IsBodyCollidingWithObb(const geometry_msgs::Pose& pose,
+                              const geometry_msgs::Vector3& dims) const;
+
   // Returns NONE, PALM, GRASP_REGION, L_FINGER, R_FINGER. Checks in that order
   // and returns immediately on the first collision.
   int CheckCollisionWithObb(const geometry_msgs::Pose& pose,

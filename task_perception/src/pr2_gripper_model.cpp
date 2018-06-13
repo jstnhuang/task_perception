@@ -282,6 +282,16 @@ bool Pr2GripperModel::IsCollidingWithObb(const Pose& pose,
   return CheckCollisionWithObb(pose, dims) != NONE;
 }
 
+bool Pr2GripperModel::IsBodyCollidingWithObb(const Pose& pose,
+                                             const Vector3& dims) const {
+  int collision = CheckCollisionWithObb(pose, dims);
+  if (collision == NONE || collision == GRASP_REGION) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 int Pr2GripperModel::CheckCollisionWithObb(const Pose& pose,
                                            const Vector3& dims) const {
   tg::Transform palm_tf;
