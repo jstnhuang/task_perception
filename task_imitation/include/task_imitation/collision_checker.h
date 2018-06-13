@@ -20,6 +20,11 @@ class CollisionChecker {
       const task_perception_msgs::ObjectState& object,
       const std::vector<task_perception_msgs::ObjectState>& other_objects)
       const;
+  std::vector<std::string> Check(
+      const task_perception_msgs::ObjectState& object,
+      const std::vector<task_perception_msgs::ObjectState>& other_objects,
+      const double inflation) const;
+
   bool Check(const task_perception_msgs::ObjectState& obj1,
              const task_perception_msgs::ObjectState& obj2) const;
 

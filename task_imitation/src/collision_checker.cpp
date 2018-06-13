@@ -27,13 +27,19 @@ std::vector<std::string> CollisionChecker::Check(
     const std::vector<task_perception_msgs::ObjectState>& other_objects) const {
   const double kInflationSize =
       rapid::GetDoubleParamOrThrow("task_imitation/object_inflation_size");
+  return Check(object, other_objects, kInflationSize);
+}
+std::vector<std::string> CollisionChecker::Check(
+    const task_perception_msgs::ObjectState& object,
+    const std::vector<task_perception_msgs::ObjectState>& other_objects,
+    const double inflation) const {
   LazyObjectModel held_obj_model(object.mesh_name, planning_frame_,
                                  object.pose);
   held_obj_model.set_object_model_cache(model_cache_);
   const Pose& held_obj_pose = held_obj_model.center_pose();
   Eigen::Vector3d held_obj_vec = rapid::AsVector3d(held_obj_pose.position);
   geometry_msgs::Vector3 held_obj_scale =
-      InflateScale(held_obj_model.scale(), kInflationSize);
+      InflateScale(held_obj_model.scale(), inflation);
   std::vector<std::pair<double, std::string> > scored_collidees;
   BOOST_FOREACH (const msgs::ObjectState& other, other_objects) {
     if (other.name == object.name) {
@@ -44,7 +50,7 @@ std::vector<std::string> CollisionChecker::Check(
     Pose other_pose = other_model.center_pose();
     if (rapid::AreObbsInCollision(
             held_obj_pose, held_obj_scale, other_pose,
-            InflateScale(other_model.scale(), kInflationSize))) {
+            InflateScale(other_model.scale(), inflation))) {
       Eigen::Vector3d other_vec = rapid::AsVector3d(other_pose.position);
       double sq_distance = (held_obj_vec - other_vec).squaredNorm();
       scored_collidees.push_back(
@@ -79,11 +85,11 @@ bool CollisionChecker::Check(const msgs::ObjectState& obj1,
 geometry_msgs::Vector3 InflateScale(const geometry_msgs::Vector3& scale,
                                     double distance) {
   geometry_msgs::Vector3 inflated = scale;
-  if (scale.x >= scale.y && scale.x >= scale.z) {
+  if (scale.x <= scale.y && scale.x <= scale.z) {
     inflated.x += distance;
     inflated.y = inflated.x * scale.y / scale.x;
     inflated.z = inflated.x * scale.z / scale.x;
-  } else if (scale.y >= scale.x && scale.y >= scale.z) {
+  } else if (scale.y <= scale.x && scale.y <= scale.z) {
     inflated.y += distance;
     inflated.x = inflated.y * scale.x / scale.y;
     inflated.z = inflated.y * scale.z / scale.y;
