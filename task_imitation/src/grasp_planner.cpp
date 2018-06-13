@@ -847,7 +847,7 @@ GraspEvaluation GraspPlanner::ScoreGrasp(const Pr2GripperModel& model,
   }
 
   eval.features.sq_wrist_distance =
-      (model.palm_center() - wrist_pos).squaredNorm();
+      (model.forward_palm_center() - wrist_pos).squaredNorm();
 
   eval.features.num_obstacle_collisions = NumObstacleCollisions(model, context);
   return eval;
