@@ -3,7 +3,7 @@ grasp_planner:
 
   # Scoring weights
   antipodal_grasp_weight: 4
-  non_antipodal_grasp_weight: 0.5
+  non_antipodal_grasp_weight: 1
   antipodal_collision_weight: -15
   non_antipodal_collision_weight: -20
   sq_wrist_distance_weight: -4000
@@ -24,7 +24,7 @@ grasp_planner:
   max_rotation_for_termination: 0.1
 
   # Leaf size when downsampling objects as grasp points
-  leaf_size: 0.015
+  leaf_size: 0.0125
 
   # Parameters for optimizing the orientation of the gripper
   yaw_range_degrees: 90
