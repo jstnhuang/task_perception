@@ -78,7 +78,7 @@ class ProgramGenerator {
       const task_perception_msgs::Step& traj_step,
       const geometry_msgs::Pose& gripper_in_obj, const Obb& table,
       const Eigen::Quaterniond& obj_rotation_in,
-      Eigen::Quaterniond* obj_rotation_out);
+      const std::string& prev_step_type, Eigen::Quaterniond* obj_rotation_out);
 
   task_perception_msgs::Program program_;
 

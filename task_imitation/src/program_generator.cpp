@@ -124,6 +124,8 @@ msgs::Program ProgramGenerator::Generate(
   Pose right_gripper_in_obj;
   Eigen::Quaterniond left_obj_rotation = Eigen::Quaterniond::Identity();
   Eigen::Quaterniond right_obj_rotation = Eigen::Quaterniond::Identity();
+  std::string prev_left_step("");
+  std::string prev_right_step("");
   for (size_t i = 0, step_i = 0; i < segments.size(); ++i) {
     const ProgramSegment& segment = segments[i];
     if (segment.type == msgs::Step::FOLLOW_TRAJECTORY &&
@@ -164,9 +166,12 @@ msgs::Program ProgramGenerator::Generate(
                                        ? left_gripper_in_obj
                                        : right_gripper_in_obj;
       Eigen::Quaterniond obj_rotation_out;
-      program_.steps[step_i] =
-          ParameterizeTrajectoryWithGrasp(segment, step, gripper_in_obj, table,
-                                          obj_rotation_in, &obj_rotation_out);
+      const std::string prev_step_type(segment.arm_name == msgs::Step::LEFT
+                                           ? prev_left_step
+                                           : prev_right_step);
+      program_.steps[step_i] = ParameterizeTrajectoryWithGrasp(
+          segment, step, gripper_in_obj, table, obj_rotation_in, prev_step_type,
+          &obj_rotation_out);
       if (segment.arm_name == msgs::Step::LEFT) {
         left_obj_rotation = obj_rotation_out;
       } else {
@@ -180,6 +185,11 @@ msgs::Program ProgramGenerator::Generate(
       }
     }
     step_i++;
+    if (segment.arm_name == msgs::Step::LEFT) {
+      prev_left_step = segment.type;
+    } else if (segment.arm_name == msgs::Step::RIGHT) {
+      prev_right_step = segment.type;
+    }
   }
 
   ROS_INFO("Generated program");
@@ -346,7 +356,7 @@ msgs::Step ProgramGenerator::ParameterizeMoveToWithGrasp(
     const ProgramSegment& segment, const msgs::Step& move_step,
     const Pose& gripper_in_obj, const Eigen::Quaterniond& obj_rotation_in,
     Eigen::Quaterniond* obj_rotation_out) {
-  *obj_rotation_out = Eigen::Quaterniond::Identity();
+  *obj_rotation_out = obj_rotation_in;
   // Set up transform graph
   tg::Graph graph;
   graph.Add("target object", tg::RefFrame("planning"),
@@ -482,8 +492,8 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     const ProgramSegment& segment, const msgs::Step& traj_step,
     const Pose& gripper_in_obj, const Obb& table,
     const Eigen::Quaterniond& obj_rotation_in,
-    Eigen::Quaterniond* obj_rotation_out) {
-  *obj_rotation_out = Eigen::Quaterniond::Identity();
+    const std::string& prev_step_type, Eigen::Quaterniond* obj_rotation_out) {
+  *obj_rotation_out = obj_rotation_in;
   tg::Graph graph;
   graph.Add("gripper", tg::RefFrame("rotated grasped object"), gripper_in_obj);
   graph.Add("rotated grasped object", tg::RefFrame("prerotated grasped object"),
@@ -523,22 +533,32 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
     if (is_grasped_obj_circular) {
       bool found_ik = false;
       int best_yaw_i = 0;
-      double best_dist = std::numeric_limits<double>::max();
-      Eigen::Vector2d ideal_xy;
-      ideal_xy << 0, 1;
-      if (segment.arm_name == msgs::Step::LEFT) {
-        ideal_xy.y() *= -1;
-      }
-      ideal_xy.normalize();
+      bool is_left = segment.arm_name == msgs::Step::LEFT;
+      double best_y = is_left ? -std::numeric_limits<double>::max()
+                              : std::numeric_limits<double>::max();
       bool is_last_traj_point = i + 1 == traj_step.ee_trajectory.size();
 
+      // Disallow yaw rotations until the object has moved a bit
+      Pose current_pose = traj_step.ee_trajectory[i];
+      Pose start_pose = traj_step.ee_trajectory[0];
+      Eigen::Vector3d current_pos = rapid::AsVector3d(current_pose.position);
+      Eigen::Vector3d start_pos = rapid::AsVector3d(start_pose.position);
+      double movement_threshold = rapid::GetDoubleParamOrThrow(
+          "task_imitation/traj_movement_threshold");
+      bool has_moved = (current_pos - start_pos).norm() > movement_threshold;
+
       for (int sign = 1; sign >= -1; sign -= 2) {
-        // Gradually ramp up the max yaw (so we don't discontinuously move to a
-        // faraway yaw position really fast).
-        int max_yaw = std::min(6, static_cast<int>(i) + 1);
+        int max_yaw = 10;
+        // Force yaw to stay the same if, after a grasp, the object has not
+        // moved much. This unnecessary movements at the beginning of a
+        // trajectory.
+        if (prev_step_type == msgs::Step::GRASP && !has_moved) {
+          max_yaw = 0;
+        }
+
         int yaw_start = sign == 1 ? 0 : 1;
         int yaw_end = sign == 1 ? max_yaw : max_yaw;
-        for (int yaw_i = yaw_start; yaw_i < yaw_end; yaw_i++) {
+        for (int yaw_i = yaw_start; yaw_i <= yaw_end; yaw_i++) {
           Eigen::AngleAxisd yaw(sign * yaw_i * M_PI / 10,
                                 Eigen::Vector3d::UnitZ());
           Eigen::Quaterniond yaw_q(yaw);
@@ -550,7 +570,8 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
                                    &ee_in_planning);
 
           gripper_model.set_pose(ee_in_planning.pose());
-          // If this is the last trajectory point, then also consider if a pose
+          double pos_y = ee_in_planning.position().y();
+          // If this is the last trajectory point, then also consider if a post
           // grasp pose is reachable.
           bool is_ready_for_ungrasp = true;
           if (is_last_traj_point) {
@@ -559,18 +580,16 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
                                      &postgrasp);
             is_ready_for_ungrasp = HasIk(move_group, postgrasp.pose());
           }
-          if (HasIk(move_group, ee_in_planning.pose()) &&
-              !gripper_model.IsCollidingWithObb(table.pose, table.dims) &&
-              is_ready_for_ungrasp) {
+          bool has_ik = HasIk(move_group, ee_in_planning.pose());
+          bool is_colliding =
+              gripper_model.IsBodyCollidingWithObb(table.pose, table.dims);
+          if (has_ik && !is_colliding && is_ready_for_ungrasp) {
             found_ik = true;
 
-            Eigen::Matrix3d orientation = ee_in_planning.orientation().matrix();
-            Eigen::Vector2d xy = orientation.topLeftCorner(2, 1);
-            xy.normalize();
-            double sq_dist = (ideal_xy - xy).squaredNorm();
-            if (sq_dist < best_dist) {
+            // ROS_INFO("%zu yaw_i: %d, pos_y: %f", i, sign * yaw_i, pos_y);
+            if ((is_left && pos_y > best_y) || (!is_left && pos_y < best_y)) {
               best_yaw_i = sign * yaw_i;
-              best_dist = sq_dist;
+              best_y = pos_y;
               tg::Transform gripper_in_rotated_target;
               graph.ComputeDescription("gripper", tg::RefFrame("target object"),
                                        &gripper_in_rotated_target);
@@ -588,8 +607,20 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
               break;
             }
           } else if (found_ik) {
+            // ROS_INFO(
+            //    "%zu yaw_i: %d, pos_y: %f (but has ik %d, not colliding: %d, "
+            //    "ungrasp: %d) (done with this direction)",
+            //    i, sign * yaw_i, pos_y, has_ik, !is_colliding,
+            //    is_ready_for_ungrasp);
+
             // If IK was previously found, but not on this yaw angle, then skip
             break;
+          } else {
+            // ROS_INFO(
+            //    "%zu yaw_i: %d, pos_y: %f (but has ik %d, not colliding: %d, "
+            //    "ungrasp: %d)",
+            //    i, sign * yaw_i, pos_y, has_ik, !is_colliding,
+            //    is_ready_for_ungrasp);
           }
         }
       }
@@ -599,6 +630,8 @@ msgs::Step ProgramGenerator::ParameterizeTrajectoryWithGrasp(
 
       } else {
         // Adopt the best yaw from earlier as the pre-rotation.
+        // ROS_INFO("%zu Adopting yaw_i: %d, best_y: %f", i, best_yaw_i,
+        // best_y);
         Eigen::AngleAxisd yaw(best_yaw_i * M_PI / 10, Eigen::Vector3d::UnitZ());
         Eigen::Quaterniond yaw_q(yaw);
         tg::Transform rotation_in_grasped_obj;
