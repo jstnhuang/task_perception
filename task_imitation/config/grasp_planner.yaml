@@ -24,7 +24,7 @@ grasp_planner:
   max_rotation_for_termination: 0.1
 
   # Leaf size when downsampling objects as grasp points
-  leaf_size: 0.0125
+  leaf_size: 0.01
 
   # Parameters for optimizing the orientation of the gripper
   yaw_range_degrees: 90
