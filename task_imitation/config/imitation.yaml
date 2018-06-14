@@ -1,5 +1,5 @@
 task_imitation:
-  object_inflation_size: 0.11 # How much to inflate each object's dimensions when doing collision checking, in meters
+  object_inflation_size: 0.06 # How much to inflate each object's dimensions when doing collision checking, in meters
 
   # Object initialization
   size_ambiguity_threshold: 0.15 # 1 = ambiguous, 0 = not ambiguous. Defined as size difference of best object / size difference of other object.
@@ -13,4 +13,4 @@ task_imitation:
   max_planning_time: 1 # Time, in seconds, to give to MoveIt for planning
   num_planning_attempts: 100 # Number of planning attempts before returning shortest path
   sample_every_nth_future_pose: 3 # 1 out of every N poses from the future is sampled and tested in grasp planning
-  traj_movement_threshold: 0.02 # Distance from an object's starting point at which we consider the object to have "moved"
+  traj_movement_threshold: 0.025 # Distance from an object's starting point at which we consider the object to have "moved"
