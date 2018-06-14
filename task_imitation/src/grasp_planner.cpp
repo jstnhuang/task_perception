@@ -12,11 +12,14 @@
 
 #include "boost/foreach.hpp"
 #include "eigen_conversions/eigen_msg.h"
+#include "moveit/move_group_interface/move_group.h"
+#include "moveit/robot_state/conversions.h"
 #include "pcl/common/transforms.h"
 #include "pcl/filters/voxel_grid.h"
 #include "pcl/kdtree/kdtree.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
+#include "rapid_manipulation/moveit_error_code.h"
 #include "rapid_ros/params.h"
 #include "rapid_utils/vector3.hpp"
 #include "rapid_viz/axes_markers.h"
@@ -29,6 +32,8 @@
 #include "urdf/model.h"
 
 #include "task_imitation/ik.h"
+#include "task_imitation/motion_planning.h"
+#include "task_imitation/program_constants.h"
 
 namespace tg = transform_graph;
 using geometry_msgs::Pose;
@@ -274,16 +279,21 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
           static_cast<double>(num_future_poses) / context.future_poses().size();
       grasp.score = grasp.eval.score();
 
-      // TODO: Check for plan
-
       if (grasp.score > best.score) {
-        ROS_INFO("%d of %d: Best score: %s", num_samples - i, num_samples,
-                 grasp.eval.ToString().c_str());
-        ROS_INFO("%d of %d: Adopting grasp that reaches %d of %zu future poses",
-                 num_samples - i, num_samples, num_future_poses,
-                 context.future_poses().size());
+        bool found_plan = IsGraspReachable(*context.move_group(), grasp.pose);
+        if (!found_plan) {
+          ROS_INFO("%d of %d: Skipping unreachable %s", num_samples - i,
+                   num_samples, grasp.eval.ToString().c_str());
+        } else {
+          ROS_INFO("%d of %d: Best score: %s", num_samples - i, num_samples,
+                   grasp.eval.ToString().c_str());
+          ROS_INFO(
+              "%d of %d: Adopting grasp that reaches %d of %zu future poses",
+              num_samples - i, num_samples, num_future_poses,
+              context.future_poses().size());
 
-        best = grasp;
+          best = grasp;
+        }
       } else {
         if (debug_) {
           ROS_INFO("%d of %d: Eval: %s", num_samples - i, num_samples,
@@ -1135,5 +1145,30 @@ int NumPointsInGraspRegion(
     }
   }
   return num_pts;
+}
+
+bool IsGraspReachable(moveit::planning_interface::MoveGroup& move_group,
+                      const geometry_msgs::Pose& pose) {
+  tg::Graph graph;
+  graph.Add("pose", tg::RefFrame("planning"), pose);
+  tg::Transform pregrasp_pose;
+  graph.DescribePose(
+      tg::Transform(tg::Position(-kPregraspDistance, 0, 0), tg::Orientation()),
+      tg::Source("pose"), tg::Target("planning"), &pregrasp_pose);
+  moveit::planning_interface::MoveGroup::Plan pregrasp_plan;
+  std::string error = PlanToPose(move_group, *move_group.getCurrentState(),
+                                 pregrasp_pose.pose(), 2, &pregrasp_plan);
+  if (error != "") {
+    return false;
+  }
+
+  moveit::core::RobotStatePtr state = move_group.getCurrentState();
+  moveit::core::jointTrajPointToRobotState(
+      pregrasp_plan.trajectory_.joint_trajectory,
+      pregrasp_plan.trajectory_.joint_trajectory.points.size() - 1, *state);
+
+  moveit::planning_interface::MoveGroup::Plan plan;
+  error = PlanCartesianToPose(move_group, *state, pose, 10, &plan.trajectory_);
+  return error == "";
 }
 }  // namespace pbi

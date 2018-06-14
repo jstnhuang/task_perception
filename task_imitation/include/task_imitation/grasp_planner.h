@@ -6,6 +6,7 @@
 
 #include "Eigen/Eigen"
 #include "geometry_msgs/Pose.h"
+#include "moveit/move_group_interface/move_group.h"
 #include "ros/ros.h"
 #include "task_perception/pr2_gripper_model.h"
 #include "task_utils/pr2_gripper_viz.h"
@@ -173,6 +174,11 @@ int NumCollisions(
     const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper);
 int NumPointsInGraspRegion(
     const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper);
+
+// Checks if there's a plan from the pre-grasp pose to the pose.
+// pose is given in the planning frame.
+bool IsGraspReachable(moveit::planning_interface::MoveGroup& move_group,
+                      const geometry_msgs::Pose& pose);
 }  // namespace pbi
 
 #endif  // _TASK_IMITATION_GRASP_PLANNER_H_

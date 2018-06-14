@@ -209,6 +209,7 @@ add_dependencies(task_imitation_grasp_planner ${${PROJECT_NAME}_EXPORTED_TARGETS
 target_link_libraries(task_imitation_grasp_planner
   task_imitation_grasp_planning_context
   task_imitation_ik
+  task_imitation_motion_planning
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
