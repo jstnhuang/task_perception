@@ -274,6 +274,8 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
           static_cast<double>(num_future_poses) / context.future_poses().size();
       grasp.score = grasp.eval.score();
 
+      // TODO: Check for plan
+
       if (grasp.score > best.score) {
         ROS_INFO("%d of %d: Best score: %s", num_samples - i, num_samples,
                  grasp.eval.ToString().c_str());

@@ -234,6 +234,13 @@ target_link_libraries(task_imitation_ik
   ${catkin_LIBRARIES}
 )
 
+add_library(task_imitation_motion_planning src/motion_planning.cpp)
+add_dependencies(task_imitation_motion_planning ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(task_imitation_motion_planning
+  task_imitation_ik
+  ${catkin_LIBRARIES}
+)
+
 add_library(task_imitation_object_initialization src/object_initialization.cpp)
 add_dependencies(task_imitation_object_initialization ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_object_initialization
@@ -245,6 +252,7 @@ add_library(task_imitation_program_executor src/program_executor.cpp)
 add_dependencies(task_imitation_program_executor ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(task_imitation_program_executor
   task_imitation_bimanual_manipulation
+  task_imitation_motion_planning
   task_imitation_program_slice
   task_imitation_program_step
   ${catkin_LIBRARIES}
