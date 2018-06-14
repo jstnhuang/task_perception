@@ -584,7 +584,7 @@ ScoredGrasp GraspPlanner::OptimizePitch(const Pr2GripperModel& gripper_model,
       continue;
     }
 
-    if (IsPalmCollidingWithObstacles(candidate, context)) {
+    if (IsPalmCollidingWithAllObstacles(candidate, context)) {
       continue;
     }
     // Optimize soft constraints
@@ -1110,17 +1110,18 @@ int NumObstacleCollisions(const Pr2GripperModel& gripper,
   return num_collisions;
 }
 
-bool IsPalmCollidingWithObstacles(const Pr2GripperModel& gripper,
-                                  const GraspPlanningContext& context) {
+bool IsPalmCollidingWithAllObstacles(const Pr2GripperModel& gripper,
+                                     const GraspPlanningContext& context) {
   const std::vector<Obb>& obstacles = context.obstacles();
+  size_t count = 0;
   for (size_t i = 0; i < obstacles.size(); ++i) {
     const Obb& obstacle = obstacles[i];
     if (gripper.CheckCollisionWithObb(obstacle.pose, obstacle.dims) ==
         Pr2GripperModel::PALM) {
-      return true;
+      count++;
     }
   }
-  return false;
+  return count == obstacles.size();
 }
 
 int NumCollisions(

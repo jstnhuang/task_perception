@@ -168,8 +168,8 @@ class GraspPlanner {
 
 int NumObstacleCollisions(const Pr2GripperModel& gripper,
                           const GraspPlanningContext& context);
-bool IsPalmCollidingWithObstacles(const Pr2GripperModel& gripper,
-                                  const GraspPlanningContext& context);
+bool IsPalmCollidingWithAllObstacles(const Pr2GripperModel& gripper,
+                                     const GraspPlanningContext& context);
 int NumCollisions(
     const pcl::PointCloud<pcl::PointXYZ>::ConstPtr obj_in_gripper);
 int NumPointsInGraspRegion(
