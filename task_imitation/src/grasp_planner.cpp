@@ -273,11 +273,17 @@ Pose GraspPlanner::Plan(const Pose& initial_pose,
     //}
 
     if (grasp.IsValid()) {
-      model.set_pose(grasp.pose);
-      int num_future_poses = EvaluateFuturePoses(model, context);
-      grasp.eval.features.future_pose_ratio =
-          static_cast<double>(num_future_poses) / context.future_poses().size();
-      grasp.score = grasp.eval.score();
+      // If we can possibly do better by reaching more poses, evaluate future
+      // poses.
+      int num_future_poses = 0;
+      if (grasp.score + grasp.eval.weights.future_pose_weight > best.score) {
+        model.set_pose(grasp.pose);
+        num_future_poses = EvaluateFuturePoses(model, context);
+        grasp.eval.features.future_pose_ratio =
+            static_cast<double>(num_future_poses) /
+            context.future_poses().size();
+        grasp.score = grasp.eval.score();
+      }
 
       if (grasp.score > best.score) {
         bool found_plan = IsGraspReachable(*context.move_group(), grasp.pose);
