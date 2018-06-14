@@ -110,10 +110,8 @@ std::string PlanCartesianToPoses(
       }
       double max_jump = sqrt(sq_max_jump);
       if (max_jump > jump_threshold) {
-        ROS_WARN("Trajectory includes a C-space jump of %f! Be careful!",
-                 max_jump);
-      } else {
-        ROS_INFO("Max C-space jump in trajectory: %f", max_jump);
+        ROS_ERROR("Trajectory includes a C-space jump of %f! Be careful!",
+                  max_jump);
       }
       if (fraction < 1) {
         ROS_WARN("Planned %f%% of arm trajectory (%zu -> %zu pts)",
