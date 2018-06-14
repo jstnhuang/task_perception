@@ -76,7 +76,7 @@ std::string PlanCartesianToPoses(
       ROS_WARN("Planning attempt %d of %d failed: %s", attempt, num_tries,
                error.c_str());
       continue;
-    } else if (gripper_poses.size() > 0 && fraction < 0.95) {
+    } else if (gripper_poses.size() > 0 && fraction < 0.85) {
       std::stringstream ss;
       ss << "Planned " << fraction * 100 << "% of arm trajectory";
       error = ss.str();
@@ -115,9 +115,15 @@ std::string PlanCartesianToPoses(
       } else {
         ROS_INFO("Max C-space jump in trajectory: %f", max_jump);
       }
-      ROS_INFO("Planned %f%% of arm trajectory (%zu -> %zu pts)",
-               fraction * 100, gripper_poses.size(),
-               plan->joint_trajectory.points.size());
+      if (fraction < 1) {
+        ROS_WARN("Planned %f%% of arm trajectory (%zu -> %zu pts)",
+                 fraction * 100, gripper_poses.size(),
+                 plan->joint_trajectory.points.size());
+      } else {
+        ROS_INFO("Planned %f%% of arm trajectory (%zu -> %zu pts)",
+                 fraction * 100, gripper_poses.size(),
+                 plan->joint_trajectory.points.size());
+      }
       return "";
     }
   }
