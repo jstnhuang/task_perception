@@ -5,7 +5,7 @@ grasp_planner:
   antipodal_grasp_weight: 4
   non_antipodal_grasp_weight: 1
   antipodal_collision_weight: -15
-  non_antipodal_collision_weight: -20
+  non_antipodal_collision_weight: -42
   sq_wrist_distance_weight: -4000
   obstacle_collision_weight: -100000
   future_pose_weight: 100
