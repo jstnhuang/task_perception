@@ -82,14 +82,6 @@ std::string PlanCartesianToPoses(
       error = ss.str();
       ROS_WARN("Planning attempt %d of %d failed: %s", attempt, num_tries,
                error.c_str());
-      int ik_count = 0;
-      for (size_t i = 0; i < gripper_poses.size(); ++i) {
-        if (HasIk(group, gripper_poses[i])) {
-          ik_count++;
-        }
-      }
-      ROS_INFO("%d of %zu poses have IK (%f%%)", ik_count, gripper_poses.size(),
-               ik_count * 100.0 / gripper_poses.size());
       continue;
     } else {
       // Check the amount of change in configuration space
