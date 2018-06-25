@@ -14,7 +14,7 @@ def get_number_of_set_pose_events(db):
                 num_spawn_events += 1
         num_pose_events -= num_spawn_events
         num_frames = demonstration['frame_count']
-        print '{}\t{}\t{}\t{}%'.format(demonstration['name'], num_pose_events, num_frames, 100.0 * num_pose_events/num_frames )
+        print '{} {} {} {}%'.format(demonstration['name'], num_pose_events, num_frames, 100.0 * num_pose_events/num_frames )
 
 def main():
     client = MongoClient()
