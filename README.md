@@ -1,18 +1,17 @@
 # Task perception
 
 ## Requirements
-- dbot_ros_msgs
-- object_meshes
-- skin_segmentation_msgs
 - [rapid](https://github.com/jstnhuang/rapid)
 
 Build in a separate workspace called **tracking**:
-- skin_segmentation
+- [skin_segmentation](https://github.com/jstnhuang/skin_segmentation)
+- [skin_segmentation_msgs](https://github.com/jstnhuang/skin_segmentation_msgs)
 
 Buid these in a separate workspace called **dbot**:
-- nerf_b
-- dbot (modified)
-- dbot_ros (modified)
+- nerf_b (Contact Aaron Walsman for access)
+- [dbot (modified version)](https://github.com/jstnhuang/dbot)
+- [dbot_ros (modified version)](https://github.com/jstnhuang/dbot_ros)
+- [dbot_ros_msgs](https://github.com/jstnhuang/dbot_ros_msgs)
 
 ## Demonstration procedure
 - [ ] `roscore`
